@@ -4,6 +4,7 @@ plugins {
 	kotlin("plugin.spring") version "2.3.0"
 	id("org.springframework.boot") version "4.0.3"
 	id("io.spring.dependency-management") version "1.1.7"
+	id("org.sonarqube") version "7.2.2.6593"
 }
 
 group = "com.aau"
@@ -48,4 +49,12 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+sonar {
+	properties {
+		property("sonar.organization", "SE2Gruppe3")
+		property("sonar.projectKey", "SE2Gruppe3_saboteur_server")
+		property("sonar.projectName", "saboteur-server")
+	}
 }
