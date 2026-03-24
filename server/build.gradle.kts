@@ -53,7 +53,7 @@ tasks.withType<Test> {
 
 sonar {
 	properties {
-		property("sonar.organization", "SE2Gruppe3")
+		property("sonar.organization", "se2gruppe3")
 		property("sonar.projectKey", "SE2Gruppe3_saboteur_server")
 		property("sonar.projectName", "saboteur-server")
 	}
