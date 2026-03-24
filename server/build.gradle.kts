@@ -1,5 +1,6 @@
 plugins {
 	application
+	jacoco
 	kotlin("jvm") version "2.3.0"
 	kotlin("plugin.spring") version "2.3.0"
 	id("org.springframework.boot") version "4.0.3"
@@ -51,10 +52,23 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
+tasks.jacocoTestReport {
+	dependsOn(tasks.test)
+	reports {
+		xml.required.set(true)
+		html.required.set(true)
+	}
+}
+
+tasks.named("sonar") {
+	dependsOn(tasks.jacocoTestReport)
+}
+
 sonar {
 	properties {
 		property("sonar.organization", "se2gruppe3")
 		property("sonar.projectKey", "SE2Gruppe3_saboteur_server")
 		property("sonar.projectName", "saboteur-server")
+		property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
 	}
 }

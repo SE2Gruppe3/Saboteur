@@ -67,7 +67,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       - name: Analyze app
-        run: ./gradlew :app:testDebugUnitTest
+        run: ./gradlew :app:testDebugUnitTest :app:jacocoTestDebugUnitTestReport
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v7
