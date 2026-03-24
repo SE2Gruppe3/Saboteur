@@ -67,4 +67,11 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       - name: Analyze app
-        run: ./gradlew :app:testDebugUnitTest :app:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: app
