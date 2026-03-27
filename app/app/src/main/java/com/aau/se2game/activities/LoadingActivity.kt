@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 
 class LoadingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,7 +80,9 @@ fun LoadingScreen() {
 }
 
 private suspend fun runConnectionTest(): String = withContext(Dispatchers.IO) {
-    val connection = (URL("http://10.0.2.2:8080/api/ping").openConnection() as HttpURLConnection).apply {
+    // Using URI to avoid URL(String) deprecation
+    val url = URI.create("http://10.0.2.2:8080/api/ping").toURL()
+    val connection = (url.openConnection() as HttpURLConnection).apply {
         requestMethod = "GET"
         connectTimeout = 5_000
         readTimeout = 5_000
