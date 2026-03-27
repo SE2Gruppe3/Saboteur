@@ -1,62 +1,58 @@
-package com.aau.se2game
+package com.aau.se2game.activities
 
 import android.os.Bundle
-import androidx.activity.compose.setContent
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
+import com.aau.se2game.ui.theme.SE2GameTheme
+import com.aau.se2game.navigation.NavigationMenu
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import com.aau.se2game.ui.theme.SE2GameTheme
 
-class MainActivity : ComponentActivity() {
+class LoadingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             SE2GameTheme {
-                ConnectivityTestScreen(modifier = Modifier.padding(24.dp))
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Box {
+                        LoadingScreen()
+                        NavigationMenu()
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun ConnectivityTestScreen(modifier: Modifier = Modifier) {
+fun LoadingScreen() {
     var isLoading by remember { mutableStateOf(false) }
-    var resultText by remember { mutableStateOf("Tap the button to test the backend connection.") }
+    var resultText by remember { mutableStateOf("Tap to test backend connection.") }
 
     Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Backend Connection Test",
+            text = "Loading & Connection Test",
             style = MaterialTheme.typography.headlineMedium
         )
-        Text(
-            text = "This sends a GET request to http://10.0.2.2:8080/api/ping from the emulator.",
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
                 if (isLoading) return@Button
@@ -68,33 +64,18 @@ fun ConnectivityTestScreen(modifier: Modifier = Modifier) {
             Text("Run Connection Test")
         }
         if (isLoading) {
-            NetworkRequestEffect(
-                onComplete = { response ->
-                    resultText = response
-                    isLoading = false
-                }
-            )
+            Spacer(modifier = Modifier.height(16.dp))
             CircularProgressIndicator()
+            LaunchedEffect(Unit) {
+                resultText = runConnectionTest()
+                isLoading = false
+            }
         }
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = resultText,
             style = MaterialTheme.typography.bodyLarge
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ConnectivityTestPreview() {
-    SE2GameTheme {
-        ConnectivityTestScreen()
-    }
-}
-
-@Composable
-private fun NetworkRequestEffect(onComplete: (String) -> Unit) {
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        onComplete(runConnectionTest())
     }
 }
 
