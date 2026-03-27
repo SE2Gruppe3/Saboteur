@@ -20,7 +20,20 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
+    versionCatalogs {
+        create("libs") {
+            from(files("app/gradle/libs.versions.toml"))
+        }
+    }
 }
 
-rootProject.name = "SE2Game"
+rootProject.name = "SaboteurGame"
+
 include(":app")
+project(":app").projectDir = file("app/app")
+
+include(":server")
+project(":server").projectDir = file("server")
+
+include(":shared")
+project(":shared").projectDir = file("shared")
