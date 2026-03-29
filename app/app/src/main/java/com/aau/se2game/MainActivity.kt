@@ -27,6 +27,7 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import com.aau.se2game.ui.theme.SE2GameTheme
+import com.aau.se2game.ui.lobby.LobbyScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +35,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SE2GameTheme {
-                ConnectivityTestScreen(modifier = Modifier.padding(24.dp))
+                LobbyScreen()
             }
         }
     }
