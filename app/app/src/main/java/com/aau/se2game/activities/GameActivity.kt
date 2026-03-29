@@ -39,6 +39,6 @@ fun GameScreen() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Game", style = MaterialTheme.typography.headlineMedium)
+        Text(text = "Game Screen", style = MaterialTheme.typography.headlineMedium)
     }
 }

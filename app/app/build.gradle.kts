@@ -6,22 +6,17 @@ plugins {
 
 android {
     namespace = "com.aau.se2game"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.aau.se2game"
-        minSdk = 36
-        targetSdk = 36
+        minSdk = 26 // Fixed: Set to 26 to support adaptive icons and avoid resource linking errors
+        targetSdk = 34 // Fixed: Set to 34 to ensure compatibility with current Robolectric version
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // Define the backend URL here
         buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"")
     }
 
@@ -44,11 +39,17 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true // Enable BuildConfig generation
+        buildConfig = true
     }
 
     testCoverage {
         jacocoVersion = "0.8.13"
+    }
+    
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
 }
 
@@ -61,14 +62,18 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.espresso.intents)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 tasks.register<JacocoReport>("jacocoTestDebugUnitTestReport") {
