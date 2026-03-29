@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.aau.se2game.BuildConfig
 import com.aau.se2game.ui.theme.SE2GameTheme
 import com.aau.se2game.navigation.NavigationMenu
 import kotlinx.coroutines.Dispatchers
@@ -80,8 +81,8 @@ fun LoadingScreen() {
 }
 
 private suspend fun runConnectionTest(): String = withContext(Dispatchers.IO) {
-    // Using URI to avoid URL(String) deprecation
-    val url = URI.create("http://10.0.2.2:8080/api/ping").toURL()
+    // Use BuildConfig.BASE_URL to avoid hardcoded IP warnings in SonarCloud
+    val url = URI.create("${BuildConfig.BASE_URL}api/ping").toURL()
     val connection = (url.openConnection() as HttpURLConnection).apply {
         requestMethod = "GET"
         connectTimeout = 5_000
