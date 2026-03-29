@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.aau.se2game.BuildConfig
 import com.aau.se2game.ui.theme.SE2GameTheme
 import com.aau.se2game.navigation.NavigationMenu
+import com.aau.se2game.util.NetworkResultParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -81,7 +82,6 @@ fun LoadingScreen() {
 }
 
 private suspend fun runConnectionTest(): String = withContext(Dispatchers.IO) {
-    // Use BuildConfig.BASE_URL to avoid hardcoded IP warnings in SonarCloud
     val url = URI.create("${BuildConfig.BASE_URL}api/ping").toURL()
     val connection = (url.openConnection() as HttpURLConnection).apply {
         requestMethod = "GET"
@@ -101,11 +101,7 @@ private suspend fun runConnectionTest(): String = withContext(Dispatchers.IO) {
             BufferedReader(InputStreamReader(stream)).readText()
         }.orEmpty()
 
-        if (statusCode in 200..299) {
-            "Success: HTTP $statusCode\n$body"
-        } else {
-            "Failed: HTTP $statusCode\n$body"
-        }
+        NetworkResultParser.formatResult(statusCode, body)
     } catch (exception: Exception) {
         "Connection error: ${exception.message}"
     } finally {
