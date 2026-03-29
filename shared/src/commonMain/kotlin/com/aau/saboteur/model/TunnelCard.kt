@@ -7,6 +7,7 @@ data class TunnelCard(
     val isRevealed: Boolean = false,
     val isGoal: Boolean = false
 ) {
+    // Returns a 180°-rotated copy of the card (new id gets suffix "_r")
     fun rotated180(): TunnelCard = copy(
         id = "${id}_r",
         connections = connections.map { direction ->

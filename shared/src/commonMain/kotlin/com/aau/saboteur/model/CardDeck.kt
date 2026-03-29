@@ -1,7 +1,8 @@
 package com.aau.saboteur.model
-// 31 PATH-Karten + 9 DEAD_END-Karten = 40 Tunnel-Karten
+// 31 PATH cards + 9 DEAD_END cards = 40 tunnel cards total
 object CardDeck {
 
+    // Creates the full tunnel card deck matching the physical board game
     fun createTunnelDeck(): List<TunnelCard> {
         val cards = mutableListOf<TunnelCard>()
         var index = 0
@@ -39,6 +40,7 @@ object CardDeck {
         return cards
     }
 
+    // Creates the 3 face-down goal cards (1× gold, 2× stone)
     fun createGoalCards(): List<TunnelCard> = listOf(
         TunnelCard(
             id = "goal_gold",

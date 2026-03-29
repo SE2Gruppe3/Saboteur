@@ -14,6 +14,9 @@ class GameBoard {
 
     fun getCard(x: Int, y: Int): TunnelCard? = grid[Pair(x, y)]
 
+    // Returns true if the card may be placed at (x,y):
+    // cell must be empty, at least one neighbour must exist,
+    // and all shared edges with neighbours must have matching connections.
     fun canPlaceCard(x: Int, y: Int, card: TunnelCard): Boolean {
         if (grid.containsKey(Pair(x, y))) return false
 
