@@ -72,7 +72,8 @@ tasks.withType<Test> {
     }
 }
 
-val jacocoTestReport by tasks.registering(JacocoReport::class) {
+// Task name specifically required by sonarcloud.yml pipeline
+val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
     dependsOn("testDebugUnitTest")
     group = "Reporting"
     description = "Generate Jacoco coverage reports for the debug build."
