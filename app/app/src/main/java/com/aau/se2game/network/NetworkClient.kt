@@ -6,7 +6,7 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 
 object NetworkConstants {
     var baseUrl = BuildConfig.BASE_URL
@@ -16,7 +16,7 @@ object NetworkConstants {
 
 object NetworkClient {
     suspend fun runConnectionTest(): String = withContext(Dispatchers.IO) {
-        val connection = (URL(NetworkConstants.pingEndpoint).openConnection() as HttpURLConnection).apply {
+        val connection = (URI.create(NetworkConstants.pingEndpoint).toURL().openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 5_000
             readTimeout = 5_000

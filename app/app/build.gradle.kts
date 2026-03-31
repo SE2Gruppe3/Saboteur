@@ -72,7 +72,7 @@ tasks.withType<Test> {
     }
 }
 
-// Task name specifically required by sonarcloud.yml pipeline
+// Fixed task to ensure correct mapping for SonarCloud
 val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
     dependsOn("testDebugUnitTest")
     group = "Reporting"
@@ -87,14 +87,22 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
         "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
         "**/*Test*.*", "android/**/*.*"
     )
-    val debugTree = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+    
+    // Include both Java and Kotlin classes
+    val javaClasses = fileTree("${project.layout.buildDirectory.get()}/intermediates/javac/debug/classes") {
         exclude(fileFilter)
     }
-    val mainSrc = "${project.projectDir}/src/main/java"
+    val kotlinClasses = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+        exclude(fileFilter)
+    }
+    classDirectories.setFrom(files(javaClasses, kotlinClasses))
 
-    sourceDirectories.setFrom(files(mainSrc))
-    classDirectories.setFrom(files(debugTree))
+    sourceDirectories.setFrom(files("${project.projectDir}/src/main/java"))
+
     executionData.setFrom(fileTree(project.layout.buildDirectory.get()) {
-        include("jacoco/testDebugUnitTest.exec", "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        include(
+            "jacoco/testDebugUnitTest.exec",
+            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+        )
     })
 }
