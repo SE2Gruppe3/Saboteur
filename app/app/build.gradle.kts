@@ -42,6 +42,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -57,12 +63,16 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.junit) // Added for Robolectric
     testImplementation(libs.mockwebserver)
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 tasks.withType<Test> {
@@ -72,7 +82,6 @@ tasks.withType<Test> {
     }
 }
 
-// Fixed task to ensure correct mapping for SonarCloud
 val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
     dependsOn("testDebugUnitTest")
     group = "Reporting"
@@ -87,22 +96,14 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
         "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
         "**/*Test*.*", "android/**/*.*"
     )
-    
-    // Include both Java and Kotlin classes
-    val javaClasses = fileTree("${project.layout.buildDirectory.get()}/intermediates/javac/debug/classes") {
+    val debugTree = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
         exclude(fileFilter)
     }
-    val kotlinClasses = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
-        exclude(fileFilter)
-    }
-    classDirectories.setFrom(files(javaClasses, kotlinClasses))
+    val mainSrc = "${project.projectDir}/src/main/java"
 
-    sourceDirectories.setFrom(files("${project.projectDir}/src/main/java"))
-
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
     executionData.setFrom(fileTree(project.layout.buildDirectory.get()) {
-        include(
-            "jacoco/testDebugUnitTest.exec",
-            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
-        )
+        include("jacoco/testDebugUnitTest.exec", "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
     })
 }
