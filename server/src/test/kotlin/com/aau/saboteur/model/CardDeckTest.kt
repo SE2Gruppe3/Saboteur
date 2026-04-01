@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 // Tests for card counts and composition of the generated decks
 class CardDeckTest {
 
-    // PATH (31) + DEAD_END (9) = 40 tunnel cards from the provided spec.
+    // PATH (31) + DEAD_END (9) = 40 tunnel cards total from the provided spec.
     private val EXPECTED_TUNNEL_DECK_SIZE = 40
 
     @Test
