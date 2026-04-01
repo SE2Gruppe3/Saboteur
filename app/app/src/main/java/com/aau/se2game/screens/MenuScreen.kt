@@ -41,10 +41,6 @@ fun MenuScreen(navController: NavHostController) {
             Button(
                 onClick = {
                     navController.navigate(route) {
-                        popUpTo("login") { 
-                            saveState = true
-                            inclusive = false 
-                        }
                         launchSingleTop = true
                         restoreState = true
                     }

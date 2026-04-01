@@ -35,6 +35,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // TODO: Echte Produktions-URL eintragen, sobald der Server bereit ist
             buildConfigField("String", "BASE_URL", "\"https://your-production-url.com\"")
         }
     }

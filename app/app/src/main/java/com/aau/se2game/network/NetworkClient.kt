@@ -9,7 +9,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 
 object NetworkConstants {
-    var baseUrl = BuildConfig.BASE_URL
+    val baseUrl = BuildConfig.BASE_URL
     val pingEndpoint: String
         get() = "$baseUrl/api/ping"
 }
