@@ -30,18 +30,17 @@ class GameBoard {
         val hasNeighbor = neighbors.values.any { it != null }
         if (!hasNeighbor) return false
 
-        val opposite = mapOf(
-            Direction.TOP to Direction.BOTTOM,
-            Direction.BOTTOM to Direction.TOP,
-            Direction.LEFT to Direction.RIGHT,
-            Direction.RIGHT to Direction.LEFT
-        )
-
         return neighbors.all { (direction, neighbor) ->
             if (neighbor == null) true
             else {
+                val oppositeDir = when (direction) {
+                    Direction.TOP    -> Direction.BOTTOM
+                    Direction.BOTTOM -> Direction.TOP
+                    Direction.LEFT   -> Direction.RIGHT
+                    Direction.RIGHT  -> Direction.LEFT
+                }
                 val cardConnects = direction in card.connections
-                val neighborConnects = opposite[direction]!! in neighbor.connections
+                val neighborConnects = oppositeDir in neighbor.connections
                 cardConnects == neighborConnects
             }
         }
