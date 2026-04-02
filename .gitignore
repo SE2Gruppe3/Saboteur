@@ -1,4 +1,21 @@
+# macOS
 .DS_Store
 
+# Local properties
+local.properties
 app/local.properties
 server/local.properties
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android
+**/local.properties
