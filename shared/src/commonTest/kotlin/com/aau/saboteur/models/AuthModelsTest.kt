@@ -23,4 +23,12 @@ class AuthModelsTest {
         assertTrue(response.success)
         assertEquals("secret-token", response.token)
     }
+
+    @Test
+    fun testRegisterRequestStructure() {
+        val regRequest = RegisterRequest(username = "NewDwarf", passwordHash = "hashed_pw_123")
+
+        assertEquals("NewDwarf", regRequest.username)
+        assertEquals("hashed_pw_123", regRequest.passwordHash)
+    }
 }
