@@ -1,4 +1,4 @@
-package com.aau.se2game
+package com.aau.saboteur
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.aau.se2game", appContext.packageName)
+        assertEquals("com.aau.saboteur", appContext.packageName)
     }
 }

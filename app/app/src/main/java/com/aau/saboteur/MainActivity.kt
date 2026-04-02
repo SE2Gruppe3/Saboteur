@@ -1,4 +1,4 @@
-package com.aau.se2game
+package com.aau.saboteur
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,8 +8,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
-import com.aau.se2game.navigation.AppNavHost
-import com.aau.se2game.ui.theme.SE2GameTheme
+import com.aau.saboteur.navigation.AppNavHost
+import com.aau.saboteur.ui.theme.SE2GameTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

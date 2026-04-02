@@ -1,6 +1,6 @@
-package com.aau.se2game.network
+package com.aau.saboteur.network
 
-import com.aau.se2game.BuildConfig
+import com.aau.saboteur.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader

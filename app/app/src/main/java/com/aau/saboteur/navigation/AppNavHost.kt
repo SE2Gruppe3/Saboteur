@@ -1,4 +1,4 @@
-package com.aau.se2game.navigation
+package com.aau.saboteur.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,11 +18,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.aau.se2game.screens.ConnectivityTestScreen
-import com.aau.se2game.screens.GameScreen
-import com.aau.se2game.screens.LobbyScreen
-import com.aau.se2game.screens.LoginScreen
-import com.aau.se2game.screens.MenuScreen
+import com.aau.saboteur.screens.ConnectivityTestScreen
+import com.aau.saboteur.screens.GameScreen
+import com.aau.saboteur.screens.LobbyScreen
+import com.aau.saboteur.screens.LoginScreen
+import com.aau.saboteur.screens.MenuScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

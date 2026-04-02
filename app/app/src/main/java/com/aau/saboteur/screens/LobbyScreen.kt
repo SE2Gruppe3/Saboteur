@@ -1,4 +1,4 @@
-package com.aau.se2game.screens
+package com.aau.saboteur.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

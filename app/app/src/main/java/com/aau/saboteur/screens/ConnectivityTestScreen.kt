@@ -1,4 +1,4 @@
-package com.aau.se2game.screens
+package com.aau.saboteur.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,8 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.aau.se2game.network.NetworkClient
-import com.aau.se2game.network.NetworkConstants
+import com.aau.saboteur.network.NetworkClient
+import com.aau.saboteur.network.NetworkConstants
 
 @Composable
 fun ConnectivityTestScreen() {

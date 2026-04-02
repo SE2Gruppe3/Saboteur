@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.aau.se2game"
+    namespace = "com.aau.saboteur"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.aau.se2game"
+        applicationId = "com.aau.saboteur"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
