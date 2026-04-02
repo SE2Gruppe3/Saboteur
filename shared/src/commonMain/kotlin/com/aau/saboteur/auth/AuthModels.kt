@@ -1,4 +1,4 @@
-package com.aau.saboteur.models
+package com.aau.saboteur.auth
 
 import kotlinx.serialization.Serializable
 

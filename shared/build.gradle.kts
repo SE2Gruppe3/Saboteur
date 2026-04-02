@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    kotlin("plugin.serialization")
 
 }
 
@@ -13,7 +14,7 @@ kotlin {
         }
         val commonTest by getting {
             dependencies {
-                implementation(kotlin("test")) // Diese Zeile ist entscheidend!
+                implementation(kotlin("test"))
             }
         }
     }
