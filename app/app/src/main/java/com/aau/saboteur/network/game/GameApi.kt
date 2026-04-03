@@ -7,71 +7,64 @@ import com.aau.shared.game.GameState
 import com.aau.shared.game.Player
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 
 object GameApi {
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+
     suspend fun fetchGameState(): Result<GameState> = withContext(Dispatchers.IO) {
-        val connection = HttpClient.createConnection(NetworkConstants.gameStateEndpoint, "GET")
+        val request = Request.Builder()
+            .url(NetworkConstants.gameStateEndpoint)
+            .get()
+            .build()
 
         try {
-            val statusCode = connection.responseCode
-            val bodyReader = if (statusCode in 200..299) connection.inputStream else connection.errorStream
-            val body = bodyReader?.use { stream ->
-                BufferedReader(InputStreamReader(stream)).readText()
-            }.orEmpty()
+            HttpClient.okHttpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(IllegalStateException("Request failed with HTTP ${response.code}: $body"))
+                }
 
-            if (statusCode !in 200..299) {
-                return@withContext Result.failure(IllegalStateException("Request failed with HTTP $statusCode: $body"))
+                if (body.isBlank()) {
+                    return@withContext Result.success(GameState(players = emptyList(), currentPlayerId = null))
+                }
+
+                Result.success(body.toGameState())
             }
-
-            if (body.isBlank()) {
-                return@withContext Result.success(GameState(players = emptyList(), currentPlayerId = null))
-            }
-
-            Result.success(body.toGameState())
-        } catch (exception: Exception) {
+        } catch (exception: IOException) {
             Result.failure(IllegalStateException("Could not parse or reach ${NetworkConstants.gameStateEndpoint}: ${exception.message}", exception))
-        } finally {
-            connection.disconnect()
         }
     }
 
     suspend fun startGame(players: List<Player>): Result<GameState> = withContext(Dispatchers.IO) {
-        val connection = HttpClient.createConnection(NetworkConstants.startGameEndpoint, "POST").apply {
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Accept", "application/json")
-        }
+        val requestBody = CreateGameRequest(players = players).toJson().toRequestBody(jsonMediaType)
+        
+        val request = Request.Builder()
+            .url(NetworkConstants.startGameEndpoint)
+            .post(requestBody)
+            .header("Accept", "application/json")
+            .build()
 
         try {
-            val request = CreateGameRequest(players = players)
-            val body = request.toJson()
-            OutputStreamWriter(connection.outputStream).use { writer ->
-                writer.write(body)
-                writer.flush()
+            HttpClient.okHttpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string().orEmpty()
+
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(IllegalStateException("Request failed with HTTP ${response.code}: $responseBody"))
+                }
+
+                if (responseBody.isBlank()) {
+                    return@withContext fetchGameState()
+                }
+
+                Result.success(responseBody.toGameState())
             }
-
-            val statusCode = connection.responseCode
-            val bodyReader = if (statusCode in 200..299) connection.inputStream else connection.errorStream
-            val responseBody = bodyReader?.use { stream ->
-                BufferedReader(InputStreamReader(stream)).readText()
-            }.orEmpty()
-
-            if (statusCode !in 200..299) {
-                return@withContext Result.failure(IllegalStateException("Request failed with HTTP $statusCode: $responseBody"))
-            }
-
-            if (responseBody.isBlank()) {
-                return@withContext fetchGameState()
-            }
-
-            Result.success(responseBody.toGameState())
-        } catch (exception: Exception) {
+        } catch (exception: IOException) {
             Result.failure(IllegalStateException("Could not reach ${NetworkConstants.startGameEndpoint}: ${exception.message}", exception))
-        } finally {
-            connection.disconnect()
         }
     }
 }

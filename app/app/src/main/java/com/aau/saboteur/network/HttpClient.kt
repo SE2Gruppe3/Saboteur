@@ -1,14 +1,11 @@
 package com.aau.saboteur.network
 
-import java.net.HttpURLConnection
-import java.net.URI
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 object HttpClient {
-    fun createConnection(endpoint: String, method: String): HttpURLConnection {
-        return (URI.create(endpoint).toURL().openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 5_000
-            readTimeout = 5_000
-        }
-    }
+    val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build()
 }
