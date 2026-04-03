@@ -17,13 +17,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.aau.saboteur.network.NetworkClient
+import com.aau.saboteur.network.ConnectivityApi
 import com.aau.saboteur.network.NetworkConstants
 
 @Composable
 fun ConnectivityTestScreen() {
     var isLoading by remember { mutableStateOf(false) }
-    var resultText by remember { mutableStateOf("Tap the button to test the backend connection.") }
+    var resultText by remember {
+        mutableStateOf(
+            "Tap the button to test the backend connection.\nCurrent base URL: ${NetworkConstants.baseUrl}"
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -36,14 +40,14 @@ fun ConnectivityTestScreen() {
             style = MaterialTheme.typography.headlineMedium
         )
         Text(
-            text = "This sends a GET request",
+            text = "This sends a GET request to ${NetworkConstants.pingEndpoint}",
             style = MaterialTheme.typography.bodyMedium
         )
         Button(
             onClick = {
                 if (isLoading) return@Button
                 isLoading = true
-                resultText = "Checking connection..."
+                resultText = "Checking connection to ${NetworkConstants.baseUrl}..."
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -68,6 +72,6 @@ fun ConnectivityTestScreen() {
 @Composable
 private fun NetworkRequestEffect(onComplete: (String) -> Unit) {
     LaunchedEffect(Unit) {
-        onComplete(NetworkClient.runConnectionTest())
+        onComplete(ConnectivityApi.runConnectionTest())
     }
 }

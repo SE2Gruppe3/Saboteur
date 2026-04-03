@@ -3,8 +3,8 @@ plugins {
 	jacoco
 	kotlin("jvm")
 	kotlin("plugin.spring")
-	id("org.springframework.boot") version "4.0.3"
-	id("io.spring.dependency-management") version "1.1.7"
+	id("org.springframework.boot")
+	id("io.spring.dependency-management")
 	id("org.sonarqube") version "7.2.2.6593"
 }
 
@@ -26,6 +26,7 @@ springBoot {
 }
 
 dependencies {
+	implementation(project(":shared"))
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-mustache")
 	implementation("org.springframework.boot:spring-boot-starter-web")
@@ -40,7 +41,10 @@ dependencies {
 
 kotlin {
 	compilerOptions {
-		freeCompilerArgs.addAll("-Xjsr305=strict")
+		freeCompilerArgs.addAll(
+			"-Xjsr305=strict",
+			"-java-parameters"
+		)
 	}
 }
 

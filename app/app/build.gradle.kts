@@ -25,8 +25,6 @@ android {
 
     buildTypes {
         debug {
-            enableUnitTestCoverage = true
-            enableAndroidTestCoverage = true
             buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080\"")
         }
         release {
@@ -35,7 +33,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // TODO: Echte Produktions-URL eintragen, sobald der Server bereit ist
             buildConfigField("String", "BASE_URL", "\"https://your-production-url.com\"")
         }
     }
@@ -52,6 +49,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -64,7 +62,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     testImplementation(libs.junit)
-    testImplementation(libs.androidx.junit) // Added for Robolectric
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.mockwebserver)
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation(libs.androidx.compose.ui.test.junit4)
