@@ -1,4 +1,4 @@
-package com.aau.se2game.ui.theme
+package com.aau.saboteur.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

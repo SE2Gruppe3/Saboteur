@@ -1,4 +1,4 @@
-package com.aau.se2game
+package com.aau.saboteur
 
 import org.junit.Test
 

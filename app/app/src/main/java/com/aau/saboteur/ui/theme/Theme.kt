@@ -1,4 +1,4 @@
-package com.aau.se2game.ui.theme
+package com.aau.saboteur.ui.theme
 
 import android.app.Activity
 import android.os.Build
