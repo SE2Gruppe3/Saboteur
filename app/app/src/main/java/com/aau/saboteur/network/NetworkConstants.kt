@@ -12,10 +12,12 @@ object NetworkConstants {
     val baseUrl: String
         get() = overridenBaseUrl ?: BuildConfig.BASE_URL
 
+    val wsBaseUrl: String
+        get() = baseUrl.replace("http://", "ws://").replace("https://", "wss://")
+        
     val pingEndpoint: String
         get() = "$baseUrl/api/ping"
-    val gameStateEndpoint: String
-        get() = "$baseUrl/api/game"
-    val startGameEndpoint: String
-        get() = "$baseUrl/api/game/start"
+
+    val gameWebSocketEndpoint: String
+        get() = "$wsBaseUrl/game-ws"
 }

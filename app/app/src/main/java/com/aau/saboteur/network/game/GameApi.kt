@@ -5,66 +5,75 @@ import com.aau.saboteur.network.NetworkConstants
 import com.aau.shared.game.CreateGameRequest
 import com.aau.shared.game.GameState
 import com.aau.shared.game.Player
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import org.json.JSONObject
 
 object GameApi {
-    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val _gameStateUpdates = MutableSharedFlow<GameState>(replay = 1, extraBufferCapacity = 10)
+    val gameStateUpdates: SharedFlow<GameState> = _gameStateUpdates.asSharedFlow()
 
-    suspend fun fetchGameState(): Result<GameState> = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(NetworkConstants.gameStateEndpoint)
-            .get()
-            .build()
+    private val _errorMessages = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 10)
+    val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
-        try {
-            HttpClient.okHttpClient.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
-                
-                if (!response.isSuccessful) {
-                    return@withContext Result.failure(IllegalStateException("Request failed with HTTP ${response.code}: $body"))
-                }
+    private var webSocket: WebSocket? = null
 
-                if (body.isBlank()) {
-                    return@withContext Result.success(GameState(players = emptyList(), currentPlayerId = null))
-                }
-
-                Result.success(body.toGameState())
-            }
-        } catch (exception: IOException) {
-            Result.failure(IllegalStateException("Could not parse or reach ${NetworkConstants.gameStateEndpoint}: ${exception.message}", exception))
-        }
+    init {
+        connectWebSocket()
     }
 
-    suspend fun startGame(players: List<Player>): Result<GameState> = withContext(Dispatchers.IO) {
-        val requestBody = CreateGameRequest(players = players).toJson().toRequestBody(jsonMediaType)
-        
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun reset() {
+        closeWebSocket()
+        _gameStateUpdates.resetReplayCache()
+    }
+
+    fun connectWebSocket() {
+        closeWebSocket()
         val request = Request.Builder()
-            .url(NetworkConstants.startGameEndpoint)
-            .post(requestBody)
-            .header("Accept", "application/json")
+            .url(NetworkConstants.gameWebSocketEndpoint)
             .build()
-
-        try {
-            HttpClient.okHttpClient.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string().orEmpty()
-
-                if (!response.isSuccessful) {
-                    return@withContext Result.failure(IllegalStateException("Request failed with HTTP ${response.code}: $responseBody"))
+        
+        webSocket = HttpClient.okHttpClient.newWebSocket(request, object : WebSocketListener() {
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                try {
+                    val newState = text.toGameState()
+                    _gameStateUpdates.tryEmit(newState)
+                } catch (e: Exception) {
+                    _errorMessages.tryEmit("Failed to parse game state: ${e.message}")
+                    e.printStackTrace()
                 }
-
-                if (responseBody.isBlank()) {
-                    return@withContext fetchGameState()
-                }
-
-                Result.success(responseBody.toGameState())
             }
-        } catch (exception: IOException) {
-            Result.failure(IllegalStateException("Could not reach ${NetworkConstants.startGameEndpoint}: ${exception.message}", exception))
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                val errorMsg = response?.let { "Connection failed: ${it.code}" } ?: "Connection failed: ${t.message}"
+                _errorMessages.tryEmit(errorMsg)
+                t.printStackTrace()
+            }
+        })
+    }
+
+    fun closeWebSocket() {
+        webSocket?.close(1000, "App closed or Reconnecting")
+        webSocket = null
+    }
+
+    fun startGame(players: List<Player>) {
+        val request = CreateGameRequest(players = players)
+        val message = JSONObject().apply {
+            put("action", "START_GAME")
+            put("data", JSONObject(request.toJson()))
+        }.toString()
+        
+        val sent = webSocket?.send(message) ?: false
+        if (!sent) {
+            _errorMessages.tryEmit("Failed to send start game request. Connection might be down.")
         }
     }
 }

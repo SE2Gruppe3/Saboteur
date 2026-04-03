@@ -20,6 +20,34 @@ class GameViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
+    init {
+        observeGameStateUpdates()
+        observeErrors()
+    }
+
+    private fun observeGameStateUpdates() {
+        viewModelScope.launch {
+            GameApi.gameStateUpdates.collect { newState ->
+                _uiState.value = _uiState.value.copy(
+                    gameState = newState,
+                    isStartingGame = false,
+                    errorMessage = null
+                )
+            }
+        }
+    }
+
+    private fun observeErrors() {
+        viewModelScope.launch {
+            GameApi.errorMessages.collect { message ->
+                _uiState.value = _uiState.value.copy(
+                    isStartingGame = false,
+                    errorMessage = message
+                )
+            }
+        }
+    }
+
     fun startGame() {
         if (_uiState.value.isStartingGame) return
 
@@ -28,20 +56,11 @@ class GameViewModel : ViewModel() {
             errorMessage = null
         )
 
-        viewModelScope.launch {
-            val result = GameApi.startGame(mockPlayers)
-            _uiState.value = if (result.isSuccess) {
-                _uiState.value.copy(
-                    isStartingGame = false,
-                    gameState = result.getOrNull() ?: GameState(players = emptyList(), currentPlayerId = null),
-                    errorMessage = null
-                )
-            } else {
-                _uiState.value.copy(
-                    isStartingGame = false,
-                    errorMessage = result.exceptionOrNull()?.message ?: "Could not start game."
-                )
-            }
-        }
+        GameApi.startGame(mockPlayers)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        GameApi.closeWebSocket()
     }
 }
