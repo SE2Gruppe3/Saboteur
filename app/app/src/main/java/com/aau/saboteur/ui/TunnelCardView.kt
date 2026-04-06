@@ -1,4 +1,4 @@
-package com.aau.se2game.ui
+package com.aau.saboteur.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
