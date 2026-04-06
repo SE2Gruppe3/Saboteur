@@ -166,8 +166,7 @@ class WebSocketHandlerTests {
         handler.afterConnectionEstablished(session) 
         
         doThrow(IOException("Socket closed")).`when`(session).sendMessage(any(TextMessage::class.java))
-        
-        // This should not throw an exception as it is caught inside broadcast
+
         handler.broadcast("TEST", "data") 
         
         verify(session).sendMessage(any(TextMessage::class.java))
