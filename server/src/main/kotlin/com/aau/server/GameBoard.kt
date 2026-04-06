@@ -1,4 +1,7 @@
-package com.aau.saboteur.model
+package com.aau.server
+
+import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.TunnelCard
 
 class GameBoard {
     private val grid: MutableMap<Pair<Int, Int>, TunnelCard> = mutableMapOf()

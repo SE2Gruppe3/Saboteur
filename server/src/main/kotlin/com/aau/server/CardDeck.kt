@@ -1,4 +1,9 @@
-package com.aau.saboteur.model
+package com.aau.server
+
+import com.aau.saboteur.model.CardType
+import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.TunnelCard
+
 // 31 PATH cards + 9 DEAD_END cards = 40 tunnel cards total
 object CardDeck {
 

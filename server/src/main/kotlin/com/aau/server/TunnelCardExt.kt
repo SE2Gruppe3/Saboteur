@@ -1,7 +1,9 @@
-package com.aau.saboteur.model
+package com.aau.server
+
+import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.TunnelCard
 
 fun TunnelCard.rotated180(): TunnelCard = copy(
-    id = "${id}_r",
     connections = connections.map { direction ->
         when (direction) {
             Direction.TOP    -> Direction.BOTTOM
@@ -9,5 +11,6 @@ fun TunnelCard.rotated180(): TunnelCard = copy(
             Direction.LEFT   -> Direction.RIGHT
             Direction.RIGHT  -> Direction.LEFT
         }
-    }.toSet()
+    }.toSet(),
+    isRotated = true
 )
