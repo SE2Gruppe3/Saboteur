@@ -1,5 +1,8 @@
-package com.aau.saboteur.model
+package com.aau.server
 
+import com.aau.saboteur.model.CardType
+import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.TunnelCard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

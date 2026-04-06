@@ -1,5 +1,8 @@
-package com.aau.saboteur.model
+package com.aau.server
 
+import com.aau.saboteur.model.CardType
+import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.TunnelCard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -47,15 +50,16 @@ class TunnelCardTest {
     }
 
     @Test
-    fun `rotated180 appends _r to id`() {
-        val card = TunnelCard("my_card", CardType.PATH, setOf(Direction.TOP))
-        assertEquals("my_card_r", card.rotated180().id)
+    fun `rotated180 sets isRotated to true`() {
+        val card = TunnelCard("c6", CardType.PATH, setOf(Direction.TOP))
+        assertEquals(true, card.rotated180().isRotated)
     }
 
     @Test
-    fun `rotated180 preserves type and isRevealed`() {
-        val card = TunnelCard("c6", CardType.DEAD_END, setOf(Direction.LEFT), isRevealed = true)
+    fun `rotated180 preserves id, type and isRevealed`() {
+        val card = TunnelCard("my_card", CardType.DEAD_END, setOf(Direction.LEFT), isRevealed = true)
         val rotated = card.rotated180()
+        assertEquals("my_card", rotated.id)
         assertEquals(CardType.DEAD_END, rotated.type)
         assertEquals(true, rotated.isRevealed)
     }
