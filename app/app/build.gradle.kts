@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     jacoco
 }
 
@@ -25,17 +26,15 @@ android {
 
     buildTypes {
         debug {
-            enableUnitTestCoverage = true
-            enableAndroidTestCoverage = true
             buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080\"")
+            enableUnitTestCoverage = true
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // TODO: Echte Produktions-URL eintragen, sobald der Server bereit ist
             buildConfigField("String", "BASE_URL", "\"https://your-production-url.com\"")
         }
     }
@@ -63,11 +62,13 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
-    testImplementation(libs.androidx.junit) // Added for Robolectric
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.mockwebserver)
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(libs.robolectric)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
