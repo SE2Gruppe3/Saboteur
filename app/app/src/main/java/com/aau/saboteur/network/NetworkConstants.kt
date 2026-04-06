@@ -3,14 +3,14 @@ package com.aau.saboteur.network
 import com.aau.saboteur.BuildConfig
 
 object NetworkConstants {
-    private var overridenBaseUrl: String? = null
+    private var overriddenBaseUrl: String? = null
 
     fun setBaseUrl(url: String) {
-        overridenBaseUrl = url
+        overriddenBaseUrl = url
     }
 
     val baseUrl: String
-        get() = overridenBaseUrl ?: BuildConfig.BASE_URL
+        get() = overriddenBaseUrl ?: BuildConfig.BASE_URL
 
     val wsBaseUrl: String
         get() = baseUrl.replace("http://", "ws://").replace("https://", "wss://")
@@ -18,6 +18,6 @@ object NetworkConstants {
     val pingEndpoint: String
         get() = "$baseUrl/api/ping"
 
-    val gameWebSocketEndpoint: String
-        get() = "$wsBaseUrl/game-ws"
+    val mainWebSocketEndpoint: String
+        get() = "$wsBaseUrl/ws"
 }

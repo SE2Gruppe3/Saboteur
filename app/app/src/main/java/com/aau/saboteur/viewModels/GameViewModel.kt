@@ -58,9 +58,4 @@ class GameViewModel : ViewModel() {
 
         GameApi.startGame(mockPlayers)
     }
-
-    override fun onCleared() {
-        super.onCleared()
-        GameApi.closeWebSocket()
-    }
 }
