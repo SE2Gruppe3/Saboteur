@@ -5,5 +5,6 @@ data class TunnelCard(
     val type: CardType,
     val connections: Set<Direction>,
     val isRevealed: Boolean = false,
-    val isGoal: Boolean = false
+    val isGoal: Boolean = false,
+    val isRotated: Boolean = false
 )
