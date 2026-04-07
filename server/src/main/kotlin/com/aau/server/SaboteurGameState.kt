@@ -5,8 +5,8 @@ import com.aau.shared.game.GameState
 
 data class SaboteurGameState(
     val gameState: GameState,
-    val hands: Map<String, MutableList<TunnelCard>>,
-    val drawPile: MutableList<TunnelCard>,
+    val hands: Map<String, List<TunnelCard>>,
+    val drawPile: List<TunnelCard>,
     val goalCards: List<TunnelCard>,
     val startCard: TunnelCard
 ) {
@@ -14,8 +14,8 @@ data class SaboteurGameState(
         fun from(distribution: CardDistributionResult, gameState: GameState): SaboteurGameState =
             SaboteurGameState(
                 gameState = gameState,
-                hands = distribution.hands.mapValues { (_, cards) -> cards.toMutableList() },
-                drawPile = distribution.drawPile.toMutableList(),
+                hands = distribution.hands,
+                drawPile = distribution.drawPile,
                 goalCards = distribution.goalCards,
                 startCard = distribution.startCard
             )
