@@ -26,7 +26,7 @@ import com.aau.saboteur.ui.theme.MineCoal
 import com.aau.saboteur.ui.theme.OreCopper
 import com.aau.saboteur.ui.theme.OreGold
 import com.aau.saboteur.ui.theme.Quartz
-import com.aau.saboteur.ui.theme.Steel
+
 
 @Composable
 fun RoleCardView(
@@ -40,7 +40,7 @@ fun RoleCardView(
             colors = listOf(Quartz, OreGold, OreCopper)
         )
         Role.SABOTEUR -> Brush.linearGradient(
-            colors = listOf(Color(0xFF8B0000), Color(0xFF4B0000)) // Dark Red Gradient
+            colors = listOf(Color(0xFF8B0000), Color(0xFF4B0000))
         )
     }
 

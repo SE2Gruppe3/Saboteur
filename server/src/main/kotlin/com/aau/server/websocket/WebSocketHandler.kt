@@ -38,10 +38,14 @@ class WebSocketHandler(
 
             if (type == "START_GAME" && data != null) {
                 val request = objectMapper.readValue<CreateGameRequest>(data.toString())
+                
+                // 1. Assign Turn Order
                 val newState = gameService.assignRandomTurnOrder(request.players)
-
+                
+                // 2. Assign Roles (private)
                 val assignedPlayers = gameService.assignRandomRoles(request.players)
-
+                
+                // 3. Delegate broadcasting/messaging to MessagingService
                 messagingService.broadcast("GAME_STATE_UPDATE", newState)
                 
                 assignedPlayers.forEach { (playerId, player) ->

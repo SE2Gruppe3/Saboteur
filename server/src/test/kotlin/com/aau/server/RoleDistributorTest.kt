@@ -46,7 +46,7 @@ class RoleDistributorTest {
             val roles = RoleDistributor.distributeRoles(createPlayerIds(count)).values
             
             val sabCount = roles.count { it == Role.SABOTEUR }
-            val goldCount = roles.count { it == Role.GOLDSMITH }
+            val goldCount = roles.count { it == Role.GOLDDIGGER }
             
             assertTrue(sabCount in sabRange, "Player count $count: Expected saboteurs in $sabRange but got $sabCount")
             assertTrue(goldCount in goldRange, "Player count $count: Expected goldsmiths in $goldRange but got $goldCount")
