@@ -4,6 +4,7 @@ import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.model.CreateGameRequest
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
+import com.aau.saboteur.model.TunnelCard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,6 +21,9 @@ object GameApi {
     private val _gameStateUpdates = MutableSharedFlow<GameState>(replay = 1, extraBufferCapacity = 10)
     val gameStateUpdates: SharedFlow<GameState> = _gameStateUpdates.asSharedFlow()
 
+    private val _cardsDealtUpdates = MutableSharedFlow<Map<String, List<TunnelCard>>>(replay = 0, extraBufferCapacity = 10)
+    val cardsDealtUpdates: SharedFlow<Map<String, List<TunnelCard>>> = _cardsDealtUpdates.asSharedFlow()
+
     val errorMessages: SharedFlow<String> = WebSocketManager.errorMessages
 
     init {
@@ -34,6 +38,14 @@ object GameApi {
                         try {
                             val newState = data.toGameState()
                             _gameStateUpdates.tryEmit(newState)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    "CARDS_DEALT" -> {
+                        try {
+                            val hands = data.toHands()
+                            _cardsDealtUpdates.tryEmit(hands)
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
