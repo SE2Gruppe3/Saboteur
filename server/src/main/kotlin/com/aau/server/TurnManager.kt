@@ -12,12 +12,9 @@ object TurnManager {
         requireCurrentPlayer(state, playerId)
         requireCardInHand(state, playerId, cardId)
 
-        val newHand = state.hands.getValue(playerId).filter { it.id != cardId }.toMutableList()
-        val newDrawPile = state.drawPile.toMutableList()
-
-        if (newDrawPile.isNotEmpty()) {
-            newHand.add(newDrawPile.removeFirst())
-        }
+        val handWithoutCard = state.hands.getValue(playerId).filter { it.id != cardId }
+        val newHand = if (state.drawPile.isNotEmpty()) handWithoutCard + state.drawPile.first() else handWithoutCard
+        val newDrawPile = if (state.drawPile.isNotEmpty()) state.drawPile.drop(1) else emptyList()
 
         return nextPlayer(state.withHand(playerId, newHand, newDrawPile))
     }
@@ -30,12 +27,9 @@ object TurnManager {
         requireCurrentPlayer(state, playerId)
         requireCardInHand(state, playerId, cardId)
 
-        val newHand = state.hands.getValue(playerId).filter { it.id != cardId }.toMutableList()
-        val newDrawPile = state.drawPile.toMutableList()
-
-        if (newDrawPile.isNotEmpty()) {
-            newHand.add(newDrawPile.removeFirst())
-        }
+        val handWithoutCard = state.hands.getValue(playerId).filter { it.id != cardId }
+        val newHand = if (state.drawPile.isNotEmpty()) handWithoutCard + state.drawPile.first() else handWithoutCard
+        val newDrawPile = if (state.drawPile.isNotEmpty()) state.drawPile.drop(1) else emptyList()
 
         return nextPlayer(state.withHand(playerId, newHand, newDrawPile))
     }
@@ -49,9 +43,8 @@ object TurnManager {
         requireCurrentPlayer(state, playerId)
         check(state.drawPile.isNotEmpty()) { "Draw pile is empty" }
 
-        val newDrawPile = state.drawPile.toMutableList()
-        val drawn = newDrawPile.removeFirst()
-        val newHand = state.hands.getValue(playerId).toMutableList().also { it.add(drawn) }
+        val newHand = state.hands.getValue(playerId) + state.drawPile.first()
+        val newDrawPile = state.drawPile.drop(1)
 
         return nextPlayer(state.withHand(playerId, newHand, newDrawPile))
     }
@@ -88,12 +81,12 @@ object TurnManager {
      */
     private fun SaboteurGameState.withHand(
         playerId: String,
-        newHand: MutableList<TunnelCard>,
-        newDrawPile: MutableList<TunnelCard>
+        newHand: List<TunnelCard>,
+        newDrawPile: List<TunnelCard>
     ): SaboteurGameState {
         val newHands = hands.mapValues { (pid, cards) ->
-            if (pid == playerId) newHand else cards.toMutableList()
+            if (pid == playerId) newHand.toMutableList() else cards.toMutableList()
         }
-        return copy(hands = newHands, drawPile = newDrawPile)
+        return copy(hands = newHands, drawPile = newDrawPile.toMutableList())
     }
 }
