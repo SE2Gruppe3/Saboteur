@@ -81,7 +81,7 @@ private fun TunnelCardViewPreview() {
         card = TunnelCard(
             id = "preview",
             type = CardType.PATH,
-            connections = setOf(Direction.TOP, Direction.BOTTOM)
+            connections = setOf(Direction.NORTH, Direction.SOUTH)
         )
     )
 }
