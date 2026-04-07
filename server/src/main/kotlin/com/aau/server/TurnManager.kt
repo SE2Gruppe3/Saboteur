@@ -86,7 +86,7 @@ object TurnManager {
     ): SaboteurGameState {
         val newHands = hands.mapValues { (pid, cards) ->
             if (pid == playerId) newHand.toMutableList() else cards.toMutableList()
-        }
+        }.toMap()
         return copy(hands = newHands, drawPile = newDrawPile.toMutableList())
     }
 }
