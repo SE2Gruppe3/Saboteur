@@ -18,6 +18,15 @@ fun LoginScreen(
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Validierung: Name mind. 3 Zeichen, Passwort entweder leer (Gast) oder mind. 6 Zeichen
+    val isUsernameValid = username.trim().length >= 3
+    val isPasswordValid = password.isEmpty() || password.length >= 6
+    val canSubmit = isUsernameValid && isPasswordValid && !isLoading
+
     val isGuestAttempt = username.isNotBlank() && password.isBlank()
 
     Surface(
@@ -33,7 +42,6 @@ fun LoginScreen(
         ) {
 
             Icon(
-
                 painter = painterResource(id = com.aau.saboteur.R.drawable.ic_pickaxe),
                 contentDescription = "Saboteur Logo",
                 modifier = Modifier
@@ -57,6 +65,7 @@ fun LoginScreen(
                 label = { Text(strings.usernameLabel) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                enabled = !isLoading,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
@@ -74,6 +83,7 @@ fun LoginScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                enabled = !isLoading,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
@@ -85,19 +95,29 @@ fun LoginScreen(
 
             Button(
                 onClick = {
+                    isLoading = true // Zeige dem User, dass was passiert
                     val isGuest = password.isBlank()
                     onAuthClick(username, if (isGuest) null else password, isGuest)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = username.isNotBlank(),
+                enabled = canSubmit, // Nur aktiv wenn Validierung OK
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Text(
-                    text = if (isGuestAttempt) strings.guestJoinButton else strings.loginButton
-                )
+                if (isLoading) {
+
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = if (isGuestAttempt) strings.guestJoinButton else strings.loginButton
+                    )
+                }
             }
         }
     }
