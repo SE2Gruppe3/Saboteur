@@ -3,6 +3,16 @@ package com.aau.server
 import com.aau.saboteur.model.TunnelCard
 import com.aau.shared.game.GameState
 
+/**
+ * Holds the complete state of a running Saboteur game.
+ *
+ * [hands] and [drawPile] track only cards currently in players' hands or on the draw pile.
+ * Cards placed on the board ([GameBoard]) or discarded are no longer tracked here — their
+ * count decreases by one per [TurnManager.playCard] or [TurnManager.discardCard] call.
+ * Board placement itself is the responsibility of [GameBoard] and must be handled separately.
+ *
+ * All [TurnManager] functions return a new instance rather than mutating this object.
+ */
 data class SaboteurGameState(
     val gameState: GameState,
     val hands: Map<String, List<TunnelCard>>,
