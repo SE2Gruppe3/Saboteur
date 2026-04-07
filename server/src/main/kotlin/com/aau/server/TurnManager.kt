@@ -5,8 +5,10 @@ import com.aau.saboteur.model.TunnelCard
 object TurnManager {
 
     /**
-     * Plays a card from the player's hand. Automatically draws a replacement card
-     * from the draw pile if available, then advances to the next player.
+     * Plays a card from the player's hand onto the game board.
+     * If the draw pile is non-empty, automatically draws a replacement card, then advances to the next player.
+     *
+     * @throws IllegalArgumentException if [playerId] is not the current player or [cardId] is not in hand
      */
     fun playCard(state: SaboteurGameState, playerId: String, cardId: String): SaboteurGameState {
         requireCurrentPlayer(state, playerId)
@@ -20,8 +22,10 @@ object TurnManager {
     }
 
     /**
-     * Discards a card from the player's hand without placing it. Automatically draws
-     * a replacement card from the draw pile if available, then advances to the next player.
+     * Discards a card from the player's hand when no legal board placement exists.
+     * If the draw pile is non-empty, automatically draws a replacement card, then advances to the next player.
+     *
+     * @throws IllegalArgumentException if [playerId] is not the current player or [cardId] is not in hand
      */
     fun discardCard(state: SaboteurGameState, playerId: String, cardId: String): SaboteurGameState {
         requireCurrentPlayer(state, playerId)
@@ -37,6 +41,7 @@ object TurnManager {
     /**
      * Draws the top card from the draw pile into the player's hand, then advances to the next player.
      *
+     * @throws IllegalArgumentException if [playerId] is not the current player
      * @throws IllegalStateException if the draw pile is empty
      */
     fun drawCard(state: SaboteurGameState, playerId: String): SaboteurGameState {
@@ -50,7 +55,8 @@ object TurnManager {
     }
 
     /**
-     * Advances the turn to the next player by turn order, wrapping around after the last player.
+     * Advances the turn to the next player by [com.aau.shared.game.PlayerTurn.turnOrder],
+     * wrapping around from the last player back to the first.
      */
     fun nextPlayer(state: SaboteurGameState): SaboteurGameState {
         val sortedPlayers = state.gameState.players.sortedBy { it.turnOrder }
