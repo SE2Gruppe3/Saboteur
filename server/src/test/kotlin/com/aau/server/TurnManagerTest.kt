@@ -32,7 +32,7 @@ class TurnManagerTest {
     private fun aliceCardId(): String = initialState.hands.getValue("Alice").first().id
 
     private fun stateWithEmptyDrawPile(): SaboteurGameState =
-        initialState.copy(drawPile = mutableListOf())
+        initialState.copy(drawPile = emptyList())
 
     // --- playCard ---
 
