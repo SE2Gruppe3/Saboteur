@@ -85,18 +85,27 @@ fun GameScreen(
                     .align(Alignment.BottomStart)
                     .padding(16.dp)
             )
+        }
+
         if (currentHand != null) {
-            Text(
-                text = "${sortedPlayers.firstOrNull { it.playerId == uiState.gameState.currentPlayerId }?.playerName}'s Hand",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                items(currentHand) { card ->
-                    TunnelCardView(card = card)
+                Text(
+                    text = "${sortedPlayers.firstOrNull { it.playerId == uiState.gameState.currentPlayerId }?.playerName}'s Hand",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                ) {
+                    items(currentHand) { card ->
+                        TunnelCardView(card = card)
+                    }
                 }
             }
         }

@@ -49,6 +49,10 @@ class GameViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     player = updatedPlayer
                 )
+            }
+        }
+    }
+
     private fun observeCardsDealt() {
         viewModelScope.launch {
             GameApi.cardsDealtUpdates.collect { hands ->

@@ -48,7 +48,11 @@ object GameApi {
                         try {
                             val player = data.toPlayer()
                             _playerUpdates.tryEmit(player)
-                    "CARDS_DEALT" -> {
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    type == "CARDS_DEALT" -> {
                         try {
                             val hands = data.toHands()
                             _cardsDealtUpdates.tryEmit(hands)
