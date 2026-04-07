@@ -87,4 +87,17 @@ class CardDistributorTest {
         }
         assertTrue(differentFound, "Expected shuffled deck to differ across multiple calls")
     }
+
+    // Temporärer Hilfstest zur manuellen Ausgabe der Kartenverteilung – nicht für CI gedacht
+    /*
+    @Test
+    fun `debug distribute output`() {
+        val result = CardDistributor.distribute(listOf("Alice", "Bob", "Charlie"))
+        result.hands.forEach { (player, cards) ->
+            println("$player: ${cards.map { it.id }}")
+        }
+        println("Draw pile (${result.drawPile.size} cards): ${result.drawPile.map { it.id }}")
+        println("Goal cards: ${result.goalCards.map { it.id }}")
+        println("Start card: ${result.startCard.id}")
+    } */
 }
