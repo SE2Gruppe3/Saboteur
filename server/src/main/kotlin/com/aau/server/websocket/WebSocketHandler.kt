@@ -2,6 +2,7 @@ package com.aau.server.websocket
 
 import com.aau.saboteur.model.CreateGameRequest
 import com.aau.saboteur.model.WsMessage
+import com.aau.server.service.CardDistributor
 import com.aau.server.service.GameService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -40,7 +41,9 @@ class WebSocketHandler(
             if (type == "START_GAME" && data != null) {
                 val request = objectMapper.readValue<CreateGameRequest>(data.toString())
                 val newState = gameService.assignRandomTurnOrder(request.players)
+                val distribution = CardDistributor.distribute(request.players.map { it.id })
                 broadcast("GAME_STATE_UPDATE", newState)
+                broadcast("CARDS_DEALT", distribution.hands)
             }
         } catch (e: Exception) {
             logger.error("Error handling text message: {}", e.message)
