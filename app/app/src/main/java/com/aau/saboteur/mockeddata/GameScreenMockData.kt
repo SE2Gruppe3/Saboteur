@@ -1,6 +1,6 @@
 package com.aau.saboteur.mockeddata
 
-import com.aau.shared.game.Player
+import com.aau.saboteur.model.Player
 
 val mockPlayers = listOf(
     Player(id = "1", name = "Alice"),

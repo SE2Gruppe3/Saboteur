@@ -1,4 +1,4 @@
-package com.aau.server
+package com.aau.server.model
 
 import com.aau.saboteur.model.TunnelCard
 

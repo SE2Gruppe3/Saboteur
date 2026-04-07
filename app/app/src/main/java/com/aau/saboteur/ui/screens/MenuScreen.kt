@@ -1,4 +1,4 @@
-package com.aau.saboteur.screens
+package com.aau.saboteur.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

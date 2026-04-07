@@ -1,8 +1,8 @@
-package com.aau.server
+package com.aau.server.service
 
-import com.aau.shared.game.GameState
-import com.aau.shared.game.Player
-import com.aau.shared.game.PlayerTurn
+import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.Player
+import com.aau.saboteur.model.PlayerTurn
 import org.springframework.stereotype.Service
 import java.util.concurrent.atomic.AtomicReference
 

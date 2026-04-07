@@ -18,11 +18,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.aau.saboteur.screens.ConnectivityTestScreen
-import com.aau.saboteur.screens.GameScreen
-import com.aau.saboteur.screens.LobbyScreen
-import com.aau.saboteur.screens.LoginScreen
-import com.aau.saboteur.screens.MenuScreen
+import com.aau.saboteur.ui.screens.ConnectivityTestScreen
+import com.aau.saboteur.ui.screens.GameScreen
+import com.aau.saboteur.ui.screens.LobbyScreen
+import com.aau.saboteur.ui.screens.LoginScreen
+import com.aau.saboteur.ui.screens.MenuScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

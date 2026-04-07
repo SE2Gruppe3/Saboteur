@@ -1,7 +1,8 @@
-package com.aau.server
+package com.aau.server.websocket
 
-import com.aau.shared.game.CreateGameRequest
-import com.aau.shared.game.WsMessage
+import com.aau.saboteur.model.CreateGameRequest
+import com.aau.saboteur.model.WsMessage
+import com.aau.server.service.GameService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.slf4j.LoggerFactory
@@ -49,7 +50,7 @@ class WebSocketHandler(
 
     fun broadcast(type: String, data: Any) {
         val message = createTextMessage(type, data)
-        
+
         sessions.forEach { session ->
             if (session.isOpen) {
                 try {

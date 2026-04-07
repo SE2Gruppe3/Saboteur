@@ -1,7 +1,6 @@
-package com.aau.saboteur
+package com.aau.saboteur.network
 
 import android.app.Application
-import com.aau.saboteur.network.WebSocketManager
 
 class WebSocketApplication : Application() {
     override fun onCreate() {

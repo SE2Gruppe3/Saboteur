@@ -1,9 +1,9 @@
 package com.aau.saboteur.network.game
 
 import com.aau.saboteur.network.WebSocketManager
-import com.aau.shared.game.CreateGameRequest
-import com.aau.shared.game.GameState
-import com.aau.shared.game.Player
+import com.aau.saboteur.model.CreateGameRequest
+import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.Player
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

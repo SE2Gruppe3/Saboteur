@@ -1,5 +1,6 @@
-package com.aau.server
+package com.aau.server.websocket
 
+import com.aau.server.websocket.WebSocketHandler
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.socket.config.annotation.EnableWebSocket
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer
