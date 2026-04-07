@@ -77,16 +77,13 @@ object TurnManager {
 
     /**
      * Returns a new [SaboteurGameState] with the given player's hand and draw pile replaced.
-     * All other players' hands are deep-copied to prevent shared mutable references.
      */
     private fun SaboteurGameState.withHand(
         playerId: String,
         newHand: List<TunnelCard>,
         newDrawPile: List<TunnelCard>
     ): SaboteurGameState {
-        val newHands = hands.mapValues { (pid, cards) ->
-            if (pid == playerId) newHand.toMutableList() else cards.toMutableList()
-        }.toMap()
-        return copy(hands = newHands, drawPile = newDrawPile.toMutableList())
+        val newHands = hands.mapValues { (pid, _) -> if (pid == playerId) newHand else hands.getValue(pid) }
+        return copy(hands = newHands, drawPile = newDrawPile)
     }
 }
