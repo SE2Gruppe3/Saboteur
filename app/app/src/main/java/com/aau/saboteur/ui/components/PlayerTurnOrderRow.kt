@@ -1,4 +1,4 @@
-package com.aau.saboteur.components
+package com.aau.saboteur.ui.components
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.aau.shared.game.PlayerTurn
+import com.aau.saboteur.model.PlayerTurn
 
 @Composable
 fun PlayerTurnOrderRow(

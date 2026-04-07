@@ -1,4 +1,4 @@
-package com.aau.server
+package com.aau.server.game
 
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.TunnelCard

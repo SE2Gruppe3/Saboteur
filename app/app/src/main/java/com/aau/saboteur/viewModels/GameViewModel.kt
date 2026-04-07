@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.mockeddata.mockPlayers
 import com.aau.saboteur.network.game.GameApi
-import com.aau.shared.game.GameState
+import com.aau.saboteur.model.GameState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

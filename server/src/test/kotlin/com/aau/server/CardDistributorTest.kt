@@ -1,5 +1,7 @@
 package com.aau.server
 
+import com.aau.server.game.CardDeck
+import com.aau.server.service.CardDistributor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

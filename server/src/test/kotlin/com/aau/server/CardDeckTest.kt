@@ -1,6 +1,7 @@
 package com.aau.server
 
 import com.aau.saboteur.model.CardType
+import com.aau.server.game.CardDeck
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

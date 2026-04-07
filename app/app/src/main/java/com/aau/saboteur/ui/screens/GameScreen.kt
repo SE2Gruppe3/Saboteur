@@ -1,4 +1,4 @@
-package com.aau.saboteur.screens
+package com.aau.saboteur.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,9 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.aau.saboteur.components.PlayerTurnOrderRow
+import com.aau.saboteur.ui.components.PlayerTurnOrderRow
 import com.aau.saboteur.viewModels.GameViewModel
-import com.aau.shared.game.PlayerTurn
+import com.aau.saboteur.model.PlayerTurn
 
 @Composable
 fun GameScreen(

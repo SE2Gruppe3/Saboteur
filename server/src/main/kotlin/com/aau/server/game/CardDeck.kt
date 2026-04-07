@@ -1,4 +1,4 @@
-package com.aau.server
+package com.aau.server.game
 
 import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
@@ -14,12 +14,24 @@ object CardDeck {
 
         fun path(connections: Set<Direction>, count: Int) {
             repeat(count) {
-                cards.add(TunnelCard(id = "path_${index++}", type = CardType.PATH, connections = connections))
+                cards.add(
+                    TunnelCard(
+                        id = "path_${index++}",
+                        type = CardType.PATH,
+                        connections = connections
+                    )
+                )
             }
         }
 
         fun deadEnd(connections: Set<Direction>) {
-            cards.add(TunnelCard(id = "dead_${index++}", type = CardType.DEAD_END, connections = connections))
+            cards.add(
+                TunnelCard(
+                    id = "dead_${index++}",
+                    type = CardType.DEAD_END,
+                    connections = connections
+                )
+            )
         }
 
         // PATH cards

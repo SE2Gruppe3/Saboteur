@@ -1,4 +1,7 @@
-package com.aau.server
+package com.aau.server.service
+
+import com.aau.server.model.CardDistributionResult
+import com.aau.server.game.CardDeck
 
 object CardDistributor {
 

@@ -1,10 +1,12 @@
 package com.aau.server
 
-import com.aau.shared.game.CreateGameRequest
-import com.aau.shared.game.GameState
-import com.aau.shared.game.Player
-import com.aau.shared.game.PlayerTurn
-import com.aau.shared.game.WsMessage
+import com.aau.saboteur.model.CreateGameRequest
+import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.Player
+import com.aau.saboteur.model.PlayerTurn
+import com.aau.saboteur.model.WsMessage
+import com.aau.server.service.GameService
+import com.aau.server.websocket.WebSocketHandler
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper

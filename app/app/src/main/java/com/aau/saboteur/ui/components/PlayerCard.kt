@@ -1,4 +1,4 @@
-package com.aau.saboteur.components
+package com.aau.saboteur.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -26,7 +26,7 @@ import com.aau.saboteur.ui.theme.OreCopper
 import com.aau.saboteur.ui.theme.OreGold
 import com.aau.saboteur.ui.theme.Quartz
 import com.aau.saboteur.ui.theme.Steel
-import com.aau.shared.game.PlayerTurn
+import com.aau.saboteur.model.PlayerTurn
 
 @Composable
 fun PlayerCard(
