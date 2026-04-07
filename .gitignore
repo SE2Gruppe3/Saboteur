@@ -5,17 +5,30 @@
 local.properties
 app/local.properties
 server/local.properties
+**/local.properties
 
 # Gradle
 .gradle/
 build/
 **/build/
+*.lock
+*.bin
+.gradle-hashes/
 
 # IntelliJ / Android Studio
 .idea/
 *.iml
 *.ipr
 *.iws
+out/
+capture/
 
-# Android
-**/local.properties
+# Build Reports & Logs
+**/build/reports/
+*.html
+*.log
+
+# Mobile Specific
+*.ap_
+*.apk
+*.dex
