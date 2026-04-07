@@ -1,8 +1,8 @@
 package com.aau.server.websocket
 
 import com.aau.saboteur.model.CreateGameRequest
-import com.aau.saboteur.model.WsMessage
 import com.aau.server.service.GameService
+import com.aau.server.service.MessagingService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.slf4j.LoggerFactory
@@ -11,23 +11,22 @@ import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.TextWebSocketHandler
-import java.util.concurrent.CopyOnWriteArrayList
 
 @Component
 class WebSocketHandler(
     private val objectMapper: ObjectMapper,
-    private val gameService: GameService
+    private val gameService: GameService,
+    private val messagingService: MessagingService
 ) : TextWebSocketHandler() {
 
     private val logger = LoggerFactory.getLogger(WebSocketHandler::class.java)
-    private val sessions = CopyOnWriteArrayList<WebSocketSession>()
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
-        sessions.add(session)
+        messagingService.addSession(session)
     }
 
     override fun afterConnectionClosed(session: WebSocketSession, status: CloseStatus) {
-        sessions.remove(session)
+        messagingService.removeSession(session)
     }
 
     public override fun handleTextMessage(session: WebSocketSession, message: TextMessage) {
@@ -40,37 +39,17 @@ class WebSocketHandler(
             if (type == "START_GAME" && data != null) {
                 val request = objectMapper.readValue<CreateGameRequest>(data.toString())
                 val newState = gameService.assignRandomTurnOrder(request.players)
-                broadcast("GAME_STATE_UPDATE", newState)
+
+                val assignedPlayers = gameService.assignRandomRoles(request.players)
+
+                messagingService.broadcast("GAME_STATE_UPDATE", newState)
+                
+                assignedPlayers.forEach { (playerId, player) ->
+                    messagingService.sendToPlayer(playerId, "PLAYER_DATA", player)
+                }
             }
         } catch (e: Exception) {
             logger.error("Error handling text message: {}", e.message)
-            sendMessage(session, "ERROR", e.message ?: "Unknown error")
         }
-    }
-
-    fun broadcast(type: String, data: Any) {
-        val message = createTextMessage(type, data)
-
-        sessions.forEach { session ->
-            if (session.isOpen) {
-                try {
-                    session.sendMessage(message)
-                } catch (e: Exception) {
-                    logger.error("Error sending broadcast to session {}: {}", session.id, e.message)
-                }
-            }
-        }
-    }
-
-    private fun sendMessage(session: WebSocketSession, type: String, data: Any) {
-        try {
-            session.sendMessage(createTextMessage(type, data))
-        } catch (e: Exception) {
-            logger.error("Error sending message to session {}: {}", session.id, e.message)
-        }
-    }
-
-    private fun createTextMessage(type: String, data: Any): TextMessage {
-        return TextMessage(objectMapper.writeValueAsString(WsMessage(type, data)))
     }
 }

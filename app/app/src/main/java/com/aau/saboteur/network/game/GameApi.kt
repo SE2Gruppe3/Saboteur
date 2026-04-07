@@ -20,6 +20,9 @@ object GameApi {
     private val _gameStateUpdates = MutableSharedFlow<GameState>(replay = 1, extraBufferCapacity = 10)
     val gameStateUpdates: SharedFlow<GameState> = _gameStateUpdates.asSharedFlow()
 
+    private val _playerUpdates = MutableSharedFlow<Player>(replay = 1, extraBufferCapacity = 10)
+    val playerUpdates: SharedFlow<Player> = _playerUpdates.asSharedFlow()
+
     val errorMessages: SharedFlow<String> = WebSocketManager.errorMessages
 
     init {
@@ -29,11 +32,19 @@ object GameApi {
     private fun observeWebSocketMessages() {
         scope.launch {
             WebSocketManager.messages.collect { (type, data) ->
-                when (type) {
-                    "GAME_STATE_UPDATE" -> {
+                when {
+                    type == "GAME_STATE_UPDATE" -> {
                         try {
                             val newState = data.toGameState()
                             _gameStateUpdates.tryEmit(newState)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    type.startsWith("PLAYER_DATA_") -> {
+                        try {
+                            val player = data.toPlayer()
+                            _playerUpdates.tryEmit(player)
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
@@ -52,5 +63,6 @@ object GameApi {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun reset() {
         _gameStateUpdates.resetReplayCache()
+        _playerUpdates.resetReplayCache()
     }
 }

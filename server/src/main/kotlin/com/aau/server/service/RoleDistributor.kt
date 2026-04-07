@@ -1,6 +1,7 @@
 package com.aau.server.service
 
 import com.aau.saboteur.model.Role
+
 object RoleDistributor {
     fun distributeRoles(playerIds: List<String>): Map<String, Role> {
         val playerCount = playerIds.size
@@ -14,8 +15,9 @@ object RoleDistributor {
             playerIds[i] to rolePool[i]
         }
     }
+
     private fun getRolePool(playerCount: Int): List<Role> {
-        val (saboteurs, goldsmiths) = when (playerCount) {
+        val (saboteurs, golddiggers) = when (playerCount) {
             3 -> 1 to 3
             4 -> 1 to 4
             5 -> 2 to 4
@@ -27,6 +29,6 @@ object RoleDistributor {
             else -> throw IllegalArgumentException("Invalid player count: $playerCount")
         }
 
-        return List(saboteurs) { Role.SABOTEUR } + List(goldsmiths) { Role.GOLDSMITH }
+        return List(saboteurs) { Role.SABOTEUR } + List(golddiggers) { Role.GOLDDIGGER }
     }
 }
