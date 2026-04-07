@@ -1,6 +1,8 @@
 package com.aau.server.websocket
 
 import com.aau.saboteur.model.CreateGameRequest
+import com.aau.saboteur.model.WsMessage
+import com.aau.server.service.CardDistributor
 import com.aau.server.service.GameService
 import com.aau.server.service.MessagingService
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -50,6 +52,25 @@ class WebSocketHandler(
                 
                 assignedPlayers.forEach { (playerId, player) ->
                     messagingService.sendToPlayer(playerId, "PLAYER_DATA", player)
+                val distribution = CardDistributor.distribute(request.players.map { it.id })
+                broadcast("GAME_STATE_UPDATE", newState)
+                broadcast("CARDS_DEALT", distribution.hands)
+            }
+        } catch (e: Exception) {
+            logger.error("Error handling text message: {}", e.message)
+            sendMessage(session, "ERROR", e.message ?: "Unknown error")
+        }
+    }
+
+    fun broadcast(type: String, data: Any) {
+        val message = createTextMessage(type, data)
+
+        sessions.forEach { session ->
+            if (session.isOpen) {
+                try {
+                    session.sendMessage(message)
+                } catch (e: Exception) {
+                    logger.error("Error sending broadcast to session {}: {}", session.id, e.message)
                 }
             }
         } catch (e: Exception) {
