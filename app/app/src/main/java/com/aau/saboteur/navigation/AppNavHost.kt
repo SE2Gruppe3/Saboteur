@@ -23,6 +23,7 @@ import com.aau.saboteur.ui.screens.GameScreen
 import com.aau.saboteur.ui.screens.LobbyScreen
 import com.aau.saboteur.ui.screens.LoginScreen
 import com.aau.saboteur.ui.screens.MenuScreen
+import com.aau.saboteur.viewModels.LobbyViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +78,11 @@ fun AppNavHost(
                     LoginScreen()
                 }
                 composable("lobby") {
-                    LobbyScreen()
+                    LobbyScreen(
+                        viewModel = LobbyViewModel(),
+                        onBackPressed = { navController.popBackStack() },
+                        onGameStarted = { navController.navigate("game") }
+                    )
                 }
                 composable("game") {
                     GameScreen()
