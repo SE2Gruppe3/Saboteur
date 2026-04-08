@@ -42,7 +42,7 @@ fun LobbyScreen(
     ) {
         // Header
         Text(
-            text = "SABOTEUR - HAUPTBILDSCHIRM",
+            text = "SABOTEUR - LobbyScreen",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Gold,
@@ -53,7 +53,7 @@ fun LobbyScreen(
 
         // Online Spieler Section
         Text(
-            text = "📊 ONLINE SPIELER",
+            text = "\uD83D\uDC68\u200D\uD83D\uDCBB ONLINE SPIELER",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = Gold,
@@ -180,7 +180,7 @@ fun LobbyScreen(
 @Composable
 fun LobbyScreenPreview() {
     val testViewModel = LobbyViewModel().apply {
-        createLobby("Sebastian")
+        createLobby("Bastian")
         joinLobby("1234", "Player2")
         joinLobby("1234", "Player3")
     }
