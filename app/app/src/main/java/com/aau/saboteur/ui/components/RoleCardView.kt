@@ -31,9 +31,10 @@ import com.aau.saboteur.ui.theme.Quartz
 @Composable
 fun RoleCardView(
     role: Role,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(if (compact) 12.dp else 20.dp)
     
     val cardBrush = when (role) {
         Role.GOLDDIGGER -> Brush.linearGradient(
@@ -49,9 +50,13 @@ fun RoleCardView(
         Role.SABOTEUR -> Quartz
     }
 
+    val verticalPadding = if (compact) 6.dp else 16.dp
+    val horizontalPadding = if (compact) 12.dp else 20.dp
+    val textStyle = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyLarge
+
     Card(
         modifier = modifier.shadow(
-            elevation = 12.dp,
+            elevation = if (compact) 4.dp else 12.dp,
             shape = shape,
             ambientColor = if (role == Role.GOLDDIGGER) GlowGold else Color.Black,
             spotColor = if (role == Role.GOLDDIGGER) GlowGold else Color.Black
@@ -59,7 +64,7 @@ fun RoleCardView(
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(
-            width = 2.dp,
+            width = if (compact) 1.dp else 2.dp,
             color = if (role == Role.GOLDDIGGER) GlowGold else Color(0xFF8B0000)
         )
     ) {
@@ -70,14 +75,14 @@ fun RoleCardView(
                 .background(cardBrush)
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = role.name,
                     color = textColor,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
+                    style = textStyle,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -94,4 +99,10 @@ private fun RoleCardViewGoldPreview() {
 @Composable
 private fun RoleCardViewSaboteurPreview() {
     RoleCardView(role = Role.SABOTEUR)
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun RoleCardViewCompactPreview() {
+    RoleCardView(role = Role.GOLDDIGGER, compact = true)
 }

@@ -4,10 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.model.PlayerTurn
-import com.aau.saboteur.ui.TunnelCardView
+import com.aau.saboteur.ui.components.PlayerHandRow
 import com.aau.saboteur.ui.components.PlayerTurnOrderRow
 import com.aau.saboteur.ui.components.RoleCardView
 import com.aau.saboteur.viewModels.GameViewModel
@@ -77,16 +74,6 @@ fun GameScreen(
             }
         }
 
-        // Role Card in the bottom left corner
-        uiState.player?.role?.let { role ->
-            RoleCardView(
-                role = role,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            )
-        }
-
         if (currentHand != null) {
             Column(
                 modifier = Modifier
@@ -94,19 +81,17 @@ fun GameScreen(
                     .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "${sortedPlayers.firstOrNull { it.playerId == uiState.gameState.currentPlayerId }?.playerName}'s Hand",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-                ) {
-                    items(currentHand) { card ->
-                        TunnelCardView(card = card)
-                    }
+                uiState.player?.role?.let { role ->
+                    RoleCardView(
+                        role = role,
+                        compact = true,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                 }
+
+                PlayerHandRow(
+                    hand = currentHand
+                )
             }
         }
     }
