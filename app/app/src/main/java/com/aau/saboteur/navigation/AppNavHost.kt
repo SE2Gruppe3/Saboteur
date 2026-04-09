@@ -1,28 +1,23 @@
 package com.aau.saboteur.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.aau.saboteur.screens.ConnectivityTestScreen
-import com.aau.saboteur.screens.GameScreen
-import com.aau.saboteur.screens.LobbyScreen
-import com.aau.saboteur.screens.LoginScreen
-import com.aau.saboteur.screens.MenuScreen
+import com.aau.saboteur.screens.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +26,11 @@ fun AppNavHost(
     modifier: Modifier = Modifier
 ) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val scope = rememberCoroutineScope()
+
+    // Verwaltung des Login-Status für Ladeanzeige und Fehlermeldungen (State Hoisting)
+    var isLoginLoading by remember { mutableStateOf(false) }
+    var loginErrorMessage by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -66,7 +66,8 @@ fun AppNavHost(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .padding(padding)
+                // Bedingte Anpassung des Paddings zur Vermeidung von Layout-Konflikten im Login-Screen
+                .padding(if (currentRoute == "login") PaddingValues(0.dp) else padding)
         ) {
             NavHost(
                 navController = navController,
@@ -74,7 +75,28 @@ fun AppNavHost(
                 modifier = Modifier.fillMaxSize()
             ) {
                 composable("login") {
-                    LoginScreen()
+                    LoginScreen(
+                        isLoading = isLoginLoading,
+                        errorMessage = loginErrorMessage,
+                        onAuthClick = { username, password, isGuest ->
+                            isLoginLoading = true
+                            loginErrorMessage = null
+
+                            scope.launch {
+                                // Simulation der Netzwerk-Verbindung und Fehlerbehandlung
+                                delay(2000)
+                                val connectionSuccessful = false
+
+                                if (connectionSuccessful) {
+                                    isLoginLoading = false
+                                    navController.navigate("menu")
+                                } else {
+                                    isLoginLoading = false
+                                    loginErrorMessage = "Keine Serververbindung! Bitte Internet prüfen."
+                                }
+                            }
+                        }
+                    )
                 }
                 composable("lobby") {
                     LobbyScreen()
