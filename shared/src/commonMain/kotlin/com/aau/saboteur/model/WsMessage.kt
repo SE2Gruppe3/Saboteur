@@ -1,5 +1,10 @@
 package com.aau.saboteur.model
+
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class Direction { TOP, RIGHT, BOTTOM, LEFT }
+data class WsMessage<T>(
+    val type: String,
+    val data: T
+)
+

@@ -1,6 +1,7 @@
 package com.aau.server
 
-import com.aau.shared.game.Player
+import com.aau.saboteur.model.Player
+import com.aau.server.service.GameService
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 

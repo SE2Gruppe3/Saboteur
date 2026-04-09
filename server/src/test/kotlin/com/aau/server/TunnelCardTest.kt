@@ -3,6 +3,7 @@ package com.aau.server
 import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.TunnelCard
+import com.aau.server.game.rotated180
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
