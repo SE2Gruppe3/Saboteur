@@ -12,16 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.aau.saboteur.ui.screens.ConnectivityTestScreen
-import com.aau.saboteur.ui.screens.GameScreen
-import com.aau.saboteur.ui.screens.LobbyScreen
-import com.aau.saboteur.ui.screens.LoginScreen
-import com.aau.saboteur.ui.screens.MenuScreen
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import androidx.navigation.navArgument
+import com.aau.saboteur.ui.screens.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aau.saboteur.viewModels.LoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,37 +28,29 @@ fun AppNavHost(
     modifier: Modifier = Modifier
 ) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    val scope = rememberCoroutineScope()
-
-    // Verwaltung des Login-Status für Ladeanzeige und Fehlermeldungen (State Hoisting)
-    var isLoginLoading by remember { mutableStateOf(false) }
-    var loginErrorMessage by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = when (currentRoute) {
-                            "login" -> "Login"
-                            "lobby" -> "Lobby"
-                            "game" -> "Game"
-                            "connectivity" -> "Connectivity"
-                            "menu" -> "Menu"
+                        text = when {
+                            currentRoute?.startsWith("menu") == true -> "Menu"
+                            currentRoute == "login" -> "Login"
+                            currentRoute == "lobby" -> "Lobby"
+                            currentRoute == "game" -> "Game"
+                            currentRoute == "connectivity" -> "Connectivity"
                             else -> ""
                         }
                     )
                 },
                 actions = {
-                    if (currentRoute != "menu") {
+                    if (currentRoute != null && !currentRoute.startsWith("menu")) {
                         IconButton(
                             onClick = { navController.navigate("menu") },
                             modifier = Modifier.testTag("menu_button")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Menu"
-                            )
+                            Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu")
                         }
                     }
                 }
@@ -70,51 +60,60 @@ fun AppNavHost(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                // Bedingte Anpassung des Paddings zur Vermeidung von Layout-Konflikten im Login-Screen
                 .padding(if (currentRoute == "login") PaddingValues(0.dp) else padding)
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "menu",
+                startDestination = "login", // Start beim Login zum Testen
                 modifier = Modifier.fillMaxSize()
             ) {
                 composable("login") {
+                    val loginViewModel: LoginViewModel = viewModel()
                     LoginScreen(
-                        isLoading = isLoginLoading,
-                        errorMessage = loginErrorMessage,
-                        onAuthClick = { username, password, isGuest ->
-                            isLoginLoading = true
-                            loginErrorMessage = null
-
-                            scope.launch {
-                                // Simulation der Netzwerk-Verbindung und Fehlerbehandlung
-                                delay(2000)
-                                val connectionSuccessful = false
-
-                                if (connectionSuccessful) {
-                                    isLoginLoading = false
-                                    navController.navigate("menu")
-                                } else {
-                                    isLoginLoading = false
-                                    loginErrorMessage = "Keine Serververbindung! Bitte Internet prüfen."
+                        isLoading = loginViewModel.isLoading,
+                        errorMessage = loginViewModel.errorMessage,
+                        onAuthClick = { username, password, _ ->
+                            loginViewModel.login(username, password) {
+                                // Name an die Route hängen
+                                navController.navigate("menu/$username") {
+                                    popUpTo("login") { inclusive = true }
                                 }
                             }
                         }
                     )
                 }
-                composable("lobby") {
-                    LobbyScreen()
+
+                // Menü-Route mit optionalem Parameter
+                composable("login") {
+                    val loginViewModel: LoginViewModel = viewModel()
+                    LoginScreen(
+                        isLoading = loginViewModel.isLoading,
+                        errorMessage = loginViewModel.errorMessage,
+                        onAuthClick = { username, password, _ ->
+                            loginViewModel.login(username, password) {
+                                // TODO: Vorläufige Lösung: Username wird via Route an das Menü übergeben.
+                                // Muss später durch einen SessionManager/UserViewModel ersetzt werden.
+                                navController.navigate("menu/$username") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            }
+                        }
+                    )
                 }
-                composable("game") {
-                    GameScreen()
+
+                // TODO: Route mit Parameter ist temporär für Testzwecke.
+                // Zukünftig wird der UserState zentral verwaltet.
+                composable(
+                    route = "menu/{username}",
+                    arguments = listOf(navArgument("username") {
+                        type = NavType.StringType
+                        defaultValue = "Gast"
+                    })
+                ) { backStackEntry ->
+                    val username = backStackEntry.arguments?.getString("username") ?: "Gast"
+                    MenuScreen(navController = navController, username = username)
                 }
-                composable("connectivity") {
-                    ConnectivityTestScreen()
-                }
-                composable("menu") {
-                    MenuScreen(navController = navController)
-                }
-            }
         }
     }
+}
 }
