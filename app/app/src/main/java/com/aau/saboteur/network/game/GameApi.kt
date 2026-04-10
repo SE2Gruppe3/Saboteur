@@ -21,6 +21,8 @@ object GameApi {
     private val _gameStateUpdates = MutableSharedFlow<GameState>(replay = 1, extraBufferCapacity = 10)
     val gameStateUpdates: SharedFlow<GameState> = _gameStateUpdates.asSharedFlow()
 
+    private val _playerUpdates = MutableSharedFlow<Player>(replay = 1, extraBufferCapacity = 10)
+    val playerUpdates: SharedFlow<Player> = _playerUpdates.asSharedFlow()
     private val _cardsDealtUpdates = MutableSharedFlow<Map<String, List<TunnelCard>>>(replay = 0, extraBufferCapacity = 10)
     val cardsDealtUpdates: SharedFlow<Map<String, List<TunnelCard>>> = _cardsDealtUpdates.asSharedFlow()
 
@@ -33,8 +35,8 @@ object GameApi {
     private fun observeWebSocketMessages() {
         scope.launch {
             WebSocketManager.messages.collect { (type, data) ->
-                when (type) {
-                    "GAME_STATE_UPDATE" -> {
+                when {
+                    type == "GAME_STATE_UPDATE" -> {
                         try {
                             val newState = data.toGameState()
                             _gameStateUpdates.tryEmit(newState)
@@ -42,7 +44,15 @@ object GameApi {
                             e.printStackTrace()
                         }
                     }
-                    "CARDS_DEALT" -> {
+                    type.startsWith("PLAYER_DATA_") -> {
+                        try {
+                            val player = data.toPlayer()
+                            _playerUpdates.tryEmit(player)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    type == "CARDS_DEALT" -> {
                         try {
                             val hands = data.toHands()
                             _cardsDealtUpdates.tryEmit(hands)
@@ -64,5 +74,6 @@ object GameApi {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun reset() {
         _gameStateUpdates.resetReplayCache()
+        _playerUpdates.resetReplayCache()
     }
 }

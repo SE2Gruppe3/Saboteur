@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.mockeddata.mockPlayers
 import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 data class GameUiState(
     val isStartingGame: Boolean = false,
     val gameState: GameState = GameState(players = emptyList(), currentPlayerId = null),
+    val player: Player? = null,
     val hands: Map<String, List<TunnelCard>>? = null,
     val errorMessage: String? = null
 )
@@ -24,6 +26,7 @@ class GameViewModel : ViewModel() {
 
     init {
         observeGameStateUpdates()
+        observePlayerUpdates()
         observeCardsDealt()
         observeErrors()
     }
@@ -35,6 +38,16 @@ class GameViewModel : ViewModel() {
                     gameState = newState,
                     isStartingGame = false,
                     errorMessage = null
+                )
+            }
+        }
+    }
+
+    private fun observePlayerUpdates() {
+        viewModelScope.launch {
+            GameApi.playerUpdates.collect { updatedPlayer ->
+                _uiState.value = _uiState.value.copy(
+                    player = updatedPlayer
                 )
             }
         }
