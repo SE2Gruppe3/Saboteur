@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.aau.saboteur.ui.screens.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.viewModels.LoginViewModel
+import com.aau.saboteur.viewModels.LobbyViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +76,6 @@ fun AppNavHost(
                         errorMessage = loginViewModel.errorMessage,
                         onAuthClick = { username, password, _ ->
                             loginViewModel.login(username, password) {
-                                // TODO: Temporäre Übergabe via Route
                                 navController.navigate("menu/$username") {
                                     popUpTo("login") { inclusive = true }
                                 }
@@ -96,16 +96,29 @@ fun AppNavHost(
                     MenuScreen(navController = navController, username = username)
                 }
 
-                //FALLBACK MENU (Ohne Parameter)
+                // FALLBACK MENU (Ohne Parameter)
                 composable("menu") {
                     MenuScreen(navController = navController, username = "Gast")
                 }
 
-                // WEITERE ROUTEN
-                composable("lobby") { LobbyScreen() }
-                composable("game") { GameScreen() }
-                composable("connectivity") { ConnectivityTestScreen() }
+                // LOBBY ROUTE
+                composable("lobby") {
+                    LobbyScreen(
+                        viewModel = LobbyViewModel(),
+                        onBackPressed = { navController.popBackStack() },
+                        onGameStarted = { navController.navigate("game") }
+                    )
+                }
 
+                // GAME ROUTE
+                composable("game") {
+                    GameScreen()
+                }
+
+                // CONNECTIVITY TEST ROUTE
+                composable("connectivity") {
+                    ConnectivityTestScreen()
+                }
             }
         }
     }

@@ -17,3 +17,10 @@ val OreCopper = Color(0xFFB87333)
 val Quartz = Color(0xFFF5F1E8)
 val Steel = Color(0xFF8D99AE)
 val GlowGold = Color(0xFFFFD166)
+
+// Saboteur Farben
+val DarkBrown = Color(0xFF3E2723)
+val Parchment = Color(0xFFF4E7C2)
+val Gold = Color(0xFFD4AF37)
+val MossyGreen = Color(0xFF556B2F)
+val FadedRed = Color(0xFFB22C2C)
