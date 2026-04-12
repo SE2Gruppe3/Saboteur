@@ -64,9 +64,10 @@ fun AppNavHost(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "login", // Start beim Login zum Testen
+                startDestination = "login",
                 modifier = Modifier.fillMaxSize()
             ) {
+                // LOGIN ROUTE
                 composable("login") {
                     val loginViewModel: LoginViewModel = viewModel()
                     LoginScreen(
@@ -74,7 +75,7 @@ fun AppNavHost(
                         errorMessage = loginViewModel.errorMessage,
                         onAuthClick = { username, password, _ ->
                             loginViewModel.login(username, password) {
-                                // Name an die Route hängen
+                                // TODO: Temporäre Übergabe via Route
                                 navController.navigate("menu/$username") {
                                     popUpTo("login") { inclusive = true }
                                 }
@@ -83,26 +84,7 @@ fun AppNavHost(
                     )
                 }
 
-                // Menü-Route mit optionalem Parameter
-                composable("login") {
-                    val loginViewModel: LoginViewModel = viewModel()
-                    LoginScreen(
-                        isLoading = loginViewModel.isLoading,
-                        errorMessage = loginViewModel.errorMessage,
-                        onAuthClick = { username, password, _ ->
-                            loginViewModel.login(username, password) {
-                                // TODO: Vorläufige Lösung: Username wird via Route an das Menü übergeben.
-                                // Muss später durch einen SessionManager/UserViewModel ersetzt werden.
-                                navController.navigate("menu/$username") {
-                                    popUpTo("login") { inclusive = true }
-                                }
-                            }
-                        }
-                    )
-                }
-
-                // TODO: Route mit Parameter ist temporär für Testzwecke.
-                // Zukünftig wird der UserState zentral verwaltet.
+                // MENU ROUTE
                 composable(
                     route = "menu/{username}",
                     arguments = listOf(navArgument("username") {
@@ -113,7 +95,18 @@ fun AppNavHost(
                     val username = backStackEntry.arguments?.getString("username") ?: "Gast"
                     MenuScreen(navController = navController, username = username)
                 }
+
+                //FALLBACK MENU (Ohne Parameter)
+                composable("menu") {
+                    MenuScreen(navController = navController, username = "Gast")
+                }
+
+                // WEITERE ROUTEN
+                composable("lobby") { LobbyScreen() }
+                composable("game") { GameScreen() }
+                composable("connectivity") { ConnectivityTestScreen() }
+
+            }
         }
     }
-}
 }
