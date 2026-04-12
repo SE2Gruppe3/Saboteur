@@ -1,13 +1,7 @@
 package com.aau.saboteur.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,7 +10,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 
 @Composable
-fun MenuScreen(navController: NavHostController) {
+fun MenuScreen(
+    navController: NavHostController,
+    username: String = "Gast"
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -24,9 +21,18 @@ fun MenuScreen(navController: NavHostController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // TODO: Temporäre Anzeige zur Verifizierung des Login-Erfolgs.
+        // Wird in einem späteren Branch durch ein finales Header-Design ersetzt.
+        Text(
+            text = "Hallo, $username!",
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
         Text(
             text = "Navigation Menu",
-            style = MaterialTheme.typography.headlineLarge,
+            style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(bottom = 32.dp)
         )
 

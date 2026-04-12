@@ -9,35 +9,47 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
+//Saboteur-Farben
+val DwarfGold = Color(0xFFD4AF37)
+val StoneGrey = Color(0xFF2B2B2B)
+val DeepCoal = Color(0xFF1A1A1A)
+val IronWhite = Color(0xFFE0E0E0)
+
+
+
+
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = DwarfGold,
+    secondary = DwarfGold,
+    tertiary = Pink80,
+    background = StoneGrey,
+    surface = DeepCoal,
+    onPrimary = DeepCoal,
+    onBackground = IronWhite,
+    onSurface = IronWhite,
+    outline = DwarfGold
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = DwarfGold,
+    secondary = DwarfGold,
+    tertiary = Pink40,
+    background = StoneGrey,
+    surface = DeepCoal,
+    onPrimary = DeepCoal,
+    onBackground = IronWhite,
+    onSurface = IronWhite,
+    outline = DwarfGold
 )
 
 @Composable
 fun SE2GameTheme(
+
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -45,7 +57,8 @@ fun SE2GameTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
+        // Wenn darkTheme true ist -> DarkColorScheme
+        // Wenn darkTheme false ist -> LightColorScheme
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
