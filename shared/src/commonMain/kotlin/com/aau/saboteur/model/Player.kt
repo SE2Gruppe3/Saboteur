@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 data class Player(
     val id: String = "",
     val name: String = "",
-    val hand: List<TunnelCard> = emptyList()
+    val hand: List<TunnelCard> = emptyList(),
+    val role: Role? = null
 )
