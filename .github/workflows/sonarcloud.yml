@@ -10,9 +10,6 @@ jobs:
   server:
     name: Server Analysis
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,45 +30,4 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       - name: Analyze server
-        run: ./gradlew test sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
-
-  app:
-    name: App Analysis
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Configure Android SDK path
-        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-      - name: Cache Sonar packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Analyze app
-        run: ./gradlew :app:testDebugUnitTest :app:jacocoTestDebugUnitTestReport
-
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          projectBaseDir: app
+        run: ./gradlew :server:test :server:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}

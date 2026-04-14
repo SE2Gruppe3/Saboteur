@@ -1,10 +1,10 @@
 plugins {
 	application
 	jacoco
-	kotlin("jvm") version "2.3.0"
-	kotlin("plugin.spring") version "2.3.0"
-	id("org.springframework.boot") version "4.0.3"
-	id("io.spring.dependency-management") version "1.1.7"
+	kotlin("jvm")
+	kotlin("plugin.spring")
+	id("org.springframework.boot")
+	id("io.spring.dependency-management")
 	id("org.sonarqube") version "7.2.2.6593"
 }
 
@@ -13,12 +13,8 @@ version = "0.0.1-SNAPSHOT"
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
-}
-
-repositories {
-	mavenCentral()
 }
 
 application {
@@ -30,9 +26,12 @@ springBoot {
 }
 
 dependencies {
+	implementation(project(":shared"))
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-mustache")
 	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.boot:spring-boot-starter-websocket")
+	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -44,7 +43,10 @@ dependencies {
 
 kotlin {
 	compilerOptions {
-		freeCompilerArgs.addAll("-Xjsr305=strict")
+		freeCompilerArgs.addAll(
+			"-Xjsr305=strict",
+			"-java-parameters"
+		)
 	}
 }
 
