@@ -1,6 +1,7 @@
 package com.aau.saboteur.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -24,6 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -31,33 +36,45 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.aau.saboteur.model.BoardPosition
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
-import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.ui.model.BoardPlacement
+import com.aau.saboteur.ui.model.BoardPosition
 
 private const val BoardColumns = 9
 private const val BoardRows = 13
 private const val BoardCardWidthDp = 86
 private const val BoardCardHeightDp = 126
 private const val BoardCardSpacingDp = 12
+private const val MinBoardZoom = 0.75f
+private const val MaxBoardZoom = 2.0f
 private val BoardShape = RoundedCornerShape(18.dp)
 
 @Composable
 fun BoardGrid(
-    placements: List<PlacedTunnelCard>,
+    placements: List<BoardPlacement>,
     startPosition: BoardPosition,
     modifier: Modifier = Modifier
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
-    val placementMap = placements.associateBy(PlacedTunnelCard::position)
+    val placementMap = placements.associateBy(BoardPlacement::position)
     val lineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
+    var scale by remember { mutableFloatStateOf(1f) }
+    val transformableState = rememberTransformableState { zoomChange, _, _ ->
+        scale = (scale * zoomChange).coerceIn(MinBoardZoom, MaxBoardZoom)
+    }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -124,6 +141,11 @@ fun BoardGrid(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .transformable(state = transformableState)
                     .verticalScroll(verticalScroll)
                     .horizontalScroll(horizontalScroll),
                 verticalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)
@@ -143,6 +165,12 @@ fun BoardGrid(
 
 @Composable
 private fun BoardTile(card: TunnelCard?) {
+    val context = LocalContext.current
+    val drawableName = card?.toDrawableName()
+    val imageRes = drawableName?.let {
+        context.resources.getIdentifier(it, "drawable", context.packageName)
+    } ?: 0
+
     Card(
         modifier = Modifier.size(width = BoardCardWidthDp.dp, height = BoardCardHeightDp.dp),
         shape = BoardShape,
@@ -153,23 +181,42 @@ private fun BoardTile(card: TunnelCard?) {
             modifier = Modifier
                 .fillMaxSize()
                 .border(2.dp, tileBorderColor(card), BoardShape)
-                .padding(10.dp),
+                .padding(6.dp),
             contentAlignment = Alignment.Center
         ) {
             when {
                 card == null -> EmptyTilePattern()
-                card.type == CardType.GOAL && !card.isRevealed -> HiddenGoalPattern()
+                card.type == CardType.GOAL && !card.isRevealed -> HiddenGoalCard()
+                imageRes != 0 -> {
+                    Image(
+                        painter = painterResource(id = imageRes),
+                        contentDescription = drawableName,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                rotationZ = if (card.isRotated) 180f else 0f
+                            }
+                    )
+                }
                 else -> ConnectionPattern(card = card)
             }
-
-            if (card?.type == CardType.START) {
-                Text(
-                    text = "S",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
-            }
         }
+    }
+}
+
+@Composable
+private fun HiddenGoalCard() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        HiddenGoalPattern()
+        Text(
+            text = "?",
+            color = Color(0xFFF4D35E),
+            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
+        )
     }
 }
 
@@ -207,15 +254,6 @@ private fun HiddenGoalPattern() {
                 colors = listOf(Color(0xFF2F2A26), Color(0xFF1E1A17))
             )
         )
-        repeat(5) { index ->
-            val y = size.height * (0.18f + index * 0.13f)
-            drawLine(
-                color = Color(0x44E7C67A),
-                start = Offset(size.width * 0.14f, y),
-                end = Offset(size.width * 0.86f, y),
-                strokeWidth = 2.dp.toPx()
-            )
-        }
     }
 }
 
@@ -273,4 +311,28 @@ private fun tileBorderColor(card: TunnelCard?): Color = when {
     card.type == CardType.START -> Color(0xFFA7D6A2)
     card.type == CardType.GOAL -> Color(0xFFE7C67A)
     else -> Color(0xFFC8D0DB)
+}
+
+private fun TunnelCard.toDrawableName(): String = when (type) {
+    CardType.START -> "startkarte"
+    CardType.GOAL -> when (id) {
+        "goal_gold" -> "goal_gold"
+        "goal_stone_1" -> "goal_stone1"
+        "goal_stone_2" -> "goal_stone2"
+        else -> "goal_stone1"
+    }
+    else -> {
+        val prefix = if (type == CardType.PATH) "path" else "dead"
+        if (connections.size == 4) {
+            "${prefix}_cross"
+        } else {
+            val suffix = buildString {
+                if (Direction.TOP in connections) append('t')
+                if (Direction.LEFT in connections) append('l')
+                if (Direction.RIGHT in connections) append('r')
+                if (Direction.BOTTOM in connections) append('b')
+            }
+            "${prefix}_$suffix"
+        }
+    }
 }
