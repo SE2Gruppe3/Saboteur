@@ -1,11 +1,11 @@
 package com.aau.saboteur.mockeddata
 
+import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
-import com.aau.saboteur.ui.model.BoardPlacement
-import com.aau.saboteur.ui.model.BoardPosition
 
 val mockPlayers = listOf(
     Player(id = "1", name = "Alice"),
@@ -23,7 +23,7 @@ val mockPlayers = listOf(
 val boardStartPosition = BoardPosition(row = 10, column = 4)
 
 val mockBoardPlacements = listOf(
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 0, column = 2),
         card = TunnelCard(
             id = "goal_stone_1",
@@ -32,7 +32,7 @@ val mockBoardPlacements = listOf(
             isRevealed = false
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 0, column = 4),
         card = TunnelCard(
             id = "goal_gold",
@@ -42,7 +42,7 @@ val mockBoardPlacements = listOf(
             isGoal = true
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 0, column = 6),
         card = TunnelCard(
             id = "goal_stone_2",
@@ -51,7 +51,7 @@ val mockBoardPlacements = listOf(
             isRevealed = false
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = boardStartPosition,
         card = TunnelCard(
             id = "start",
@@ -60,7 +60,7 @@ val mockBoardPlacements = listOf(
             isRevealed = true
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 9, column = 4),
         card = TunnelCard(
             id = "path_tb_preview_1",
@@ -68,7 +68,7 @@ val mockBoardPlacements = listOf(
             connections = setOf(Direction.TOP, Direction.BOTTOM)
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 8, column = 4),
         card = TunnelCard(
             id = "path_tlb_preview_1",
@@ -76,7 +76,7 @@ val mockBoardPlacements = listOf(
             connections = setOf(Direction.TOP, Direction.LEFT, Direction.BOTTOM)
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 8, column = 3),
         card = TunnelCard(
             id = "path_tr_preview_1",
@@ -84,7 +84,7 @@ val mockBoardPlacements = listOf(
             connections = setOf(Direction.TOP, Direction.RIGHT)
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 7, column = 3),
         card = TunnelCard(
             id = "path_tb_preview_2",
@@ -92,7 +92,7 @@ val mockBoardPlacements = listOf(
             connections = setOf(Direction.TOP, Direction.BOTTOM)
         )
     ),
-    BoardPlacement(
+    PlacedTunnelCard(
         position = BoardPosition(row = 6, column = 3),
         card = TunnelCard(
             id = "path_tlr_preview_1",

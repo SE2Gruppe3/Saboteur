@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,25 +34,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
-import com.aau.saboteur.ui.model.BoardPlacement
-import com.aau.saboteur.ui.model.BoardPosition
 
 private const val BoardColumns = 9
 private const val BoardRows = 13
@@ -63,13 +60,13 @@ private val BoardShape = RoundedCornerShape(18.dp)
 
 @Composable
 fun BoardGrid(
-    placements: List<BoardPlacement>,
+    placements: List<PlacedTunnelCard>,
     startPosition: BoardPosition,
     modifier: Modifier = Modifier
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
-    val placementMap = placements.associateBy(BoardPlacement::position)
+    val placementMap = placements.associateBy(PlacedTunnelCard::position)
     val lineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
     var scale by remember { mutableFloatStateOf(1f) }
     val transformableState = rememberTransformableState { zoomChange, _, _ ->
@@ -234,15 +231,6 @@ private fun EmptyTilePattern() {
                 end = Offset(size.width, size.height)
             )
         )
-        drawRect(
-            color = Color(0x55A78557),
-            topLeft = Offset(size.width * 0.12f, size.height * 0.12f),
-            size = Size(size.width * 0.76f, size.height * 0.52f),
-            style = Stroke(
-                width = 1.5.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
-            )
-        )
     }
 }
 
@@ -314,7 +302,7 @@ private fun tileBorderColor(card: TunnelCard?): Color = when {
 }
 
 private fun TunnelCard.toDrawableName(): String = when (type) {
-    CardType.START -> "startkarte"
+    CardType.START -> "start"
     CardType.GOAL -> when (id) {
         "goal_gold" -> "goal_gold"
         "goal_stone_1" -> "goal_stone1"
