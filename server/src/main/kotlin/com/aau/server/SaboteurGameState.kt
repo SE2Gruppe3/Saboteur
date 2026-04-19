@@ -1,7 +1,8 @@
 package com.aau.server
 
+import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.TunnelCard
-import com.aau.shared.game.GameState
+import com.aau.server.model.CardDistributionResult
 
 /**
  * Holds the complete state of a running Saboteur game.
