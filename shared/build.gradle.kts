@@ -21,6 +21,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
             }
         }
     }
