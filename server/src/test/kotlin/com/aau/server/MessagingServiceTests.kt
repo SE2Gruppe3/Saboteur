@@ -102,4 +102,72 @@ class MessagingServiceTests {
 
         verify(session1).sendMessage(expectedMessage)
     }
+    @Test
+    fun `sendToSession returns when sessionId is unknown`() {
+        // should not throw, should not try to send anything
+        messagingService.sendToSession("unknown", "TYPE", "DATA")
+    }
+
+    @Test
+    fun `sendToSession does not send when session is closed`() {
+        val session = mock(WebSocketSession::class.java)
+        `when`(session.isOpen).thenReturn(false)
+        `when`(session.id).thenReturn("s1")
+
+        messagingService.addSession(session)
+
+        messagingService.sendToSession("s1", "TYPE", "DATA")
+
+        verify(session, never()).sendMessage(any())
+    }
+
+    @Test
+    fun `sendToSession sends when session is open`() {
+        val session = mock(WebSocketSession::class.java)
+        `when`(session.isOpen).thenReturn(true)
+        `when`(session.id).thenReturn("s1")
+
+        messagingService.addSession(session)
+
+        val type = "TYPE"
+        val data = "DATA"
+
+        messagingService.sendToSession("s1", type, data)
+
+        val expectedPayload = objectMapper.writeValueAsString(WsMessage(type, data))
+        val expectedMessage = TextMessage(expectedPayload)
+
+        verify(session).sendMessage(expectedMessage)
+    }
+    @Test
+    fun `sendToSession handles exception during sendMessage`() {
+        val session = mock(WebSocketSession::class.java)
+        `when`(session.isOpen).thenReturn(true)
+        `when`(session.id).thenReturn("s1")
+        `when`(session.sendMessage(any())).thenThrow(RuntimeException("Socket error"))
+
+        messagingService.addSession(session)
+
+        // should not throw
+        messagingService.sendToSession("s1", "TYPE", "DATA")
+
+        verify(session).sendMessage(any())
+    }
+    @Test
+    fun `sendToSessions sends to each sessionId`() {
+        val s1 = mock(WebSocketSession::class.java)
+        val s2 = mock(WebSocketSession::class.java)
+        `when`(s1.isOpen).thenReturn(true)
+        `when`(s2.isOpen).thenReturn(true)
+        `when`(s1.id).thenReturn("s1")
+        `when`(s2.id).thenReturn("s2")
+
+        messagingService.addSession(s1)
+        messagingService.addSession(s2)
+
+        messagingService.sendToSessions(listOf("s1", "s2"), "TYPE", "DATA")
+
+        verify(s1).sendMessage(any())
+        verify(s2).sendMessage(any())
+    }
 }
