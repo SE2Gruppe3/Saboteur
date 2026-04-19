@@ -1,9 +1,11 @@
 package com.aau.saboteur.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.model.PlayerTurn
+import com.aau.saboteur.ui.components.BoardGrid
 import com.aau.saboteur.ui.components.PlayerHandRow
 import com.aau.saboteur.ui.components.PlayerTurnOrderRow
 import com.aau.saboteur.ui.components.RoleCardView
@@ -28,13 +31,18 @@ fun GameScreen(
     val uiState by viewModel.uiState.collectAsState()
     val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
     val currentHand = uiState.gameState.currentPlayerId?.let { uiState.hands?.get(it) }
+    val isGameStarted = sortedPlayers.isNotEmpty() || uiState.gameState.boardPlacements.isNotEmpty()
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (sortedPlayers.isNotEmpty()) {
@@ -45,21 +53,31 @@ fun GameScreen(
             }
 
             Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(
-                    onClick = viewModel::startGame
-                ) {
-                    Text(if (uiState.isStartingGame) "Starting game..." else "Start Game")
-                }
+                BoardGrid(
+                    placements = uiState.gameState.boardPlacements,
+                    startPosition = uiState.gameState.boardStartPosition,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
 
-                if (sortedPlayers.isEmpty()) {
+                if (!isGameStarted) {
+                    Button(
+                        onClick = viewModel::startGame,
+                        enabled = !uiState.isStartingGame
+                    ) {
+                        Text(if (uiState.isStartingGame) "Starting game..." else "Start Game")
+                    }
+
                     Text(
-                        text = "No game state yet. Press Start Game.",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 24.dp)
+                        text = "Start a game to load the board.",
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
 
@@ -68,7 +86,7 @@ fun GameScreen(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 16.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }

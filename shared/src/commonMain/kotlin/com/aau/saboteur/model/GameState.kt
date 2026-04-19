@@ -5,5 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GameState(
     val players: List<PlayerTurn> = emptyList(),
-    val currentPlayerId: String? = null
+    val currentPlayerId: String? = null,
+    val boardPlacements: List<PlacedTunnelCard> = emptyList(),
+    val boardStartPosition: BoardPosition = BoardPosition(row = 10, column = 4)
 )
