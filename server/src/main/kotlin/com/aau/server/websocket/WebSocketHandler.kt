@@ -53,12 +53,16 @@ class WebSocketHandler(
                 }
 
                 messagingService.broadcast("CARDS_DEALT", result.cardDistribution.hands)
+
             } else if (type == "LOBBY_CREATE" && data != null) {
                 val request = objectMapper.treeToValue<LobbyCreateRequest>(data)
-                lobbyService.createLobby(session, request.playerName)
+                val lobbyState = lobbyService.createLobby(request.playerName)
+                messagingService.broadcast("LOBBY_STATE_UPDATE", lobbyState)
+
             } else if (type == "LOBBY_JOIN" && data != null) {
                 val request = objectMapper.treeToValue<LobbyJoinRequest>(data)
-                lobbyService.joinLobby(session, request.lobbyCode, request.playerName)
+                val lobbyState = lobbyService.joinLobby(request.lobbyCode, request.playerName)
+                messagingService.broadcast("LOBBY_STATE_UPDATE", lobbyState)
             }
         } catch (e: Exception) {
             logger.error("Error handling text message: {}", e.message)

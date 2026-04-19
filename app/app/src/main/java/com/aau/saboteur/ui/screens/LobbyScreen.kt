@@ -229,7 +229,7 @@ fun LobbyScreen(
                             onClick = {
                                 // weiterhin Dummy: füllt nur LobbyCode in Textfield,
                                 // damit du schnell JOIN drücken kannst
-                                lobbyCode = "${1000 + index}"
+                                lobbyCode = currentState?.lobbyCode ?: lobbyCode
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
                         ) {

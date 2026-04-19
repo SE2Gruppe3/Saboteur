@@ -3,90 +3,65 @@ package com.aau.server.service
 import com.aau.saboteur.model.LobbyPlayer
 import com.aau.saboteur.model.LobbyState
 import org.springframework.stereotype.Service
-import org.springframework.web.socket.WebSocketSession
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 @Service
-class LobbyService(
-    private val messagingService: MessagingService
-) {
-    private data class Lobby(
-        val code: String,
-        val hostPlayerId: String,
-        val maxPlayers: Int = 10,
-        val minPlayersToStart: Int = 3,
-        val playersById: MutableMap<String, LobbyPlayer> = LinkedHashMap(),
-        val sessionIdsByPlayerId: MutableMap<String, String> = LinkedHashMap()
-    )
+class LobbyService {
 
-    private val lobbies = ConcurrentHashMap<String, Lobby>()
+    private val lobbies = ConcurrentHashMap<String, LobbyState>()
 
-    fun createLobby(session: WebSocketSession, playerName: String): LobbyState {
-        val code = generateCode()
-        val playerId = newPlayerId()
+    fun createLobby(playerName: String): LobbyState {
+        val code = generateUniqueCode()
 
         val host = LobbyPlayer(
-            id = playerId,
+            id = UUID.randomUUID().toString(),
             name = playerName,
             isReady = false,
             isHost = true
         )
 
-        val lobby = Lobby(code = code, hostPlayerId = playerId)
-        lobby.playersById[playerId] = host
-        lobby.sessionIdsByPlayerId[playerId] = session.id
+        val lobby = LobbyState(
+            lobbyCode = code,
+            hostName = playerName,
+            players = listOf(host),
+            maxPlayers = 10,
+            gameStarted = false,
+            minPlayersToStart = 3
+        )
 
         lobbies[code] = lobby
-
-        val state = toState(lobby)
-        messagingService.sendToSession(session.id, "LOBBY_STATE_UPDATE", state)
-        return state
+        return lobby
     }
 
-    fun joinLobby(session: WebSocketSession, lobbyCode: String, playerName: String): LobbyState {
+    fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
         val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
 
-        if (lobby.playersById.size >= lobby.maxPlayers) {
+        if (lobby.players.size >= lobby.maxPlayers) {
             throw IllegalStateException("Lobby is full")
         }
 
-        val playerId = newPlayerId()
-        val player = LobbyPlayer(
-            id = playerId,
+        val newPlayer = LobbyPlayer(
+            id = UUID.randomUUID().toString(),
             name = playerName,
             isReady = false,
             isHost = false
         )
 
-        lobby.playersById[playerId] = player
-        lobby.sessionIdsByPlayerId[playerId] = session.id
-
-        val state = toState(lobby)
-
-        // update everyone in this lobby
-        messagingService.sendToSessions(lobby.sessionIdsByPlayerId.values, "LOBBY_STATE_UPDATE", state)
-        return state
+        val updated = lobby.copy(players = lobby.players + newPlayer)
+        lobbies[lobbyCode] = updated
+        return updated
     }
 
-    private fun toState(lobby: Lobby): LobbyState {
-        val hostName = lobby.playersById[lobby.hostPlayerId]?.name ?: ""
-        return LobbyState(
-            lobbyCode = lobby.code,
-            hostName = hostName,
-            players = lobby.playersById.values.toList(),
-            maxPlayers = lobby.maxPlayers,
-            gameStarted = false,
-            minPlayersToStart = lobby.minPlayersToStart
-        )
-    }
+    fun getLobby(lobbyCode: String): LobbyState =
+        lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
 
-    private fun generateCode(): String {
-        while (true) {
-            val code = (1000..9999).random().toString()
+    private fun generateUniqueCode(): String {
+        repeat(50) {
+            val code = Random.nextInt(1000, 10000).toString()
             if (!lobbies.containsKey(code)) return code
         }
+        throw IllegalStateException("Could not generate unique lobby code")
     }
-
-    private fun newPlayerId(): String = "p_${Random.nextInt(100000, 999999)}"
 }
