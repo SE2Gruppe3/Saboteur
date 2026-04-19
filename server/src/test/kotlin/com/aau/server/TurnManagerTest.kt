@@ -1,7 +1,8 @@
 package com.aau.server
 
-import com.aau.shared.game.GameState
-import com.aau.shared.game.PlayerTurn
+import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.PlayerTurn
+import com.aau.server.service.CardDistributor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
