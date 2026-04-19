@@ -4,13 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,6 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aau.saboteur.model.LobbyPlayer
+import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.ui.theme.DarkBrown
 import com.aau.saboteur.ui.theme.FadedRed
 import com.aau.saboteur.ui.theme.Gold
@@ -31,8 +28,16 @@ fun LobbyScreen(
     onBackPressed: () -> Unit = {},
     onGameStarted: () -> Unit = {}
 ) {
-    val lobbyState = viewModel.lobbyState.collectAsState()
-    val currentState = lobbyState.value
+    val lobbyState by viewModel.lobbyState.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    // Local input state (Name + Code)
+    var playerName by remember { mutableStateOf("") }
+    var lobbyCode by remember { mutableStateOf("") }
+
+    // Convenience: if null, use empty placeholders
+    val currentState: LobbyState? = lobbyState
+    val players: List<LobbyPlayer> = currentState?.players ?: emptyList()
 
     Column(
         modifier = Modifier
@@ -48,12 +53,98 @@ fun LobbyScreen(
             color = Gold,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .padding(bottom = 16.dp)
         )
+
+        if (errorMessage != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0x33FF0000))
+            ) {
+                Text(
+                    text = "Error: $errorMessage",
+                    color = Color.White,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+
+        // Inputs
+        OutlinedTextField(
+            value = playerName,
+            onValueChange = { playerName = it },
+            label = { Text("Player name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = lobbyCode,
+            onValueChange = { lobbyCode = it },
+            label = { Text("Lobby code (zum Joinen)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // Quick actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { viewModel.createLobby(playerName.trim()) },
+                enabled = playerName.isNotBlank(),
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Gold)
+            ) {
+                Text(
+                    "CREATE",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Button(
+                onClick = { viewModel.joinLobby(lobbyCode.trim(), playerName.trim()) },
+                enabled = playerName.isNotBlank() && lobbyCode.isNotBlank(),
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = FadedRed)
+            ) {
+                Text("JOIN", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Lobby info (only if we have a state from server)
+        if (currentState != null) {
+            Text(
+                text = "Lobby Code: ${currentState.lobbyCode}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Gold,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = "Host: ${currentState.hostName}",
+                fontSize = 14.sp,
+                color = Gold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        } else {
+            Text(
+                text = "Noch keine Lobby – erst CREATE oder JOIN drücken.",
+                fontSize = 14.sp,
+                color = Gold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
 
         // Online Spieler Section
         Text(
-            text = "\uD83D\uDC68\u200D\uD83D\uDCBB ONLINE SPIELER",
+            text = "👨‍💻 ONLINE SPIELER",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = Gold,
@@ -66,21 +157,32 @@ fun LobbyScreen(
                 .padding(bottom = 16.dp),
             colors = CardDefaults.cardColors(containerColor = Parchment)
         ) {
-            LazyColumn(
-                modifier = Modifier.padding(12.dp)
-            ) {
-                items(currentState.players) { player ->
-                    Text(
-                        text = player.name,
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+            if (players.isEmpty()) {
+                Text(
+                    text = "Keine Spieler vorhanden.",
+                    fontSize = 14.sp,
+                    color = Color.Black,
+                    modifier = Modifier.padding(12.dp)
+                )
+            } else {
+                LazyColumn(modifier = Modifier.padding(12.dp)) {
+                    items(players) { player ->
+                        Text(
+                            text = buildString {
+                                append(player.name)
+                                if (player.isHost) append(" (Host)")
+                                if (player.isReady) append(" ✅")
+                            },
+                            fontSize = 14.sp,
+                            color = Color.Black,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // Verfügbare Lobbys Section
+        // Verfügbare Lobbys Section (noch Dummy)
         Text(
             text = "🎮 VERFÜGBARE LOBBYS",
             fontSize = 16.sp,
@@ -125,18 +227,20 @@ fun LobbyScreen(
 
                         Button(
                             onClick = {
-                                viewModel.joinLobby("${1000 + index}", "Player${currentState.players.size + 1}")
+                                // weiterhin Dummy: füllt nur LobbyCode in Textfield,
+                                // damit du schnell JOIN drücken kannst
+                                lobbyCode = "${1000 + index}"
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = FadedRed)
+                            colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
                         ) {
-                            Text("JOIN", color = Color.White, fontSize = 12.sp)
+                            Text("SELECT", color = Color.White, fontSize = 12.sp)
                         }
                     }
                 }
             }
         }
 
-        // Action Buttons
+        // Action Buttons unten
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -144,33 +248,23 @@ fun LobbyScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
-                onClick = {
-                    viewModel.createLobby("Player${(1000..9999).random()}")
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Gold)
-            ) {
-                Text(
-                    "CREATE NEW LOBBY",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    maxLines = 1
-                )
-            }
-
-            Button(
-                onClick = {
-                    // REFRESH - lädt Lobbys neu (später mit Backend)
-                },
+                onClick = { /* später: Lobby-Liste vom Backend laden */ },
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
             ) {
                 Text("REFRESH", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = onBackPressed,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+            ) {
+                Text("BACK", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -179,15 +273,7 @@ fun LobbyScreen(
 @Preview(showBackground = true)
 @Composable
 fun LobbyScreenPreview() {
-    val testViewModel = LobbyViewModel().apply {
-        createLobby("Bastian")
-        joinLobby("1234", "Player2")
-        joinLobby("1234", "Player3")
-    }
-
-    LobbyScreen(
-        viewModel = testViewModel,
-        onBackPressed = { },
-        onGameStarted = { }
-    )
+    // Preview geht mit dem neuen, server-basierten VM nicht wirklich sinnvoll,
+    // weil keine echten WebSocket Updates kommen.
+    // Wenn du Preview willst: sag Bescheid, dann bauen wir eine Fake-UI-State Variante.
 }
