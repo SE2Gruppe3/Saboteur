@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.mockeddata.mockPlayers
 import com.aau.saboteur.network.game.GameApi
+import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
@@ -17,6 +18,7 @@ data class GameUiState(
     val gameState: GameState = GameState(players = emptyList(), currentPlayerId = null),
     val player: Player? = null,
     val hands: Map<String, List<TunnelCard>>? = null,
+    val selectedCardId: String? = null,
     val errorMessage: String? = null
 )
 
@@ -78,9 +80,24 @@ class GameViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             isStartingGame = true,
             hands = null,
+            selectedCardId = null,
             errorMessage = null
         )
 
         GameApi.startGame(mockPlayers)
+    }
+
+    fun selectCard(cardId: String) {
+        val current = _uiState.value.selectedCardId
+        _uiState.value = _uiState.value.copy(
+            selectedCardId = if (current == cardId) null else cardId
+        )
+    }
+
+    fun placeCard(position: BoardPosition) {
+        val cardId = _uiState.value.selectedCardId ?: return
+        val playerId = _uiState.value.gameState.currentPlayerId ?: return
+        GameApi.playCard(playerId = playerId, cardId = cardId, position = position)
+        _uiState.value = _uiState.value.copy(selectedCardId = null)
     }
 }
