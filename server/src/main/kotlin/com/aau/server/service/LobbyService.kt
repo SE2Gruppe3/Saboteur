@@ -1,7 +1,7 @@
 package com.aau.server.service
 
-import com.aau.saboteur.model.LobbyPlayer
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.Player
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -15,20 +15,16 @@ class LobbyService {
     fun createLobby(playerName: String): LobbyState {
         val code = generateUniqueCode()
 
-        val host = LobbyPlayer(
+        val host = Player(
             id = UUID.randomUUID().toString(),
-            name = playerName,
-            isReady = false,
-            isHost = true
+            name = playerName
         )
 
         val lobby = LobbyState(
             lobbyCode = code,
-            hostName = playerName,
+            hostId = host.id,
             players = listOf(host),
-            maxPlayers = 10,
-            gameStarted = false,
-            minPlayersToStart = 3
+            gameStarted = false
         )
 
         lobbies[code] = lobby
@@ -38,15 +34,9 @@ class LobbyService {
     fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
         val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
 
-        if (lobby.players.size >= lobby.maxPlayers) {
-            throw IllegalStateException("Lobby is full")
-        }
-
-        val newPlayer = LobbyPlayer(
+        val newPlayer = Player(
             id = UUID.randomUUID().toString(),
-            name = playerName,
-            isReady = false,
-            isHost = false
+            name = playerName
         )
 
         val updated = lobby.copy(players = lobby.players + newPlayer)

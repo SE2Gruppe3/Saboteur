@@ -13,13 +13,14 @@ class LobbyServiceTest {
         val state = lobbyService.createLobby("Basti")
 
         assertTrue(state.lobbyCode.isNotBlank())
-        assertEquals("Basti", state.hostName)
+
+        assertEquals("Basti", state.players.first { it.id == state.hostId }.name)
 
         assertEquals(1, state.players.size)
         val host = state.players.first()
         assertEquals("Basti", host.name)
-        assertTrue(host.isHost)
-        assertFalse(host.isReady)
+        // Host ist korrekt über hostId identifizierbar
+        assertEquals(host.id, state.hostId)
     }
 
     @Test

@@ -13,8 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aau.saboteur.model.LobbyPlayer
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.theme.DarkBrown
 import com.aau.saboteur.ui.theme.FadedRed
 import com.aau.saboteur.ui.theme.Gold
@@ -37,7 +37,10 @@ fun LobbyScreen(
 
     // Convenience: if null, use empty placeholders
     val currentState: LobbyState? = lobbyState
-    val players: List<LobbyPlayer> = currentState?.players ?: emptyList()
+    val players: List<Player> = currentState?.players ?: emptyList()
+
+    val hostName: String? = currentState
+        ?.let { state -> state.players.firstOrNull { it.id == state.hostId }?.name }
 
     Column(
         modifier = Modifier
@@ -128,7 +131,7 @@ fun LobbyScreen(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
-                text = "Host: ${currentState.hostName}",
+                text = "Host: ${hostName ?: "Unbekannt"}",
                 fontSize = 14.sp,
                 color = Gold,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -167,11 +170,12 @@ fun LobbyScreen(
             } else {
                 LazyColumn(modifier = Modifier.padding(12.dp)) {
                     items(players) { player ->
+                        val isHost = currentState != null && player.id == currentState.hostId
+
                         Text(
                             text = buildString {
                                 append(player.name)
-                                if (player.isHost) append(" (Host)")
-                                if (player.isReady) append(" ✅")
+                                if (isHost) append(" (Host)")
                             },
                             fontSize = 14.sp,
                             color = Color.Black,

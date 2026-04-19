@@ -85,13 +85,11 @@ class WebSocketHandlerTests {
 
         val lobbyState = LobbyState(
             lobbyCode = "1234",
-            hostName = "Host",
+            hostId = "1",
             players = listOf(
-                LobbyPlayer(id = "1", name = "Host", isReady = false, isHost = true)
+                Player(id = "1", name = "Host")
             ),
-            maxPlayers = 10,
-            gameStarted = false,
-            minPlayersToStart = 3
+            gameStarted = false
         )
 
         `when`(lobbyService.createLobby("Host")).thenReturn(lobbyState)
@@ -118,14 +116,12 @@ class WebSocketHandlerTests {
 
         val lobbyState = LobbyState(
             lobbyCode = "1234",
-            hostName = "Host",
+            hostId = "1", // Die ID des Hosts!
             players = listOf(
-                LobbyPlayer(id = "1", name = "Host", isReady = false, isHost = true),
-                LobbyPlayer(id = "2", name = "Max", isReady = false, isHost = false)
+                Player(id = "1", name = "Host"),
+                Player(id = "2", name = "Max")
             ),
-            maxPlayers = 10,
-            gameStarted = false,
-            minPlayersToStart = 3
+            gameStarted = false
         )
 
         `when`(lobbyService.joinLobby("1234", "Max")).thenReturn(lobbyState)

@@ -2,8 +2,8 @@ package com.aau.server
 
 import com.aau.saboteur.model.LobbyCreateRequest
 import com.aau.saboteur.model.LobbyJoinRequest
-import com.aau.saboteur.model.LobbyPlayer
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.Player
 import com.aau.server.controller.LobbyController
 import com.aau.server.service.LobbyService
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -14,8 +14,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
 
 @WebMvcTest(LobbyController::class)
 class LobbyControllerTest {
@@ -29,13 +29,11 @@ class LobbyControllerTest {
     fun `POST api lobby create returns lobby state`() {
         val state = LobbyState(
             lobbyCode = "1234",
-            hostName = "Host",
+            hostId = "1",
             players = listOf(
-                LobbyPlayer(id = "1", name = "Host", isReady = false, isHost = true)
+                Player(id = "1", name = "Host")
             ),
-            maxPlayers = 10,
-            gameStarted = false,
-            minPlayersToStart = 3
+            gameStarted = false
         )
 
         `when`(lobbyService.createLobby("Host")).thenReturn(state)
@@ -47,7 +45,7 @@ class LobbyControllerTest {
             .andExpect {
                 status { isOk() }
                 jsonPath("$.lobbyCode") { value("1234") }
-                jsonPath("$.hostName") { value("Host") }
+                jsonPath("$.hostId") { value("1") }
                 jsonPath("$.players.length()") { value(1) }
                 jsonPath("$.players[0].name") { value("Host") }
             }
@@ -57,14 +55,12 @@ class LobbyControllerTest {
     fun `POST api lobby join returns lobby state`() {
         val state = LobbyState(
             lobbyCode = "1234",
-            hostName = "Host",
+            hostId = "1",
             players = listOf(
-                LobbyPlayer(id = "1", name = "Host", isReady = false, isHost = true),
-                LobbyPlayer(id = "2", name = "Max", isReady = false, isHost = false)
+                Player(id = "1", name = "Host"),
+                Player(id = "2", name = "Max")
             ),
-            maxPlayers = 10,
-            gameStarted = false,
-            minPlayersToStart = 3
+            gameStarted = false
         )
 
         `when`(lobbyService.joinLobby("1234", "Max")).thenReturn(state)
@@ -120,11 +116,9 @@ class LobbyControllerTest {
     fun `GET api lobby code returns lobby state`() {
         val state = LobbyState(
             lobbyCode = "1234",
-            hostName = "Host",
+            hostId = "1",
             players = emptyList(),
-            maxPlayers = 10,
-            gameStarted = false,
-            minPlayersToStart = 3
+            gameStarted = false
         )
 
         `when`(lobbyService.getLobby("1234")).thenReturn(state)

@@ -5,9 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LobbyState(
     val lobbyCode: String,
-    val hostName: String,
-    val players: List<LobbyPlayer> = emptyList(),
-    val maxPlayers: Int = 10,
-    val gameStarted: Boolean = false,
-    val minPlayersToStart: Int = 3
+    val hostId: String,
+    val players: List<Player> = emptyList(),
+    val gameStarted: Boolean = false
 )
