@@ -4,6 +4,7 @@ import com.aau.saboteur.model.*
 import com.aau.server.model.CardDistributionResult
 import com.aau.server.model.GameStartResult
 import com.aau.server.service.GameService
+import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
 import com.aau.server.websocket.WebSocketHandler
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -22,6 +23,7 @@ import java.io.IOException
 class WebSocketHandlerTests {
 
     private lateinit var gameService: GameService
+    private lateinit var lobbyService: LobbyService
     private lateinit var messagingService: MessagingService
     private lateinit var objectMapper: ObjectMapper
     private lateinit var handler: WebSocketHandler
@@ -30,9 +32,12 @@ class WebSocketHandlerTests {
     @BeforeEach
     fun setup() {
         gameService = mock(GameService::class.java)
+        lobbyService = mock(LobbyService::class.java)
         messagingService = mock(MessagingService::class.java)
         objectMapper = jacksonObjectMapper()
-        handler = WebSocketHandler(objectMapper, gameService, messagingService)
+
+        handler = WebSocketHandler(objectMapper, gameService, messagingService, lobbyService)
+
         session = mock(WebSocketSession::class.java)
         `when`(session.isOpen).thenReturn(true)
         `when`(session.id).thenReturn("test-session")
@@ -68,10 +73,14 @@ class WebSocketHandlerTests {
     fun `handleTextMessage START_GAME broadcasts GAME_STATE_UPDATE`() {
         val players = listOf(Player("1", "Alice"), Player("2", "Bob"), Player("3", "Charlie"))
         val request = CreateGameRequest(players = players)
-        val message = TextMessage(objectMapper.writeValueAsString(mapOf(
-            "type" to "START_GAME",
-            "data" to request
-        )))
+        val message = TextMessage(
+            objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "START_GAME",
+                    "data" to request
+                )
+            )
+        )
 
         val newState = GameState(
             players = listOf(
@@ -98,10 +107,14 @@ class WebSocketHandlerTests {
     fun `handleTextMessage START_GAME triggers game start and delegates to messagingService`() {
         val players = listOf(Player("1", "Alice"), Player("2", "Bob"), Player("3", "Charlie"))
         val request = CreateGameRequest(players = players)
-        val message = TextMessage(objectMapper.writeValueAsString(mapOf(
-            "type" to "START_GAME",
-            "data" to request
-        )))
+        val message = TextMessage(
+            objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "START_GAME",
+                    "data" to request
+                )
+            )
+        )
 
         val newState = GameState(
             players = listOf(
@@ -118,7 +131,7 @@ class WebSocketHandlerTests {
             playerRoles = assignedPlayers,
             cardDistribution = CardDistributionResult(emptyMap(), emptyList(), emptyList(), createDummyCard())
         )
-        
+
         `when`(gameService.startGame(anyK(emptyList<Player>()))).thenReturn(startResult)
 
         handler.handleTextMessage(session, message)
@@ -172,7 +185,7 @@ class WebSocketHandlerTests {
     fun `handleTextMessage handles exception without message`() {
         // Exception with null message falls back to "Unknown error"
         val mockMapper = mock(ObjectMapper::class.java)
-        val handlerWithMock = WebSocketHandler(mockMapper, gameService, messagingService)
+        val handlerWithMock = WebSocketHandler(mockMapper, gameService, messagingService, lobbyService)
 
         `when`(mockMapper.readTree(anyString() ?: "")).thenThrow(RuntimeException())
         `when`(mockMapper.writeValueAsString(any())).thenReturn("{\"type\":\"ERROR\",\"data\":\"Unknown error\"}")
