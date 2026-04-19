@@ -4,20 +4,15 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -38,7 +34,9 @@ import com.aau.saboteur.model.TunnelCard
 @Composable
 fun TunnelCardView(
     card: TunnelCard,
+    isSelected: Boolean = false,
     onRotationChanged: (isRotated: Boolean) -> Unit = {},
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isRotated by remember { mutableStateOf(card.isRotated) }
@@ -53,6 +51,13 @@ fun TunnelCardView(
     val drawableName = card.toDrawableName()
     val resId = context.resources.getIdentifier(drawableName, "drawable", context.packageName)
 
+    val borderColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+    val borderWidth = if (isSelected) 3.dp else 1.dp
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -64,7 +69,16 @@ fun TunnelCardView(
                 .width(60.dp)
                 .height(90.dp)
                 .graphicsLayer { rotationZ = rotation }
-                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
+                .border(borderWidth, borderColor, RoundedCornerShape(6.dp))
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onClick() },
+                        onDoubleTap = {
+                            isRotated = !isRotated
+                            onRotationChanged(isRotated)
+                        }
+                    )
+                }
         ) {
             if (resId != 0) {
                 Image(
@@ -79,17 +93,6 @@ fun TunnelCardView(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-        }
-
-        Button(
-            onClick = {
-                isRotated = !isRotated
-                onRotationChanged(isRotated)
-            },
-            modifier = Modifier.width(60.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-        ) {
-            Text("Drehen", fontSize = 9.sp, maxLines = 1, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
     }
 }
