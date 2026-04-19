@@ -1,8 +1,11 @@
 package com.aau.server.service
 
 import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.BoardPosition
+import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.PlayerTurn
+import com.aau.server.game.CardDeck
 import com.aau.server.model.GameStartResult
 import org.springframework.stereotype.Service
 import java.util.concurrent.atomic.AtomicReference
@@ -53,11 +56,34 @@ class GameService {
 
         val gameState = GameState(
             players = randomizedPlayers,
-            currentPlayerId = randomizedPlayers.firstOrNull()?.playerId
+            currentPlayerId = randomizedPlayers.firstOrNull()?.playerId,
+            boardPlacements = createInitialBoardPlacements()
         )
 
         currentState.set(gameState)
         return gameState
+    }
+
+    private fun createInitialBoardPlacements(): List<PlacedTunnelCard> {
+        val goalCards = CardDeck.createGoalCards().shuffled()
+        return listOf(
+            PlacedTunnelCard(
+                position = BoardPosition(row = 0, column = 2),
+                card = goalCards[0]
+            ),
+            PlacedTunnelCard(
+                position = BoardPosition(row = 0, column = 4),
+                card = goalCards[1]
+            ),
+            PlacedTunnelCard(
+                position = BoardPosition(row = 0, column = 6),
+                card = goalCards[2]
+            ),
+            PlacedTunnelCard(
+                position = BoardPosition(row = 10, column = 4),
+                card = CardDeck.createStartCard()
+            )
+        )
     }
 
     /**

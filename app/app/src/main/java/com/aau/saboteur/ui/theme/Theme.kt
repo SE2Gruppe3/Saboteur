@@ -1,8 +1,6 @@
 package com.aau.saboteur.ui.theme
 
-import android.app.Activity
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -12,43 +10,41 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-//Saboteur-Farben
-val DwarfGold = Color(0xFFD4AF37)
-val StoneGrey = Color(0xFF2B2B2B)
-val DeepCoal = Color(0xFF1A1A1A)
-val IronWhite = Color(0xFFE0E0E0)
-
-
-
-
 private val DarkColorScheme = darkColorScheme(
-    primary = DwarfGold,
-    secondary = DwarfGold,
-    tertiary = Pink80,
-    background = StoneGrey,
-    surface = DeepCoal,
-    onPrimary = DeepCoal,
-    onBackground = IronWhite,
-    onSurface = IronWhite,
-    outline = DwarfGold
+    primary = Gold,
+    onPrimary = MineCoal,
+    secondary = OreCopper,
+    onSecondary = Quartz,
+    tertiary = MossyGreen,
+    onTertiary = Quartz,
+    background = MineCoal,
+    onBackground = Quartz,
+    surface = DarkBrown,
+    onSurface = Quartz,
+    surfaceVariant = MineSlate,
+    onSurfaceVariant = Color(0xFFE5D8BC),
+    outline = OreGold
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = DwarfGold,
-    secondary = DwarfGold,
-    tertiary = Pink40,
-    background = StoneGrey,
-    surface = DeepCoal,
-    onPrimary = DeepCoal,
-    onBackground = IronWhite,
-    onSurface = IronWhite,
-    outline = DwarfGold
+    primary = Gold,
+    onPrimary = Quartz,
+    secondary = OreCopper,
+    onSecondary = Quartz,
+    tertiary = MossyGreen,
+    onTertiary = Quartz,
+    background = Parchment,
+    onBackground = MineCoal,
+    surface = Quartz,
+    onSurface = MineCoal,
+    surfaceVariant = Color(0xFFE6D5B1),
+    onSurfaceVariant = DarkBrown,
+    outline = OreCopper
 )
 
 @Composable
 fun SE2GameTheme(
-
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -57,8 +53,6 @@ fun SE2GameTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        // Wenn darkTheme true ist -> DarkColorScheme
-        // Wenn darkTheme false ist -> LightColorScheme
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
