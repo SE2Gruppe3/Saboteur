@@ -15,22 +15,29 @@ class AuthRepository {
 
     suspend fun loginUser(username: String, password: String?): Result<User> = withContext(Dispatchers.IO) {
         try {
-            val requestBody = """{"username": "$username"}"""
-                .toRequestBody("application/json".toMediaType())
-
+            val requestBodyJson = """
+                {
+                    "username": "$username",
+                    "password": "${password ?: ""}"
+                }
+            """.trimIndent().toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url("http://10.0.2.2:8080/api/login")
-                .post(requestBody)
+                .url("http://10.0.2.2:8080/api/auth/login")
+                .post(requestBodyJson)
                 .build()
 
             client.newCall(request).execute().use { response ->
+                val bodyString = response.body?.string() ?: ""
+
                 if (response.isSuccessful) {
-                    val body = response.body?.string() ?: ""
-                    val user = json.decodeFromString<User>(body)
+                    val user = json.decodeFromString<User>(bodyString)
                     Result.success(user)
                 } else {
-                    Result.failure(Exception("Login failed: ${response.code}"))
+                    // Hier lesen wir jetzt die Nachricht aus, die wir im Controller
+                    // mit .body("Nachricht") definiert haben (z.B. "Passwort falsch")
+                    val errorMessage = if (bodyString.isNotBlank()) bodyString else "Fehler: ${response.code}"
+                    Result.failure(Exception(errorMessage))
                 }
             }
         } catch (e: Exception) {
