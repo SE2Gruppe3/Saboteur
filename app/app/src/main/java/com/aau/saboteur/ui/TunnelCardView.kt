@@ -35,30 +35,6 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.TunnelCard
 
-private fun TunnelCard.toDrawableName(): String = when (type) {
-    CardType.START -> "start"
-    CardType.GOAL -> when (id) {
-        "goal_gold" -> "goal_gold"
-        "goal_stone_1" -> "goal_stone1"
-        "goal_stone_2" -> "goal_stone2"
-        else -> "goal_stone1"
-    }
-    else -> {
-        val prefix = if (type == CardType.PATH) "path" else "dead"
-        if (connections.size == 4) {
-            "${prefix}_cross"
-        } else {
-            val suffix = buildString {
-                if (Direction.TOP in connections) append('t')
-                if (Direction.LEFT in connections) append('l')
-                if (Direction.RIGHT in connections) append('r')
-                if (Direction.BOTTOM in connections) append('b')
-            }
-            "${prefix}_$suffix"
-        }
-    }
-}
-
 @Composable
 fun TunnelCardView(
     card: TunnelCard,
@@ -93,7 +69,7 @@ fun TunnelCardView(
             if (resId != 0) {
                 Image(
                     painter = painterResource(id = resId),
-                    contentDescription = drawableName,
+                    contentDescription = card.toContentDescription(),
                     contentScale = ContentScale.FillBounds,
                     modifier = Modifier.width(60.dp).height(90.dp)
                 )

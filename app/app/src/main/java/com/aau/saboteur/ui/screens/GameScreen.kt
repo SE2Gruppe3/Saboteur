@@ -18,8 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.model.PlayerTurn
-import com.aau.saboteur.mockeddata.boardStartPosition
-import com.aau.saboteur.mockeddata.mockBoardPlacements
 import com.aau.saboteur.ui.components.BoardGrid
 import com.aau.saboteur.ui.components.PlayerHandRow
 import com.aau.saboteur.ui.components.PlayerTurnOrderRow
@@ -33,6 +31,7 @@ fun GameScreen(
     val uiState by viewModel.uiState.collectAsState()
     val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
     val currentHand = uiState.gameState.currentPlayerId?.let { uiState.hands?.get(it) }
+    val isGameStarted = sortedPlayers.isNotEmpty() || uiState.gameState.boardPlacements.isNotEmpty()
 
     Box(
         modifier = Modifier
@@ -61,19 +60,23 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 BoardGrid(
-                    placements = mockBoardPlacements,
-                    startPosition = boardStartPosition
+                    placements = uiState.gameState.boardPlacements,
+                    startPosition = uiState.gameState.boardStartPosition,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
                 )
 
-                Button(
-                    onClick = viewModel::startGame
-                ) {
-                    Text(if (uiState.isStartingGame) "Starting game..." else "Start Game")
-                }
+                if (!isGameStarted) {
+                    Button(
+                        onClick = viewModel::startGame,
+                        enabled = !uiState.isStartingGame
+                    ) {
+                        Text(if (uiState.isStartingGame) "Starting game..." else "Start Game")
+                    }
 
-                if (sortedPlayers.isEmpty()) {
                     Text(
-                        text = "Grundraster aktiv. Press Start Game for player state.",
+                        text = "Start a game to load the board.",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
