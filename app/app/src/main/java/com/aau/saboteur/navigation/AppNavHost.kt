@@ -24,11 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
-import com.aau.saboteur.ui.screens.ConnectivityTestScreen
-import com.aau.saboteur.ui.screens.GameScreen
-import com.aau.saboteur.ui.screens.LoginScreen
-import com.aau.saboteur.ui.screens.LobbyScreen
-import com.aau.saboteur.ui.screens.MenuScreen
+import com.aau.saboteur.ui.screens.*
 import com.aau.saboteur.viewModels.LoginViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
 

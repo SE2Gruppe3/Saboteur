@@ -273,7 +273,5 @@ fun LobbyScreen(
 @Preview(showBackground = true)
 @Composable
 fun LobbyScreenPreview() {
-    // Preview geht mit dem neuen, server-basierten VM nicht wirklich sinnvoll,
-    // weil keine echten WebSocket Updates kommen.
-    // Wenn du Preview willst: sag Bescheid, dann bauen wir eine Fake-UI-State Variante.
+    Text("LobbyScreen Preview disabled (requires server-backed ViewModel)")
 }
