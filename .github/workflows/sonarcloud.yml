@@ -31,3 +31,28 @@ jobs:
 
       - name: Analyze server
         run: ./gradlew :server:test :server:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+
+  app:
+    name: App Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Sonar packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar-app
+          restore-keys: ${{ runner.os }}-sonar-app
+
+      - name: Analyze app
+        run: ./gradlew :app:jacocoTestDebugUnitTestReport :app:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN_APP }}

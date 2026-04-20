@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.sonarqube)
     jacoco
 }
 
@@ -100,6 +101,7 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
         "**/*Test*.*", "android/**/*.*"
     )
     val debugTree = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+        include("**/viewModels/**")
         exclude(fileFilter)
     }
     val mainSrc = "${project.projectDir}/src/main/java"
@@ -109,4 +111,18 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
     executionData.setFrom(fileTree(project.layout.buildDirectory.get()) {
         include("jacoco/testDebugUnitTest.exec", "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
     })
+}
+
+tasks.named("sonar") {
+    dependsOn(jacocoTestDebugUnitTestReport)
+}
+
+sonar {
+    properties {
+        property("sonar.organization", "se2gruppe3")
+        property("sonar.projectKey", "SE2Gruppe3_saboteur_app")
+        property("sonar.projectName", "saboteur-app")
+        property("sonar.inclusions", "**/viewModels/**")
+        property("sonar.coverage.jacoco.xmlReportPaths", "${project.layout.buildDirectory.get()}/reports/jacoco/jacocoTestDebugUnitTestReport/jacocoTestDebugUnitTestReport.xml")
+    }
 }
