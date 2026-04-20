@@ -29,5 +29,14 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      - name: Analyze server
-        run: ./gradlew :server:test :server:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+      - name: Analyze server and app viewmodels
+        run: |
+          ./gradlew :server:test :server:jacocoTestReport
+          ./gradlew :app:testDebugUnitTest :app:jacocoTestDebugUnitTestReport
+          ./gradlew :server:sonar \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.sources=src/main/kotlin,../app/app/src/main/java/com/aau/saboteur/viewModels \
+            -Dsonar.tests=src/test/kotlin,../app/app/src/test/java \
+            -Dsonar.java.binaries=build/classes/kotlin/main,build/classes/java/main,../app/app/build/tmp/kotlin-classes/debug,../app/app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes \
+            -Dsonar.junit.reportPaths=build/test-results/test,../app/app/build/test-results/testDebugUnitTest \
+            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml,../app/app/build/reports/jacoco/jacocoTestDebugUnitTestReport/jacocoTestDebugUnitTestReport.xml
