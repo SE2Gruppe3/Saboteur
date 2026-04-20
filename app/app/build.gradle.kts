@@ -117,7 +117,7 @@ tasks.named("sonar") {
     dependsOn(jacocoTestDebugUnitTestReport)
 }
 
-sonar {
+extensions.configure<org.sonarqube.gradle.SonarExtension> {
     properties {
         property("sonar.organization", "se2gruppe3")
         property("sonar.projectKey", "SE2Gruppe3_saboteur_app")
