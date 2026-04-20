@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.sonarqube)
+    id("org.sonarqube") version "7.2.3.7755"
     jacoco
 }
 
@@ -117,12 +117,13 @@ tasks.named("sonar") {
     dependsOn(jacocoTestDebugUnitTestReport)
 }
 
-extensions.configure<org.sonarqube.gradle.SonarExtension> {
+sonar {
     properties {
         property("sonar.organization", "se2gruppe3")
         property("sonar.projectKey", "SE2Gruppe3_saboteur_app")
         property("sonar.projectName", "saboteur-app")
         property("sonar.inclusions", "**/viewModels/**")
         property("sonar.coverage.jacoco.xmlReportPaths", "${project.layout.buildDirectory.get()}/reports/jacoco/jacocoTestDebugUnitTestReport/jacocoTestDebugUnitTestReport.xml")
+        property("sonar.kotlin.binaries", "${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug")
     }
 }
