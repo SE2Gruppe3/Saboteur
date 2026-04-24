@@ -1,0 +1,6 @@
+services:
+  server:
+    image: ghcr.io/se2gruppe3/saboteur:latest
+    restart: unless-stopped
+    ports:
+      - "53207:8080"
