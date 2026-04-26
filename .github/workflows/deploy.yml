@@ -7,8 +7,6 @@ on:
 env:
   REGISTRY: ghcr.io
 
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -27,11 +25,15 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+
+      - name: Lowercase repo name
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> $GITHUB_ENV
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build with Gradle
-
         run: ./gradlew :server:bootJar -x test
 
       - name: Log in to the Container registry
