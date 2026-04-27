@@ -55,8 +55,8 @@ import com.aau.saboteur.ui.toContentDescription
 import com.aau.saboteur.ui.toDrawableName
 import kotlin.math.hypot
 
-private const val BoardColumns = 9
-private const val BoardRows = 13
+private const val BoardColumns = 13
+private const val BoardRows = 9
 private const val BackgroundGridColumns = (BoardColumns + 1) * 3
 private const val BackgroundGridRows = (BoardRows + 1) * 3
 private const val BoardCardWidthDp = 86

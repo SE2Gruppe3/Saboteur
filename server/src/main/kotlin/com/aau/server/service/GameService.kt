@@ -68,19 +68,19 @@ class GameService {
         val goalCards = CardDeck.createGoalCards().shuffled()
         return listOf(
             PlacedTunnelCard(
-                position = BoardPosition(row = 0, column = 2),
+                position = BoardPosition(row = 2, column = 10),
                 card = goalCards[0]
             ),
             PlacedTunnelCard(
-                position = BoardPosition(row = 0, column = 4),
+                position = BoardPosition(row = 4, column = 10),
                 card = goalCards[1]
             ),
             PlacedTunnelCard(
-                position = BoardPosition(row = 0, column = 6),
+                position = BoardPosition(row = 6, column = 10),
                 card = goalCards[2]
             ),
             PlacedTunnelCard(
-                position = BoardPosition(row = 10, column = 4),
+                position = BoardPosition(row = 4, column = 2),
                 card = CardDeck.createStartCard()
             )
         )
