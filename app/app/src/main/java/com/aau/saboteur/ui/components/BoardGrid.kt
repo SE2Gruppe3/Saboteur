@@ -5,8 +5,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,18 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,7 +41,6 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,7 +59,7 @@ private const val BackgroundGridColumns = (BoardColumns + 1) * 3
 private const val BackgroundGridRows = (BoardRows + 1) * 3
 private const val BoardCardWidthDp = 86
 private const val BoardCardHeightDp = 126
-private const val BoardCardSpacingDp = 12
+private const val BoardCardSpacingDp = 0
 private const val BoardContentWidthDp = BoardColumns * BoardCardWidthDp + (BoardColumns - 1) * BoardCardSpacingDp
 private const val BoardContentHeightDp = BoardRows * BoardCardHeightDp + (BoardRows - 1) * BoardCardSpacingDp
 private const val BoardGridLineAlpha = 0.28f
@@ -89,7 +87,6 @@ fun BoardGrid(
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
     val lineColor = MaterialTheme.colorScheme.outline.copy(alpha = BoardGridLineAlpha)
-    var didInitialScroll by remember { mutableStateOf(false) }
     var scale by remember { mutableFloatStateOf(1f) }
 
     Surface(
@@ -105,40 +102,17 @@ fun BoardGrid(
                 .heightIn(min = BoardMinHeight, max = BoardDefaultHeight)
                 .padding(BoardOuterPadding)
         ) {
-            val density = LocalDensity.current
-            val viewportWidthPx = constraints.maxWidth
-            val viewportHeightPx = constraints.maxHeight
-
-            LaunchedEffect(viewportWidthPx, viewportHeightPx, startPosition) {
-                if (didInitialScroll) return@LaunchedEffect
-
-                val cardWidthPx = with(density) { BoardCardWidthDp.dp.roundToPx() }
-                val cardHeightPx = with(density) { BoardCardHeightDp.dp.roundToPx() }
-                val spacingPx = with(density) { BoardCardSpacingDp.dp.roundToPx() }
-                val cellWidthPx = cardWidthPx + spacingPx
-                val cellHeightPx = cardHeightPx + spacingPx
-                val contentWidthPx = with(density) { BoardContentWidthDp.dp.roundToPx() }
-                val contentHeightPx = with(density) { BoardContentHeightDp.dp.roundToPx() }
-                val startCenterX = startPosition.column * cellWidthPx + cardWidthPx / 2
-                val startCenterY = startPosition.row * cellHeightPx + cardHeightPx / 2
-                val targetX = (startCenterX - viewportWidthPx / 2).coerceIn(
-                    0,
-                    (contentWidthPx - viewportWidthPx).coerceAtLeast(0)
-                )
-                val targetY = (startCenterY - viewportHeightPx / 2).coerceIn(
-                    0,
-                    (contentHeightPx - viewportHeightPx).coerceAtLeast(0)
-                )
-                horizontalScroll.scrollTo(targetX)
-                verticalScroll.scrollTo(targetY)
-                didInitialScroll = true
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(verticalScroll)
-                    .horizontalScroll(horizontalScroll)
+                    .pointerInput(Unit) {
+                        detectDragGestures { _, dragAmount ->
+                            horizontalScroll.dispatchRawDelta(-dragAmount.x)
+                            verticalScroll.dispatchRawDelta(-dragAmount.y)
+                        }
+                    }
+                    .verticalScroll(verticalScroll, enabled = false)
+                    .horizontalScroll(horizontalScroll, enabled = false)
             ) {
                 Box(
                     modifier = Modifier
