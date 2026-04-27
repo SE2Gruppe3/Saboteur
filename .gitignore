@@ -32,3 +32,5 @@ capture/
 *.ap_
 *.apk
 *.dex
+
+.env

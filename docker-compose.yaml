@@ -3,6 +3,9 @@ services:
     image: ghcr.io/se2gruppe3/saboteur:latest
     restart: unless-stopped
     ports:
-      - "53207:8080"
+      - "53207:${SERVER_PORT}"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}

@@ -35,7 +35,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"https://your-production-url.com\"")
+            buildConfigField("String", "BASE_URL", "\"http://se2-demo.aau.at:53207\"")
         }
     }
     compileOptions {
