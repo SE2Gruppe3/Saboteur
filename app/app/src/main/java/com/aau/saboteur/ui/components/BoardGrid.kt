@@ -99,16 +99,6 @@ fun BoardGrid(
                 .heightIn(min = BoardMinHeight, max = BoardDefaultHeight)
                 .padding(BoardOuterPadding)
         ) {
-            // ── FIX: scrollable area grows/shrinks with zoom ──────────────────
-            // graphicsLayer skaliert nur visuell – der belegte Platz bleibt gleich.
-            // Deshalb geben wir der inneren Box die bereits skalierten Dimensionen
-            // als tatsächliche Größe mit, und verschieben den Inhalt per graphicsLayer
-            // ohne TransformOrigin-Trick (origin bleibt 0,0 damit Scroll-Koordinaten
-            // übereinstimmen).
-            // FIX: Tile-Größen direkt skalieren statt graphicsLayer zu verwenden.
-            // graphicsLayer skaliert nur visuell – Layout-Platz und Scroll-Bereich
-            // bleiben unverändert → brauner Rand beim Rauszoomen, Clipping beim Reinzoomen.
-            // Wenn die Tiles selbst skaliert werden, stimmt alles automatisch überein.
             val scaledCardWidth  = (BoardCardWidthDp  * scale).dp
             val scaledCardHeight = (BoardCardHeightDp * scale).dp
             val scaledWidth      = (BoardContentWidthDp  * scale).dp
@@ -123,7 +113,7 @@ fun BoardGrid(
                             verticalScroll.dispatchRawDelta(-dragAmount.y)
                         }
                     }
-                    .pointerInput(scale) {
+                    .pointerInput(Unit) {
                         awaitEachGesture {
                             do {
                                 val event = awaitPointerEvent()
@@ -190,10 +180,6 @@ fun BoardGrid(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Alle anderen Composables & Hilfsfunktionen unverändert
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun BoardTile(
