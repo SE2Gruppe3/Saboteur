@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -94,7 +93,7 @@ fun BoardGrid(
         tonalElevation = BoardTonalElevation,
         shadowElevation = BoardShadowElevation
     ) {
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = BoardMinHeight, max = BoardDefaultHeight)
@@ -204,6 +203,7 @@ private fun BoardTile(
 ) {
     val context = LocalContext.current
     val drawableName = card?.toDrawableName()
+    @Suppress("DiscouragedApi")
     val imageRes = drawableName?.let {
         context.resources.getIdentifier(it, "drawable", context.packageName)
     } ?: 0
