@@ -61,7 +61,6 @@ fun GameScreen(
             ) {
                 BoardGrid(
                     placements = uiState.gameState.boardPlacements,
-                    startPosition = uiState.gameState.boardStartPosition,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)

@@ -80,7 +80,6 @@ private val TileContentPadding = 6.dp
 @Composable
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
-    startPosition: BoardPosition,
     modifier: Modifier = Modifier
 ) {
     val horizontalScroll = rememberScrollState()
