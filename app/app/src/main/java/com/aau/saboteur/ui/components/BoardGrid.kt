@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
@@ -101,6 +100,21 @@ fun BoardGrid(
                 .heightIn(min = BoardMinHeight, max = BoardDefaultHeight)
                 .padding(BoardOuterPadding)
         ) {
+            // ── FIX: scrollable area grows/shrinks with zoom ──────────────────
+            // graphicsLayer skaliert nur visuell – der belegte Platz bleibt gleich.
+            // Deshalb geben wir der inneren Box die bereits skalierten Dimensionen
+            // als tatsächliche Größe mit, und verschieben den Inhalt per graphicsLayer
+            // ohne TransformOrigin-Trick (origin bleibt 0,0 damit Scroll-Koordinaten
+            // übereinstimmen).
+            // FIX: Tile-Größen direkt skalieren statt graphicsLayer zu verwenden.
+            // graphicsLayer skaliert nur visuell – Layout-Platz und Scroll-Bereich
+            // bleiben unverändert → brauner Rand beim Rauszoomen, Clipping beim Reinzoomen.
+            // Wenn die Tiles selbst skaliert werden, stimmt alles automatisch überein.
+            val scaledCardWidth  = (BoardCardWidthDp  * scale).dp
+            val scaledCardHeight = (BoardCardHeightDp * scale).dp
+            val scaledWidth      = (BoardContentWidthDp  * scale).dp
+            val scaledHeight     = (BoardContentHeightDp * scale).dp
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -110,35 +124,28 @@ fun BoardGrid(
                             verticalScroll.dispatchRawDelta(-dragAmount.y)
                         }
                     }
+                    .pointerInput(scale) {
+                        awaitEachGesture {
+                            do {
+                                val event = awaitPointerEvent()
+                                val pressedChanges = event.changes.filter(PointerInputChange::pressed)
+                                if (pressedChanges.size >= 2) {
+                                    val previousDistance = pressedChanges.pointerDistance(usePreviousPosition = true)
+                                    val currentDistance  = pressedChanges.pointerDistance(usePreviousPosition = false)
+                                    if (previousDistance > 0f) {
+                                        val zoomChange = currentDistance / previousDistance
+                                        scale = (scale * zoomChange).coerceIn(MinBoardZoom, MaxBoardZoom)
+                                    }
+                                    pressedChanges.forEach(PointerInputChange::consume)
+                                }
+                            } while (event.changes.any(PointerInputChange::pressed))
+                        }
+                    }
                     .verticalScroll(verticalScroll, enabled = false)
                     .horizontalScroll(horizontalScroll, enabled = false)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = BoardContentWidthDp.dp, height = BoardContentHeightDp.dp)
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            transformOrigin = TransformOrigin(0f, 0f)
-                        }
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val pressedChanges = event.changes.filter(PointerInputChange::pressed)
-                                    if (pressedChanges.size >= 2) {
-                                        val previousDistance = pressedChanges.pointerDistance(usePreviousPosition = true)
-                                        val currentDistance = pressedChanges.pointerDistance(usePreviousPosition = false)
-                                        if (previousDistance > 0f) {
-                                            val zoomChange = currentDistance / previousDistance
-                                            scale = (scale * zoomChange).coerceIn(MinBoardZoom, MaxBoardZoom)
-                                        }
-                                        pressedChanges.forEach(PointerInputChange::consume)
-                                    }
-                                } while (event.changes.any(PointerInputChange::pressed))
-                            }
-                        }
-                ) {
+                // Tatsächliche Größe = skaliert → Scroll-Bereich wächst/schrumpft korrekt
+                Box(modifier = Modifier.size(width = scaledWidth, height = scaledHeight)) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val spacing = size.width / BackgroundGridColumns
                         repeat(BackgroundGridColumns + 1) { index ->
@@ -170,7 +177,11 @@ fun BoardGrid(
                             Row(horizontalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)) {
                                 repeat(BoardColumns) { column ->
                                     val placement = placementMap[BoardPosition(row = row, column = column)]
-                                    BoardTile(card = placement?.card)
+                                    BoardTile(
+                                        card = placement?.card,
+                                        cardWidth = scaledCardWidth,
+                                        cardHeight = scaledCardHeight
+                                    )
                                 }
                             }
                         }
@@ -181,8 +192,16 @@ fun BoardGrid(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Alle anderen Composables & Hilfsfunktionen unverändert
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun BoardTile(card: TunnelCard?) {
+private fun BoardTile(
+    card: TunnelCard?,
+    cardWidth: androidx.compose.ui.unit.Dp = BoardCardWidthDp.dp,
+    cardHeight: androidx.compose.ui.unit.Dp = BoardCardHeightDp.dp,
+) {
     val context = LocalContext.current
     val drawableName = card?.toDrawableName()
     val imageRes = drawableName?.let {
@@ -190,7 +209,7 @@ private fun BoardTile(card: TunnelCard?) {
     } ?: 0
 
     Card(
-        modifier = Modifier.size(width = BoardCardWidthDp.dp, height = BoardCardHeightDp.dp),
+        modifier = Modifier.size(width = cardWidth, height = cardHeight),
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
         colors = CardDefaults.cardColors(containerColor = tileColor(card))
@@ -323,7 +342,7 @@ private fun tileBorderColor(card: TunnelCard?): Color = when {
 }
 
 private fun List<PointerInputChange>.pointerDistance(usePreviousPosition: Boolean): Float {
-    val firstPosition = if (usePreviousPosition) this[0].previousPosition else this[0].position
+    val firstPosition  = if (usePreviousPosition) this[0].previousPosition else this[0].position
     val secondPosition = if (usePreviousPosition) this[1].previousPosition else this[1].position
     return hypot(
         x = secondPosition.x - firstPosition.x,
