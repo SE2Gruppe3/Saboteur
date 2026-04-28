@@ -75,6 +75,22 @@ private val TileElevation = 4.dp
 private val TileBorderWidth = 2.dp
 private val TileContentPadding = 6.dp
 
+/**
+ * Scrollbares, zoombares Spielfeld für Saboteur.
+ *
+ * Zeigt ein [BoardColumns]×[BoardRows]-Raster aus [BoardTile]-Kacheln.
+ * Gelegte Karten werden anhand ihrer [BoardPosition] aus [placements] gesucht;
+ * leere Zellen erscheinen als leere Kacheln.
+ *
+ * **Gesten**
+ * - Einfingeriges Wischen → scrollt das Raster horizontal und vertikal.
+ * - Zwei-Finger-Pinch → zoomt zwischen [MinBoardZoom] und [MaxBoardZoom].
+ *   Der Zoom skaliert die Kacheln direkt (kein `graphicsLayer`), damit der
+ *   Scroll-Bereich mit dem sichtbaren Inhalt übereinstimmt.
+ *
+ * @param placements Liste aller bereits gelegten Karten mit Position.
+ * @param modifier Wird an die äußere [Surface] weitergegeben.
+ */
 @Composable
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
