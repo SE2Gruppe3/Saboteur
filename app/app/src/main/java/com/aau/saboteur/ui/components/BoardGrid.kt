@@ -10,7 +10,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,6 +40,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
@@ -89,12 +89,14 @@ private val TileContentPadding = 6.dp
  *   Scroll-Bereich mit dem sichtbaren Inhalt übereinstimmt.
  *
  * @param placements Liste aller bereits gelegten Karten mit Position.
+ * @param onCellClick Wird aufgerufen, wenn der Spieler eine Zelle antippt. Liefert die [BoardPosition] der angeklickten Zelle.
  * @param modifier Wird an die äußere [Surface] weitergegeben.
  */
 @Composable
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onCellClick: (BoardPosition) -> Unit = {},
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
@@ -174,18 +176,17 @@ fun BoardGrid(
                         }
                     }
 
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)
-                    ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
                         repeat(BoardRows) { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)) {
+                            Row {
                                 repeat(BoardColumns) { column ->
-                                    val placement = placementMap[BoardPosition(row = row, column = column)]
+                                    val position = BoardPosition(row = row, column = column)
+                                    val placement = placementMap[position]
                                     BoardTile(
                                         card = placement?.card,
                                         cardWidth = scaledCardWidth,
-                                        cardHeight = scaledCardHeight
+                                        cardHeight = scaledCardHeight,
+                                        onClick = { onCellClick(position) }
                                     )
                                 }
                             }
@@ -200,8 +201,9 @@ fun BoardGrid(
 @Composable
 private fun BoardTile(
     card: TunnelCard?,
-    cardWidth: androidx.compose.ui.unit.Dp = BoardCardWidthDp.dp,
-    cardHeight: androidx.compose.ui.unit.Dp = BoardCardHeightDp.dp,
+    cardWidth: Dp = BoardCardWidthDp.dp,
+    cardHeight: Dp = BoardCardHeightDp.dp,
+    onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val drawableName = card?.toDrawableName()
@@ -211,6 +213,7 @@ private fun BoardTile(
     } ?: 0
 
     Card(
+        onClick = onClick,
         modifier = Modifier.size(width = cardWidth, height = cardHeight),
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
@@ -344,6 +347,7 @@ private fun tileBorderColor(card: TunnelCard?): Color = when {
 }
 
 private fun List<PointerInputChange>.pointerDistance(usePreviousPosition: Boolean): Float {
+    require(size >= 2) { "pointerDistance requires at least 2 pointers, got $size" }
     val firstPosition  = if (usePreviousPosition) this[0].previousPosition else this[0].position
     val secondPosition = if (usePreviousPosition) this[1].previousPosition else this[1].position
     return hypot(
