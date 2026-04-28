@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
@@ -83,6 +84,7 @@ private val TileContentPadding = 6.dp
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
     startPosition: BoardPosition,
+    onTileClick: ((BoardPosition) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val horizontalScroll = rememberScrollState()
@@ -196,8 +198,15 @@ fun BoardGrid(
                         repeat(BoardRows) { row ->
                             Row(horizontalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)) {
                                 repeat(BoardColumns) { column ->
-                                    val placement = placementMap[BoardPosition(row = row, column = column)]
-                                    BoardTile(card = placement?.card)
+                                    val position = BoardPosition(row = row, column = column)
+                                    val placement = placementMap[position]
+                                    val tileClick: (() -> Unit)? = if (onTileClick != null) {
+                                        { onTileClick(position) }
+                                    } else null
+                                    BoardTile(
+                                        card = placement?.card,
+                                        onClick = tileClick
+                                    )
                                 }
                             }
                         }
@@ -209,15 +218,20 @@ fun BoardGrid(
 }
 
 @Composable
-private fun BoardTile(card: TunnelCard?) {
+private fun BoardTile(card: TunnelCard?, onClick: (() -> Unit)? = null) {
     val context = LocalContext.current
     val drawableName = card?.toDrawableName()
     val imageRes = drawableName?.let {
         context.resources.getIdentifier(it, "drawable", context.packageName)
     } ?: 0
 
+    val cardModifier = if (onClick != null) {
+        Modifier.size(width = BoardCardWidthDp.dp, height = BoardCardHeightDp.dp).clickable { onClick() }
+    } else {
+        Modifier.size(width = BoardCardWidthDp.dp, height = BoardCardHeightDp.dp)
+    }
     Card(
-        modifier = Modifier.size(width = BoardCardWidthDp.dp, height = BoardCardHeightDp.dp),
+        modifier = cardModifier,
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
         colors = CardDefaults.cardColors(containerColor = tileColor(card))

@@ -1,6 +1,7 @@
 package com.aau.saboteur.network.game
 
 import com.aau.saboteur.network.WebSocketManager
+import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CreateGameRequest
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
@@ -69,6 +70,16 @@ object GameApi {
         val request = CreateGameRequest(players = players)
         val data = JSONObject(request.toJson())
         WebSocketManager.sendMessage("START_GAME", data)
+    }
+
+    fun playCard(playerId: String, cardId: String, position: BoardPosition) {
+        val data = JSONObject().apply {
+            put("playerId", playerId)
+            put("cardId", cardId)
+            put("row", position.row)
+            put("column", position.column)
+        }
+        WebSocketManager.sendMessage("PLAY_CARD", data)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

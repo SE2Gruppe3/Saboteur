@@ -62,6 +62,7 @@ fun GameScreen(
                 BoardGrid(
                     placements = uiState.gameState.boardPlacements,
                     startPosition = uiState.gameState.boardStartPosition,
+                    onTileClick = if (uiState.selectedCardId != null) viewModel::placeCard else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -108,7 +109,9 @@ fun GameScreen(
                 }
 
                 PlayerHandRow(
-                    hand = currentHand
+                    hand = currentHand,
+                    selectedCardId = uiState.selectedCardId,
+                    onCardSelected = viewModel::selectCard
                 )
             }
         }

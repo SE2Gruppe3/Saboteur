@@ -14,6 +14,8 @@ import com.aau.saboteur.ui.TunnelCardView
 @Composable
 fun PlayerHandRow(
     hand: List<TunnelCard>,
+    selectedCardId: String? = null,
+    onCardSelected: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyRow(
@@ -21,7 +23,11 @@ fun PlayerHandRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
     ) {
         items(hand) { card ->
-            TunnelCardView(card = card)
+            TunnelCardView(
+                card = card,
+                isSelected = card.id == selectedCardId,
+                onClick = { onCardSelected(card.id) }
+            )
         }
     }
 }
