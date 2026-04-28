@@ -5,11 +5,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,18 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,15 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
@@ -55,13 +51,13 @@ import com.aau.saboteur.ui.toContentDescription
 import com.aau.saboteur.ui.toDrawableName
 import kotlin.math.hypot
 
-private const val BoardColumns = 9
-private const val BoardRows = 13
+private const val BoardColumns = 13
+private const val BoardRows = 9
 private const val BackgroundGridColumns = (BoardColumns + 1) * 3
 private const val BackgroundGridRows = (BoardRows + 1) * 3
 private const val BoardCardWidthDp = 86
 private const val BoardCardHeightDp = 126
-private const val BoardCardSpacingDp = 12
+private const val BoardCardSpacingDp = 0
 private const val BoardContentWidthDp = BoardColumns * BoardCardWidthDp + (BoardColumns - 1) * BoardCardSpacingDp
 private const val BoardContentHeightDp = BoardRows * BoardCardHeightDp + (BoardRows - 1) * BoardCardSpacingDp
 private const val BoardGridLineAlpha = 0.28f
@@ -79,17 +75,33 @@ private val TileElevation = 4.dp
 private val TileBorderWidth = 2.dp
 private val TileContentPadding = 6.dp
 
+/**
+ * Scrollbares, zoombares Spielfeld für Saboteur.
+ *
+ * Zeigt ein [BoardColumns]×[BoardRows]-Raster aus [BoardTile]-Kacheln.
+ * Gelegte Karten werden anhand ihrer [BoardPosition] aus [placements] gesucht;
+ * leere Zellen erscheinen als leere Kacheln.
+ *
+ * **Gesten**
+ * - Einfingeriges Wischen → scrollt das Raster horizontal und vertikal.
+ * - Zwei-Finger-Pinch → zoomt zwischen [MinBoardZoom] und [MaxBoardZoom].
+ *   Der Zoom skaliert die Kacheln direkt (kein `graphicsLayer`), damit der
+ *   Scroll-Bereich mit dem sichtbaren Inhalt übereinstimmt.
+ *
+ * @param placements Liste aller bereits gelegten Karten mit Position.
+ * @param onCellClick Wird aufgerufen, wenn der Spieler eine Zelle antippt. Liefert die [BoardPosition] der angeklickten Zelle.
+ * @param modifier Wird an die äußere [Surface] weitergegeben.
+ */
 @Composable
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
-    startPosition: BoardPosition,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onCellClick: (BoardPosition) -> Unit = {},
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
     val lineColor = MaterialTheme.colorScheme.outline.copy(alpha = BoardGridLineAlpha)
-    var didInitialScroll by remember { mutableStateOf(false) }
     var scale by remember { mutableFloatStateOf(1f) }
 
     Surface(
@@ -99,73 +111,48 @@ fun BoardGrid(
         tonalElevation = BoardTonalElevation,
         shadowElevation = BoardShadowElevation
     ) {
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = BoardMinHeight, max = BoardDefaultHeight)
                 .padding(BoardOuterPadding)
         ) {
-            val density = LocalDensity.current
-            val viewportWidthPx = constraints.maxWidth
-            val viewportHeightPx = constraints.maxHeight
-
-            LaunchedEffect(viewportWidthPx, viewportHeightPx, startPosition) {
-                if (didInitialScroll) return@LaunchedEffect
-
-                val cardWidthPx = with(density) { BoardCardWidthDp.dp.roundToPx() }
-                val cardHeightPx = with(density) { BoardCardHeightDp.dp.roundToPx() }
-                val spacingPx = with(density) { BoardCardSpacingDp.dp.roundToPx() }
-                val cellWidthPx = cardWidthPx + spacingPx
-                val cellHeightPx = cardHeightPx + spacingPx
-                val contentWidthPx = with(density) { BoardContentWidthDp.dp.roundToPx() }
-                val contentHeightPx = with(density) { BoardContentHeightDp.dp.roundToPx() }
-                val startCenterX = startPosition.column * cellWidthPx + cardWidthPx / 2
-                val startCenterY = startPosition.row * cellHeightPx + cardHeightPx / 2
-                val targetX = (startCenterX - viewportWidthPx / 2).coerceIn(
-                    0,
-                    (contentWidthPx - viewportWidthPx).coerceAtLeast(0)
-                )
-                val targetY = (startCenterY - viewportHeightPx / 2).coerceIn(
-                    0,
-                    (contentHeightPx - viewportHeightPx).coerceAtLeast(0)
-                )
-                horizontalScroll.scrollTo(targetX)
-                verticalScroll.scrollTo(targetY)
-                didInitialScroll = true
-            }
+            val scaledCardWidth  = (BoardCardWidthDp  * scale).dp
+            val scaledCardHeight = (BoardCardHeightDp * scale).dp
+            val scaledWidth      = (BoardContentWidthDp  * scale).dp
+            val scaledHeight     = (BoardContentHeightDp * scale).dp
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(verticalScroll)
-                    .horizontalScroll(horizontalScroll)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = BoardContentWidthDp.dp, height = BoardContentHeightDp.dp)
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            transformOrigin = TransformOrigin(0f, 0f)
+                    .pointerInput(Unit) {
+                        detectDragGestures { _, dragAmount ->
+                            horizontalScroll.dispatchRawDelta(-dragAmount.x)
+                            verticalScroll.dispatchRawDelta(-dragAmount.y)
                         }
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val pressedChanges = event.changes.filter(PointerInputChange::pressed)
-                                    if (pressedChanges.size >= 2) {
-                                        val previousDistance = pressedChanges.pointerDistance(usePreviousPosition = true)
-                                        val currentDistance = pressedChanges.pointerDistance(usePreviousPosition = false)
-                                        if (previousDistance > 0f) {
-                                            val zoomChange = currentDistance / previousDistance
-                                            scale = (scale * zoomChange).coerceIn(MinBoardZoom, MaxBoardZoom)
-                                        }
-                                        pressedChanges.forEach(PointerInputChange::consume)
+                    }
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            do {
+                                val event = awaitPointerEvent()
+                                val pressedChanges = event.changes.filter(PointerInputChange::pressed)
+                                if (pressedChanges.size >= 2) {
+                                    val previousDistance = pressedChanges.pointerDistance(usePreviousPosition = true)
+                                    val currentDistance  = pressedChanges.pointerDistance(usePreviousPosition = false)
+                                    if (previousDistance > 0f) {
+                                        val zoomChange = currentDistance / previousDistance
+                                        scale = (scale * zoomChange).coerceIn(MinBoardZoom, MaxBoardZoom)
                                     }
-                                } while (event.changes.any(PointerInputChange::pressed))
-                            }
+                                    pressedChanges.forEach(PointerInputChange::consume)
+                                }
+                            } while (event.changes.any(PointerInputChange::pressed))
                         }
-                ) {
+                    }
+                    .verticalScroll(verticalScroll, enabled = false)
+                    .horizontalScroll(horizontalScroll, enabled = false)
+            ) {
+                // Tatsächliche Größe = skaliert → Scroll-Bereich wächst/schrumpft korrekt
+                Box(modifier = Modifier.size(width = scaledWidth, height = scaledHeight)) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val spacing = size.width / BackgroundGridColumns
                         repeat(BackgroundGridColumns + 1) { index ->
@@ -189,15 +176,18 @@ fun BoardGrid(
                         }
                     }
 
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)
-                    ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
                         repeat(BoardRows) { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(BoardCardSpacingDp.dp)) {
+                            Row {
                                 repeat(BoardColumns) { column ->
-                                    val placement = placementMap[BoardPosition(row = row, column = column)]
-                                    BoardTile(card = placement?.card)
+                                    val position = BoardPosition(row = row, column = column)
+                                    val placement = placementMap[position]
+                                    BoardTile(
+                                        card = placement?.card,
+                                        cardWidth = scaledCardWidth,
+                                        cardHeight = scaledCardHeight,
+                                        onClick = { onCellClick(position) }
+                                    )
                                 }
                             }
                         }
@@ -209,15 +199,22 @@ fun BoardGrid(
 }
 
 @Composable
-private fun BoardTile(card: TunnelCard?) {
+private fun BoardTile(
+    card: TunnelCard?,
+    cardWidth: Dp = BoardCardWidthDp.dp,
+    cardHeight: Dp = BoardCardHeightDp.dp,
+    onClick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val drawableName = card?.toDrawableName()
+    @Suppress("DiscouragedApi")
     val imageRes = drawableName?.let {
         context.resources.getIdentifier(it, "drawable", context.packageName)
     } ?: 0
 
     Card(
-        modifier = Modifier.size(width = BoardCardWidthDp.dp, height = BoardCardHeightDp.dp),
+        onClick = onClick,
+        modifier = Modifier.size(width = cardWidth, height = cardHeight),
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
         colors = CardDefaults.cardColors(containerColor = tileColor(card))
@@ -350,7 +347,8 @@ private fun tileBorderColor(card: TunnelCard?): Color = when {
 }
 
 private fun List<PointerInputChange>.pointerDistance(usePreviousPosition: Boolean): Float {
-    val firstPosition = if (usePreviousPosition) this[0].previousPosition else this[0].position
+    require(size >= 2) { "pointerDistance requires at least 2 pointers, got $size" }
+    val firstPosition  = if (usePreviousPosition) this[0].previousPosition else this[0].position
     val secondPosition = if (usePreviousPosition) this[1].previousPosition else this[1].position
     return hypot(
         x = secondPosition.x - firstPosition.x,
