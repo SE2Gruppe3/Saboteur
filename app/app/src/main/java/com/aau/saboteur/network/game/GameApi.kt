@@ -23,7 +23,7 @@ object GameApi {
 
     private val _playerUpdates = MutableSharedFlow<Player>(replay = 1, extraBufferCapacity = 10)
     val playerUpdates: SharedFlow<Player> = _playerUpdates.asSharedFlow()
-    private val _cardsDealtUpdates = MutableSharedFlow<Map<String, List<TunnelCard>>>(replay = 0, extraBufferCapacity = 10)
+    private val _cardsDealtUpdates = MutableSharedFlow<Map<String, List<TunnelCard>>>(replay = 1, extraBufferCapacity = 10)
     val cardsDealtUpdates: SharedFlow<Map<String, List<TunnelCard>>> = _cardsDealtUpdates.asSharedFlow()
 
     val errorMessages: SharedFlow<String> = WebSocketManager.errorMessages
@@ -75,5 +75,6 @@ object GameApi {
     fun reset() {
         _gameStateUpdates.resetReplayCache()
         _playerUpdates.resetReplayCache()
+        _cardsDealtUpdates.resetReplayCache()
     }
 }
