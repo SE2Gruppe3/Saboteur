@@ -12,8 +12,8 @@ internal fun TunnelCard.toDrawableName(): String = when (type) {
     CardType.LANTERN_GREEN -> "lantern_green"
     CardType.PICKAXE_RED -> "pickaxe_red"
     CardType.PICKAXE_GREEN -> "pickaxe_green"
-    CardType.TRACK_RED -> "track_red"
-    CardType.TRACK_GREEN -> "track_green"
+    CardType.MAPCARD -> "Mapcard"
+    CardType.ROCKFALL -> "Rockfall"
     CardType.DOUBLE_LANTERN_CART -> "double_lantern_cart"
     CardType.DOUBLE_PICKAXE_CART -> "double_pickaxe_cart"
     CardType.DOUBLE_PICKAXE_LANTERN -> "double_pickaxe_lantern"
@@ -54,8 +54,8 @@ internal fun TunnelCard.toContentDescription(): String = when (type) {
     CardType.LANTERN_GREEN,
     CardType.PICKAXE_RED,
     CardType.PICKAXE_GREEN,
-    CardType.TRACK_RED,
-    CardType.TRACK_GREEN,
+    CardType.ROCKFALL,
+    CardType.MAPCARD,
     CardType.DOUBLE_LANTERN_CART,
     CardType.DOUBLE_PICKAXE_CART,
     CardType.DOUBLE_PICKAXE_LANTERN

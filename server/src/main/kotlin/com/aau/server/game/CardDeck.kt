@@ -63,8 +63,8 @@ object CardDeck {
         cards.add(TunnelCard("lantern_green_${index++}", CardType.LANTERN_GREEN, emptySet()))
         cards.add(TunnelCard("pickaxe_red_${index++}", CardType.PICKAXE_RED, emptySet()))
         cards.add(TunnelCard("pickaxe_green_${index++}", CardType.PICKAXE_GREEN, emptySet()))
-        cards.add(TunnelCard("track_red_${index++}", CardType.TRACK_RED, emptySet()))
-        cards.add(TunnelCard("track_green_${index++}", CardType.TRACK_GREEN, emptySet()))
+        cards.add(TunnelCard("rockfall_${index++}", CardType.ROCKFALL, emptySet()))
+        cards.add(TunnelCard("mapcard_${index++}", CardType.MAPCARD, emptySet()))
         // Double repair (multi-unblock) cards
         cards.add(TunnelCard("double_lantern_cart_${index++}", CardType.DOUBLE_LANTERN_CART, emptySet()))
         cards.add(TunnelCard("double_pickaxe_cart_${index++}", CardType.DOUBLE_PICKAXE_CART, emptySet()))
