@@ -1,5 +1,6 @@
 package com.aau.saboteur.data.repository
 
+import com.aau.saboteur.BuildConfig
 import com.aau.saboteur.model.User
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,7 +24,7 @@ class AuthRepository {
             """.trimIndent().toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url("http://10.0.2.2:8080/api/auth/login")
+                .url("${BuildConfig.BASE_URL}/api/auth/login")
                 .post(requestBodyJson)
                 .build()
 
