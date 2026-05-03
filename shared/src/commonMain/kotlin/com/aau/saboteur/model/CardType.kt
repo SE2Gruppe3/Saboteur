@@ -14,16 +14,18 @@ enum class CardType {
     CART_RED,
     LANTERN_RED,
     PICKAXE_RED,
-    TRACK_RED,
 
     // Werkzeuge reparieren/entsperren (green)
     CART_GREEN,
     LANTERN_GREEN,
     PICKAXE_GREEN,
-    TRACK_GREEN,
 
     // Mehrfach-Reparaturkarten ("double" immer grün/entsperren)
     DOUBLE_LANTERN_CART,
     DOUBLE_PICKAXE_CART,
-    DOUBLE_PICKAXE_LANTERN
+    DOUBLE_PICKAXE_LANTERN,
+
+    // Spezialkarten
+    MAPCARD,
+    ROCKFALL
 }
