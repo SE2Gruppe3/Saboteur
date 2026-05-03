@@ -54,6 +54,23 @@ object CardDeck {
         deadEnd(setOf(Direction.LEFT, Direction.BOTTOM))
         deadEnd(setOf(Direction.TOP, Direction.LEFT, Direction.RIGHT, Direction.BOTTOM))
 
+        // --- START OF SPECIAL TOOL CARDS BLOCK ---
+        // Add special tool cards: block/unblock and double-repair cards
+        // (Adjust amount and IDs as needed for your game rules)
+        cards.add(TunnelCard("cart_red_${index++}", CardType.CART_RED, emptySet()))
+        cards.add(TunnelCard("cart_green_${index++}", CardType.CART_GREEN, emptySet()))
+        cards.add(TunnelCard("lantern_red_${index++}", CardType.LANTERN_RED, emptySet()))
+        cards.add(TunnelCard("lantern_green_${index++}", CardType.LANTERN_GREEN, emptySet()))
+        cards.add(TunnelCard("pickaxe_red_${index++}", CardType.PICKAXE_RED, emptySet()))
+        cards.add(TunnelCard("pickaxe_green_${index++}", CardType.PICKAXE_GREEN, emptySet()))
+        cards.add(TunnelCard("track_red_${index++}", CardType.TRACK_RED, emptySet()))
+        cards.add(TunnelCard("track_green_${index++}", CardType.TRACK_GREEN, emptySet()))
+        // Double repair (multi-unblock) cards
+        cards.add(TunnelCard("double_lantern_cart_${index++}", CardType.DOUBLE_LANTERN_CART, emptySet()))
+        cards.add(TunnelCard("double_pickaxe_cart_${index++}", CardType.DOUBLE_PICKAXE_CART, emptySet()))
+        cards.add(TunnelCard("double_pickaxe_lantern_${index++}", CardType.DOUBLE_PICKAXE_LANTERN, emptySet()))
+        // --- END OF SPECIAL TOOL CARDS BLOCK ---
+
         return cards
     }
 
