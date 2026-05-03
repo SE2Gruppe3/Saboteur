@@ -28,8 +28,8 @@ class CardDeckTest {
             CardType.LANTERN_GREEN,
             CardType.PICKAXE_RED,
             CardType.PICKAXE_GREEN,
-            CardType.TRACK_RED,
-            CardType.TRACK_GREEN,
+            CardType.ROCKFALL,
+            CardType.MAPCARD,
             CardType.DOUBLE_LANTERN_CART,
             CardType.DOUBLE_PICKAXE_CART,
             CardType.DOUBLE_PICKAXE_LANTERN
