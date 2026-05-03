@@ -39,14 +39,16 @@ class CardDistributorTest {
 
     @ParameterizedTest
     @ValueSource(ints = [3, 4, 5, 6, 7, 8, 9, 10])
-    fun `total card count is conserved (hands + draw pile = 40)`(playerCount: Int) {
+    fun `total card count is conserved (hands + draw pile = 51)`(playerCount: Int) {
+        // Adjusted: The deck now has 51 tunnel cards (previously 40)
         val result = CardDistributor.distribute(playerIds(playerCount))
         val handCardCount = result.hands.values.sumOf { it.size }
-        assertEquals(40, handCardCount + result.drawPile.size)
+        assertEquals(51, handCardCount + result.drawPile.size)
     }
 
     @Test
-    fun `all 40 tunnel card ids are present across hands and draw pile`() {
+    fun `all 51 tunnel card ids are present across hands and draw pile`() {
+        // Adjusted: There are now 51 unique ids to check
         val result = CardDistributor.distribute(playerIds(5))
         val allDealtIds = result.hands.values.flatten().map { it.id } + result.drawPile.map { it.id }
         val expectedIds = CardDeck.createTunnelDeck().map { it.id }.toSet()
