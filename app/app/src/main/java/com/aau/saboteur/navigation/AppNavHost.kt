@@ -45,7 +45,7 @@ fun AppNavHost(
                         text = when {
                             currentRoute?.startsWith("menu") == true -> "Menu"
                             currentRoute == "login" -> "Login"
-                            currentRoute == "lobby" -> "Lobby"
+                            currentRoute?.startsWith("lobby") == true -> "Lobby"
                             currentRoute == "game" -> "Game"
                             currentRoute == "connectivity" -> "Connectivity"
                             else -> ""
@@ -53,7 +53,6 @@ fun AppNavHost(
                     )
                 },
                 actions = {
-                    // Zeige Menü-Icon auf allen Screens außer dem Menü selbst (und nur wenn wir eine Route haben)
                     if (currentRoute != null && !currentRoute.startsWith("menu")) {
                         IconButton(
                             onClick = { navController.navigate("menu") },
@@ -73,7 +72,7 @@ fun AppNavHost(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "login", // zum Testen kannst du hier "lobby" setzen
+                startDestination = "login",
                 modifier = Modifier.fillMaxSize()
             ) {
                 // LOGIN ROUTE
@@ -106,27 +105,34 @@ fun AppNavHost(
                     MenuScreen(navController = navController, username = username)
                 }
 
-                // FALLBACK MENU (Ohne Parameter)
                 composable("menu") {
                     MenuScreen(navController = navController, username = "Gast")
                 }
 
-                // LOBBY ROUTE (WICHTIG: echtes ViewModel aus dem Lifecycle holen)
-                composable("lobby") {
+                // LOBBY ROUTE with username parameter
+                composable(
+                    route = "lobby/{username}",
+                    arguments = listOf(
+                        navArgument("username") {
+                            type = NavType.StringType
+                            defaultValue = "Gast"
+                        }
+                    )
+                ) { backStackEntry ->
+                    val username = backStackEntry.arguments?.getString("username") ?: "Gast"
                     val lobbyViewModel: LobbyViewModel = viewModel()
                     LobbyScreen(
                         viewModel = lobbyViewModel,
+                        username = username,
                         onBackPressed = { navController.popBackStack() },
                         onGameStarted = { navController.navigate("game") }
                     )
                 }
 
-                // GAME ROUTE
                 composable("game") {
                     GameScreen()
                 }
 
-                // CONNECTIVITY TEST ROUTE
                 composable("connectivity") {
                     ConnectivityTestScreen()
                 }

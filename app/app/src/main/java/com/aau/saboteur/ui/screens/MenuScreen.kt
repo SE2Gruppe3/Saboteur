@@ -21,8 +21,6 @@ fun MenuScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // TODO: Temporäre Anzeige zur Verifizierung des Login-Erfolgs.
-        // Wird in einem späteren Branch durch ein finales Header-Design ersetzt.
         Text(
             text = "Hallo, $username!",
             style = MaterialTheme.typography.headlineLarge,
@@ -38,7 +36,7 @@ fun MenuScreen(
 
         val screens = listOf(
             "Login" to "login",
-            "Lobby" to "lobby",
+            "Lobby" to "lobby/$username",
             "Game" to "game",
             "Connectivity Test" to "connectivity"
         )

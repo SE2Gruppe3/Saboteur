@@ -24,6 +24,7 @@ import com.aau.saboteur.viewModels.LobbyViewModel
 @Composable
 fun LobbyScreen(
     viewModel: LobbyViewModel,
+    username: String,
     onBackPressed: () -> Unit = {},
     onGameStarted: () -> Unit = {}
 ) {
@@ -31,8 +32,7 @@ fun LobbyScreen(
     val availableLobbies by viewModel.availableLobbies.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // Local input state (Name + Code)
-    var playerName by remember { mutableStateOf("") }
+    // Local input state (Code only, Name is now passed in)
     var lobbyCodeInput by remember { mutableStateOf("") }
 
     val currentState: LobbyState? = lobbyState
@@ -62,7 +62,14 @@ fun LobbyScreen(
             color = Gold,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 8.dp)
+        )
+
+        Text(
+            text = "Signed in as: $username",
+            fontSize = 14.sp,
+            color = Gold.copy(alpha = 0.7f),
+            modifier = Modifier.padding(bottom = 16.dp)
         )
 
         if (errorMessage != null) {
@@ -78,22 +85,7 @@ fun LobbyScreen(
             }
         }
 
-        // Inputs
-        OutlinedTextField(
-            value = playerName,
-            onValueChange = { playerName = it },
-            label = { Text("Your Name") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedLabelColor = Gold,
-                unfocusedLabelColor = Color.Gray
-            )
-        )
-
-        Spacer(Modifier.height(8.dp))
-
+        // Inputs (Removed Player Name field)
         OutlinedTextField(
             value = lobbyCodeInput,
             onValueChange = { lobbyCodeInput = it },
@@ -115,8 +107,7 @@ fun LobbyScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
-                onClick = { viewModel.createLobby(playerName.trim()) },
-                enabled = playerName.isNotBlank(),
+                onClick = { viewModel.createLobby(username.trim()) },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Gold)
             ) {
@@ -124,8 +115,8 @@ fun LobbyScreen(
             }
 
             Button(
-                onClick = { viewModel.joinLobby(lobbyCodeInput.trim(), playerName.trim()) },
-                enabled = playerName.isNotBlank() && lobbyCodeInput.isNotBlank(),
+                onClick = { viewModel.joinLobby(lobbyCodeInput.trim(), username.trim()) },
+                enabled = lobbyCodeInput.isNotBlank(),
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = FadedRed)
             ) {
