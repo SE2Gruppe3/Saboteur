@@ -71,6 +71,9 @@ class WebSocketHandler(
                         messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
                     }
                 }
+                "LOBBY_LIST_FETCH" -> {
+                    messagingService.sendToSession(session.id, "LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                }
             }
         } catch (e: Exception) {
             logger.error("Error handling text message: {}", e.message)

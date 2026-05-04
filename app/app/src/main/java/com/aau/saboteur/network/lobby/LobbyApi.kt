@@ -3,8 +3,6 @@ package com.aau.saboteur.network.lobby
 import com.aau.saboteur.model.LobbyCreateRequest
 import com.aau.saboteur.model.LobbyJoinRequest
 import com.aau.saboteur.model.LobbyState
-import com.aau.saboteur.network.HttpClient
-import com.aau.saboteur.network.NetworkConstants
 import com.aau.saboteur.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +13,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.Request
 import org.json.JSONObject
 
 object LobbyApi {
@@ -68,7 +65,6 @@ object LobbyApi {
     fun createLobby(playerName: String) {
         val request = LobbyCreateRequest(playerName)
         val jsonString = json.encodeToString(request)
-        // Convert the serialized JSON string into a JSONObject that WebSocketManager expects
         WebSocketManager.sendMessage("LOBBY_CREATE", JSONObject(jsonString))
     }
 
@@ -79,26 +75,7 @@ object LobbyApi {
     }
 
     fun fetchAllLobbies() {
-        scope.launch {
-            try {
-                val url = "${NetworkConstants.baseUrl}/api/lobby/list"
-                val req = Request.Builder()
-                    .url(url)
-                    .get()
-                    .build()
-
-                HttpClient.okHttpClient.newCall(req).execute().use { resp ->
-                    val body = resp.body?.string().orEmpty()
-                    if (!resp.isSuccessful) {
-                        _errorMessages.tryEmit("Fetch lobbies failed: ${resp.code} $body")
-                        return@use
-                    }
-                    val list = json.decodeFromString<List<LobbyState>>(body)
-                    _allLobbies.tryEmit(list)
-                }
-            } catch (e: Exception) {
-                _errorMessages.tryEmit("Fetch lobbies error: ${e.message}")
-            }
-        }
+        // Now fetching via WebSocket instead of REST
+        WebSocketManager.sendMessage("LOBBY_LIST_FETCH", "")
     }
 }
