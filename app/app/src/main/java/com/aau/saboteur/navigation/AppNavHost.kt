@@ -124,7 +124,6 @@ fun AppNavHost(
                     LobbyScreen(
                         viewModel = lobbyViewModel,
                         username = username,
-                        onBackPressed = { navController.popBackStack() },
                         onGameStarted = { navController.navigate("game") }
                     )
                 }

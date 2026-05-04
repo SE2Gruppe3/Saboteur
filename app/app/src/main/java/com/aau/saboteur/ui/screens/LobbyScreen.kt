@@ -25,7 +25,6 @@ import com.aau.saboteur.viewModels.LobbyViewModel
 fun LobbyScreen(
     viewModel: LobbyViewModel,
     username: String,
-    onBackPressed: () -> Unit = {},
     onGameStarted: () -> Unit = {}
 ) {
     val lobbyState by viewModel.lobbyState.collectAsState()
@@ -228,30 +227,6 @@ fun LobbyScreen(
                         }
                     }
                 }
-            }
-        }
-
-        // Bottom Actions
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { viewModel.refreshLobbies() },
-                modifier = Modifier.weight(1f).height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
-            ) {
-                Text("REFRESH", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = onBackPressed,
-                modifier = Modifier.weight(1f).height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
-            ) {
-                Text("BACK", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
