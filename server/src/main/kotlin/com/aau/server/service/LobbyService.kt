@@ -32,17 +32,19 @@ class LobbyService {
     }
 
     fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
-        val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
+        return lobbies.compute(lobbyCode) { _, lobby ->
+            if (lobby == null) throw IllegalArgumentException("Lobby not found")
+            
+            val newPlayer = Player(
+                id = UUID.randomUUID().toString(),
+                name = playerName
+            )
 
-        val newPlayer = Player(
-            id = UUID.randomUUID().toString(),
-            name = playerName
-        )
-
-        val updated = lobby.copy(players = lobby.players + newPlayer)
-        lobbies[lobbyCode] = updated
-        return updated
+            lobby.copy(players = lobby.players + newPlayer)
+        } ?: throw IllegalArgumentException("Lobby not found")
     }
+
+    fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
 
     fun getLobby(lobbyCode: String): LobbyState =
         lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")

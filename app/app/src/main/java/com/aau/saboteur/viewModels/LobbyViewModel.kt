@@ -14,6 +14,9 @@ class LobbyViewModel : ViewModel() {
     private val _lobbyState = MutableStateFlow<LobbyState?>(null)
     val lobbyState: StateFlow<LobbyState?> = _lobbyState.asStateFlow()
 
+    private val _availableLobbies = MutableStateFlow<List<LobbyState>>(emptyList())
+    val availableLobbies: StateFlow<List<LobbyState>> = _availableLobbies.asStateFlow()
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
@@ -24,10 +27,18 @@ class LobbyViewModel : ViewModel() {
             }
         }
         viewModelScope.launch {
+            LobbyApi.allLobbies.collect { lobbies ->
+                _availableLobbies.value = lobbies
+            }
+        }
+        viewModelScope.launch {
             LobbyApi.errorMessages.collect { msg ->
                 _errorMessage.value = msg
             }
         }
+        
+        // Initial fetch of lobbies
+        refreshLobbies()
     }
 
     fun createLobby(playerName: String) {
@@ -38,5 +49,9 @@ class LobbyViewModel : ViewModel() {
     fun joinLobby(lobbyCode: String, playerName: String) {
         _errorMessage.value = null
         LobbyApi.joinLobby(lobbyCode, playerName)
+    }
+
+    fun refreshLobbies() {
+        LobbyApi.fetchAllLobbies()
     }
 }

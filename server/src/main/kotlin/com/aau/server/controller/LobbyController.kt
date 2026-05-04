@@ -22,6 +22,10 @@ class LobbyController(
     fun join(@RequestBody req: LobbyJoinRequest): LobbyState =
         lobbyService.joinLobby(req.lobbyCode, req.playerName)
 
+    @GetMapping("/list")
+    fun listAll(): List<LobbyState> =
+        lobbyService.getAllLobbies()
+
     @GetMapping("/{code}")
     fun get(@PathVariable code: String): LobbyState =
         lobbyService.getLobby(code)

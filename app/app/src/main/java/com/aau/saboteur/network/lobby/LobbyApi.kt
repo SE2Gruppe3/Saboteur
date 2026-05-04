@@ -5,6 +5,7 @@ import com.aau.saboteur.model.LobbyJoinRequest
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.network.HttpClient
 import com.aau.saboteur.network.NetworkConstants
+import com.aau.saboteur.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,15 +15,17 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 object LobbyApi {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _lobbyStateUpdates = MutableSharedFlow<LobbyState>(replay = 1, extraBufferCapacity = 10)
     val lobbyStateUpdates: SharedFlow<LobbyState> = _lobbyStateUpdates.asSharedFlow()
+
+    private val _allLobbies = MutableSharedFlow<List<LobbyState>>(replay = 1, extraBufferCapacity = 10)
+    val allLobbies: SharedFlow<List<LobbyState>> = _allLobbies.asSharedFlow()
 
     private val _errorMessages = MutableSharedFlow<String?>(replay = 1, extraBufferCapacity = 10)
     val errorMessages: SharedFlow<String?> = _errorMessages.asSharedFlow()
@@ -34,54 +37,67 @@ object LobbyApi {
         coerceInputValues = true
     }
 
-    fun createLobby(playerName: String) {
+    init {
         scope.launch {
-            try {
-                val url = "${NetworkConstants.baseUrl}/api/lobby/create"
-                val payload = json.encodeToString(LobbyCreateRequest(playerName))
-
-                val req = Request.Builder()
-                    .url(url)
-                    .post(payload.toRequestBody("application/json".toMediaType()))
-                    .build()
-
-                HttpClient.okHttpClient.newCall(req).execute().use { resp ->
-                    val body = resp.body?.string().orEmpty()
-                    if (!resp.isSuccessful) {
-                        _errorMessages.tryEmit("Create lobby failed: ${resp.code} $body")
-                        return@use
+            WebSocketManager.messages.collect { (type, data) ->
+                when (type) {
+                    "LOBBY_STATE_UPDATE" -> {
+                        try {
+                            val state = json.decodeFromString<LobbyState>(data)
+                            _lobbyStateUpdates.tryEmit(state)
+                        } catch (e: Exception) {
+                            _errorMessages.tryEmit("Failed to parse lobby state: ${e.message}")
+                        }
                     }
-                    _errorMessages.tryEmit(null)
-                    _lobbyStateUpdates.tryEmit(json.decodeFromString(body))
+                    "LOBBY_LIST_UPDATE" -> {
+                        try {
+                            val list = json.decodeFromString<List<LobbyState>>(data)
+                            _allLobbies.tryEmit(list)
+                        } catch (e: Exception) {
+                            _errorMessages.tryEmit("Failed to parse lobby list: ${e.message}")
+                        }
+                    }
+                    "ERROR" -> {
+                        _errorMessages.tryEmit(data)
+                    }
                 }
-            } catch (e: Exception) {
-                _errorMessages.tryEmit("Create lobby error: ${e.message}")
             }
         }
     }
 
+    fun createLobby(playerName: String) {
+        val request = LobbyCreateRequest(playerName)
+        val jsonString = json.encodeToString(request)
+        // Convert the serialized JSON string into a JSONObject that WebSocketManager expects
+        WebSocketManager.sendMessage("LOBBY_CREATE", JSONObject(jsonString))
+    }
+
     fun joinLobby(lobbyCode: String, playerName: String) {
+        val request = LobbyJoinRequest(lobbyCode, playerName)
+        val jsonString = json.encodeToString(request)
+        WebSocketManager.sendMessage("LOBBY_JOIN", JSONObject(jsonString))
+    }
+
+    fun fetchAllLobbies() {
         scope.launch {
             try {
-                val url = "${NetworkConstants.baseUrl}/api/lobby/join"
-                val payload = json.encodeToString(LobbyJoinRequest(lobbyCode, playerName))
-
+                val url = "${NetworkConstants.baseUrl}/api/lobby/list"
                 val req = Request.Builder()
                     .url(url)
-                    .post(payload.toRequestBody("application/json".toMediaType()))
+                    .get()
                     .build()
 
                 HttpClient.okHttpClient.newCall(req).execute().use { resp ->
                     val body = resp.body?.string().orEmpty()
                     if (!resp.isSuccessful) {
-                        _errorMessages.tryEmit("Join lobby failed: ${resp.code} $body")
+                        _errorMessages.tryEmit("Fetch lobbies failed: ${resp.code} $body")
                         return@use
                     }
-                    _errorMessages.tryEmit(null)
-                    _lobbyStateUpdates.tryEmit(json.decodeFromString(body))
+                    val list = json.decodeFromString<List<LobbyState>>(body)
+                    _allLobbies.tryEmit(list)
                 }
             } catch (e: Exception) {
-                _errorMessages.tryEmit("Join lobby error: ${e.message}")
+                _errorMessages.tryEmit("Fetch lobbies error: ${e.message}")
             }
         }
     }

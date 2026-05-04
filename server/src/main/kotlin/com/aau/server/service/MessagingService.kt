@@ -13,11 +13,13 @@ import java.util.concurrent.CopyOnWriteArrayList
 class MessagingService(private val objectMapper: ObjectMapper) {
     private val logger = LoggerFactory.getLogger(MessagingService::class.java)
 
-    // existing broadcast list
     private val sessions = CopyOnWriteArrayList<WebSocketSession>()
-
-    // new: lookup by sessionId for targeted messaging
     private val sessionsById = ConcurrentHashMap<String, WebSocketSession>()
+    
+    // Maps sessionId to lobbyCode
+    private val sessionToLobby = ConcurrentHashMap<String, String>()
+    // Maps lobbyCode to set of sessionIds
+    private val lobbyToSessions = ConcurrentHashMap<String, MutableSet<String>>()
 
     fun addSession(session: WebSocketSession) {
         sessions.add(session)
@@ -27,38 +29,58 @@ class MessagingService(private val objectMapper: ObjectMapper) {
     fun removeSession(session: WebSocketSession) {
         sessions.remove(session)
         sessionsById.remove(session.id)
+        
+        val lobbyCode = sessionToLobby.remove(session.id)
+        if (lobbyCode != null) {
+            lobbyToSessions[lobbyCode]?.remove(session.id)
+            if (lobbyToSessions[lobbyCode]?.isEmpty() == true) {
+                lobbyToSessions.remove(lobbyCode)
+            }
+        }
+    }
+
+    fun joinLobbyGroup(sessionId: String, lobbyCode: String) {
+        // Remove from old lobby if any
+        val oldLobby = sessionToLobby[sessionId]
+        if (oldLobby != null) {
+            lobbyToSessions[oldLobby]?.remove(sessionId)
+        }
+        
+        sessionToLobby[sessionId] = lobbyCode
+        lobbyToSessions.computeIfAbsent(lobbyCode) { ConcurrentHashMap.newKeySet() }.add(sessionId)
     }
 
     fun broadcast(type: String, data: Any) {
         val message = TextMessage(objectMapper.writeValueAsString(WsMessage(type, data)))
         sessions.forEach { session ->
-            if (session.isOpen) {
-                try {
-                    session.sendMessage(message)
-                } catch (e: Exception) {
-                    logger.error("Error sending message to session {}: {}", session.id, e.message)
-                }
+            sendMessage(session, message)
+        }
+    }
+
+    fun broadcastToLobby(lobbyCode: String, type: String, data: Any) {
+        val sessionIds = lobbyToSessions[lobbyCode] ?: return
+        val message = TextMessage(objectMapper.writeValueAsString(WsMessage(type, data)))
+        sessionIds.forEach { sessionId ->
+            sessionsById[sessionId]?.let { sendMessage(it, message) }
+        }
+    }
+
+    private fun sendMessage(session: WebSocketSession, message: TextMessage) {
+        if (session.isOpen) {
+            try {
+                session.sendMessage(message)
+            } catch (e: Exception) {
+                logger.error("Error sending message to session {}: {}", session.id, e.message)
             }
         }
     }
 
     fun sendToSession(sessionId: String, type: String, data: Any) {
         val session = sessionsById[sessionId] ?: return
-        if (!session.isOpen) return
-
         val message = TextMessage(objectMapper.writeValueAsString(WsMessage(type, data)))
-        try {
-            session.sendMessage(message)
-        } catch (e: Exception) {
-            logger.error("Error sending message to session {}: {}", session.id, e.message)
-        }
+        sendMessage(session, message)
     }
 
-    fun sendToSessions(sessionIds: Collection<String>, type: String, data: Any) {
-        sessionIds.forEach { id -> sendToSession(id, type, data) }
-    }
-
-    // keep existing behavior for backwards compatibility
     fun sendToPlayer(playerId: String, type: String, data: Any) {
         broadcast("${type}_$playerId", data)
     }

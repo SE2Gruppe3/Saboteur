@@ -10,7 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aau.saboteur.model.LobbyState
@@ -29,18 +28,25 @@ fun LobbyScreen(
     onGameStarted: () -> Unit = {}
 ) {
     val lobbyState by viewModel.lobbyState.collectAsState()
+    val availableLobbies by viewModel.availableLobbies.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     // Local input state (Name + Code)
     var playerName by remember { mutableStateOf("") }
-    var lobbyCode by remember { mutableStateOf("") }
+    var lobbyCodeInput by remember { mutableStateOf("") }
 
-    // Convenience: if null, use empty placeholders
     val currentState: LobbyState? = lobbyState
     val players: List<Player> = currentState?.players ?: emptyList()
 
     val hostName: String? = currentState
         ?.let { state -> state.players.firstOrNull { it.id == state.hostId }?.name }
+
+    // Navigate to game if started
+    LaunchedEffect(currentState?.gameStarted) {
+        if (currentState?.gameStarted == true) {
+            onGameStarted()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -50,7 +56,7 @@ fun LobbyScreen(
     ) {
         // Header
         Text(
-            text = "SABOTEUR - LobbyScreen",
+            text = "SABOTEUR - Lobby",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Gold,
@@ -76,17 +82,29 @@ fun LobbyScreen(
         OutlinedTextField(
             value = playerName,
             onValueChange = { playerName = it },
-            label = { Text("Player name") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Your Name") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedLabelColor = Gold,
+                unfocusedLabelColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = lobbyCode,
-            onValueChange = { lobbyCode = it },
-            label = { Text("Lobby code (zum Joinen)") },
-            modifier = Modifier.fillMaxWidth()
+            value = lobbyCodeInput,
+            onValueChange = { lobbyCodeInput = it },
+            label = { Text("Lobby Code (to join)") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedLabelColor = Gold,
+                unfocusedLabelColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
@@ -102,16 +120,12 @@ fun LobbyScreen(
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Gold)
             ) {
-                Text(
-                    "CREATE",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("CREATE", color = Color.Black, fontWeight = FontWeight.Bold)
             }
 
             Button(
-                onClick = { viewModel.joinLobby(lobbyCode.trim(), playerName.trim()) },
-                enabled = playerName.isNotBlank() && lobbyCode.isNotBlank(),
+                onClick = { viewModel.joinLobby(lobbyCodeInput.trim(), playerName.trim()) },
+                enabled = playerName.isNotBlank() && lobbyCodeInput.isNotBlank(),
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = FadedRed)
             ) {
@@ -121,62 +135,43 @@ fun LobbyScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Lobby info (only if we have a state from server)
+        // Lobby info (Current)
         if (currentState != null) {
             Text(
                 text = "Lobby Code: ${currentState.lobbyCode}",
-                fontSize = 14.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Gold,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
-                text = "Host: ${hostName ?: "Unbekannt"}",
+                text = "Host: ${hostName ?: "Unknown"}",
                 fontSize = 14.sp,
                 color = Gold,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
-        } else {
+
+            // Online Spieler Section
             Text(
-                text = "Noch keine Lobby – erst CREATE oder JOIN drücken.",
-                fontSize = 14.sp,
+                text = "👨‍💻 PLAYERS IN LOBBY (${players.size})",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
                 color = Gold,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
-        }
 
-        // Online Spieler Section
-        Text(
-            text = "👨‍💻 ONLINE SPIELER",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Gold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = Parchment)
-        ) {
-            if (players.isEmpty()) {
-                Text(
-                    text = "Keine Spieler vorhanden.",
-                    fontSize = 14.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(12.dp)
-                )
-            } else {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 150.dp)
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Parchment)
+            ) {
                 LazyColumn(modifier = Modifier.padding(12.dp)) {
                     items(players) { player ->
-                        val isHost = currentState != null && player.id == currentState.hostId
-
+                        val isHost = player.id == currentState.hostId
                         Text(
-                            text = buildString {
-                                append(player.name)
-                                if (isHost) append(" (Host)")
-                            },
+                            text = if (isHost) "${player.name} (Host) 👑" else player.name,
                             fontSize = 14.sp,
                             color = Color.Black,
                             modifier = Modifier.padding(vertical = 4.dp)
@@ -186,9 +181,9 @@ fun LobbyScreen(
             }
         }
 
-        // Verfügbare Lobbys Section (noch Dummy)
+        // Available Lobbies
         Text(
-            text = "🎮 VERFÜGBARE LOBBYS",
+            text = "🎮 AVAILABLE LOBBIES",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = Gold,
@@ -199,9 +194,13 @@ fun LobbyScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
         ) {
-            items(3) { index ->
+            if (availableLobbies.isEmpty()) {
+                item {
+                    Text("No public lobbies found.", color = Color.Gray, fontSize = 12.sp)
+                }
+            }
+            items(availableLobbies) { lobby ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -217,25 +216,22 @@ fun LobbyScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Lobby ${index + 1}",
+                                text = "Lobby ${lobby.lobbyCode}",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black
                             )
                             Text(
-                                text = "${index + 2}/${10} Spieler",
+                                text = "${lobby.players.size} Players",
                                 fontSize = 12.sp,
-                                color = Color.Gray
+                                color = Color.DarkGray
                             )
                         }
 
                         Button(
-                            onClick = {
-                                // weiterhin Dummy: füllt nur LobbyCode in Textfield,
-                                // damit du schnell JOIN drücken kannst
-                                lobbyCode = currentState?.lobbyCode ?: lobbyCode
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
+                            onClick = { lobbyCodeInput = lobby.lobbyCode },
+                            colors = ButtonDefaults.buttonColors(containerColor = MossyGreen),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
                             Text("SELECT", color = Color.White, fontSize = 12.sp)
                         }
@@ -244,7 +240,7 @@ fun LobbyScreen(
             }
         }
 
-        // Action Buttons unten
+        // Bottom Actions
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -252,10 +248,8 @@ fun LobbyScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
-                onClick = { /* später: Lobby-Liste vom Backend laden */ },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
+                onClick = { viewModel.refreshLobbies() },
+                modifier = Modifier.weight(1f).height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
             ) {
                 Text("REFRESH", color = Color.White, fontWeight = FontWeight.Bold)
@@ -263,19 +257,11 @@ fun LobbyScreen(
 
             Button(
                 onClick = onBackPressed,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
+                modifier = Modifier.weight(1f).height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
             ) {
                 Text("BACK", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LobbyScreenPreview() {
-    Text("LobbyScreen Preview disabled (requires server-backed ViewModel)")
 }
