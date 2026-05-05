@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 class CardDeckTest {
 
-    // Adjusted: Special cards are included, so the total deck size is 51 now
+
     private val EXPECTED_TUNNEL_DECK_SIZE = 51
 
     @Test
@@ -18,7 +18,6 @@ class CardDeckTest {
 
     @Test
     fun `createTunnelDeck contains only allowed card types`() {
-        // Adjusted: Allow all card types now present in the deck, including special cards
         val allowedTypes = setOf(
             CardType.PATH,
             CardType.DEAD_END,

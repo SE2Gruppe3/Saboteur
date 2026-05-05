@@ -5,7 +5,7 @@ import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.TunnelCard
 
 internal fun TunnelCard.toDrawableName(): String = when (type) {
-    // Map all special tool cards directly to their drawable resource names
+
     CardType.CART_RED -> "cart_red"
     CardType.CART_GREEN -> "cart_green"
     CardType.LANTERN_RED -> "lantern_red"
