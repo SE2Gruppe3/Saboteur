@@ -2,7 +2,6 @@ package com.aau.saboteur.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aau.saboteur.mockeddata.mockPlayers
 import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
@@ -70,17 +69,5 @@ class GameViewModel : ViewModel() {
                 )
             }
         }
-    }
-
-    fun startGame() {
-        if (_uiState.value.isStartingGame) return
-
-        _uiState.value = _uiState.value.copy(
-            isStartingGame = true,
-            hands = null,
-            errorMessage = null
-        )
-
-        GameApi.startGame(mockPlayers)
     }
 }

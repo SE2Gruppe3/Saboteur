@@ -45,12 +45,26 @@ class WebSocketHandler(
                 "START_GAME" -> {
                     if (data != null) {
                         val request = objectMapper.treeToValue<CreateGameRequest>(data)
+                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+                        val lobbyState = lobbyService.getLobby(lobbyCode)
+                        val playerId = messagingService.getPlayerIdForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not linked to a player")
+
+                        require(lobbyState.hostId == playerId) {
+                            "Only the host can start the game"
+                        }
+
                         val result = gameService.startGame(request.players)
+                        val startedLobby = lobbyService.markGameStarted(lobbyCode)
+
+                        messagingService.broadcastToLobby(lobbyCode, "LOBBY_STATE_UPDATE", startedLobby)
                         messagingService.broadcast("GAME_STATE_UPDATE", result.gameState)
-                        result.playerRoles.forEach { (playerId, player) ->
-                            messagingService.sendToPlayer(playerId, "PLAYER_DATA", player)
+                        result.playerRoles.forEach { (targetPlayerId, player) ->
+                            messagingService.sendToPlayer(targetPlayerId, "PLAYER_DATA", player)
                         }
                         messagingService.broadcast("CARDS_DEALT", result.cardDistribution.hands)
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                     }
                 }
                 "LOBBY_CREATE" -> {
@@ -58,8 +72,8 @@ class WebSocketHandler(
                         val request = objectMapper.treeToValue<LobbyCreateRequest>(data)
                         val lobbyState = lobbyService.createLobby(request.playerName)
                         messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
+                        messagingService.registerPlayer(session.id, lobbyState.players.first().id)
                         messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
-                        // Also notify everyone that a new lobby exists in the list
                         messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                     }
                 }
@@ -67,8 +81,11 @@ class WebSocketHandler(
                     if (data != null) {
                         val request = objectMapper.treeToValue<LobbyJoinRequest>(data)
                         val lobbyState = lobbyService.joinLobby(request.lobbyCode, request.playerName)
+                        val joinedPlayer = lobbyState.players.last()
                         messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
+                        messagingService.registerPlayer(session.id, joinedPlayer.id)
                         messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                     }
                 }
                 "LOBBY_LIST_FETCH" -> {

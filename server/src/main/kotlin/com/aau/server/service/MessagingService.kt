@@ -15,11 +15,10 @@ class MessagingService(private val objectMapper: ObjectMapper) {
 
     private val sessions = CopyOnWriteArrayList<WebSocketSession>()
     private val sessionsById = ConcurrentHashMap<String, WebSocketSession>()
-    
-    // Maps sessionId to lobbyCode
+
     private val sessionToLobby = ConcurrentHashMap<String, String>()
-    // Maps lobbyCode to set of sessionIds
     private val lobbyToSessions = ConcurrentHashMap<String, MutableSet<String>>()
+    private val sessionToPlayer = ConcurrentHashMap<String, String>()
 
     fun addSession(session: WebSocketSession) {
         sessions.add(session)
@@ -29,7 +28,8 @@ class MessagingService(private val objectMapper: ObjectMapper) {
     fun removeSession(session: WebSocketSession) {
         sessions.remove(session)
         sessionsById.remove(session.id)
-        
+        sessionToPlayer.remove(session.id)
+
         val lobbyCode = sessionToLobby.remove(session.id)
         if (lobbyCode != null) {
             lobbyToSessions[lobbyCode]?.remove(session.id)
@@ -40,15 +40,22 @@ class MessagingService(private val objectMapper: ObjectMapper) {
     }
 
     fun joinLobbyGroup(sessionId: String, lobbyCode: String) {
-        // Remove from old lobby if any
         val oldLobby = sessionToLobby[sessionId]
         if (oldLobby != null) {
             lobbyToSessions[oldLobby]?.remove(sessionId)
         }
-        
+
         sessionToLobby[sessionId] = lobbyCode
         lobbyToSessions.computeIfAbsent(lobbyCode) { ConcurrentHashMap.newKeySet() }.add(sessionId)
     }
+
+    fun registerPlayer(sessionId: String, playerId: String) {
+        sessionToPlayer[sessionId] = playerId
+    }
+
+    fun getLobbyCodeForSession(sessionId: String): String? = sessionToLobby[sessionId]
+
+    fun getPlayerIdForSession(sessionId: String): String? = sessionToPlayer[sessionId]
 
     fun broadcast(type: String, data: Any) {
         val message = TextMessage(objectMapper.writeValueAsString(WsMessage(type, data)))
@@ -58,7 +65,7 @@ class MessagingService(private val objectMapper: ObjectMapper) {
     }
 
     fun broadcastToLobby(lobbyCode: String, type: String, data: Any) {
-        val sessionIds = lobbyToSessions[lobbyCode] ?: return
+        val sessionIds = lobbyToSessions[lobbyCode]?.toSet() ?: return
         val message = TextMessage(objectMapper.writeValueAsString(WsMessage(type, data)))
         sessionIds.forEach { sessionId ->
             sessionsById[sessionId]?.let { sendMessage(it, message) }

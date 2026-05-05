@@ -7,6 +7,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
+private const val LOBBY_NOT_FOUND = "Lobby not found"
+
 @Service
 class LobbyService {
 
@@ -33,21 +35,30 @@ class LobbyService {
 
     fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
         return lobbies.compute(lobbyCode) { _, lobby ->
-            if (lobby == null) throw IllegalArgumentException("Lobby not found")
-            
+            requireNotNull(lobby) { LOBBY_NOT_FOUND }
+            require(lobby.players.size < 10) { "Lobby is full" }
+            require(!lobby.gameStarted) { "Game has already started" }
+
             val newPlayer = Player(
                 id = UUID.randomUUID().toString(),
                 name = playerName
             )
 
             lobby.copy(players = lobby.players + newPlayer)
-        } ?: throw IllegalArgumentException("Lobby not found")
+        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+    }
+
+    fun markGameStarted(lobbyCode: String): LobbyState {
+        return lobbies.compute(lobbyCode) { _, lobby ->
+            requireNotNull(lobby) { LOBBY_NOT_FOUND }
+            lobby.copy(gameStarted = true)
+        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
     }
 
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
 
     fun getLobby(lobbyCode: String): LobbyState =
-        lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
+        lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
 
     private fun generateUniqueCode(): String {
         repeat(50) {

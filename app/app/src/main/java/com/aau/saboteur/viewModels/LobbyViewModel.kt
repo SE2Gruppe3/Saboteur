@@ -21,6 +21,9 @@ class LobbyViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _playerId = MutableStateFlow<String?>(null)
+    val playerId: StateFlow<String?> = _playerId.asStateFlow()
+
     init {
         viewModelScope.launch {
             LobbyApi.lobbyStateUpdates.collect { state ->
@@ -49,6 +52,11 @@ class LobbyViewModel : ViewModel() {
     fun joinLobby(lobbyCode: String, playerName: String) {
         _errorMessage.value = null
         LobbyApi.joinLobby(lobbyCode, playerName)
+    }
+
+    fun setCurrentPlayerId(username: String) {
+        val currentPlayer = _lobbyState.value?.players?.firstOrNull { it.name == username }
+        _playerId.value = currentPlayer?.id
     }
 
     fun startGame() {

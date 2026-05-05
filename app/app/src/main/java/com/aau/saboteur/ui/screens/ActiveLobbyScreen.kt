@@ -1,30 +1,21 @@
 package com.aau.saboteur.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.viewModels.LobbyViewModel
+
+private const val MIN_PLAYERS = 3
+private const val MAX_PLAYERS = 10
 
 @Composable
 fun ActiveLobbyScreen(
@@ -34,13 +25,19 @@ fun ActiveLobbyScreen(
 ) {
     val lobbyState by viewModel.lobbyState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val playerId by viewModel.playerId.collectAsState()
 
     val currentState = lobbyState
-    val players: List<Player> = currentState?.players ?: emptyList()
-    val hostName = currentState
-        ?.players
-        ?.firstOrNull { it.id == currentState.hostId }
-        ?.name
+    val players = currentState?.players.orEmpty()
+    val isHost = currentState?.hostId == playerId
+    val playerCountError = playerCountError(players.size)
+
+    HandleActiveLobbyEffects(
+        currentState = currentState,
+        username = username,
+        onStartGame = onStartGame,
+        setCurrentPlayerId = viewModel::setCurrentPlayerId
+    )
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -52,90 +49,206 @@ fun ActiveLobbyScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Signed in as: $username",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-            )
+            ActiveLobbyHeader(username = username)
 
-            if (currentState == null) {
-                Text(
-                    text = "No active lobby selected.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+            currentState?.let { state ->
+                ActiveLobbyContent(
+                    state = state,
+                    players = players,
+                    errorMessage = errorMessage,
+                    playerCountError = playerCountError,
+                    isHost = isHost,
+                    onStartGameClick = viewModel::startGame,
+                    modifier = Modifier.weight(1f)
                 )
-                return@Column
-            }
+            } ?: NoActiveLobbyMessage()
+        }
+    }
+}
 
-            Text(
-                text = "Lobby Code: ${currentState.lobbyCode}",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+@Composable
+private fun HandleActiveLobbyEffects(
+    currentState: LobbyState?,
+    username: String,
+    onStartGame: () -> Unit,
+    setCurrentPlayerId: (String) -> Unit
+) {
+    LaunchedEffect(currentState) {
+        currentState?.let { setCurrentPlayerId(username) }
+    }
+
+    LaunchedEffect(currentState?.gameStarted) {
+        if (currentState?.gameStarted == true) {
+            onStartGame()
+        }
+    }
+}
+
+@Composable
+private fun ActiveLobbyHeader(username: String) {
+    Text(
+        text = "Signed in as: $username",
+        fontSize = 14.sp,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+    )
+}
+
+@Composable
+private fun NoActiveLobbyMessage() {
+    Text(
+        text = "No active lobby selected.",
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onBackground
+    )
+}
+
+@Composable
+private fun ActiveLobbyContent(
+    state: LobbyState,
+    players: List<Player>,
+    errorMessage: String?,
+    playerCountError: String?,
+    isHost: Boolean,
+    onStartGameClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val hostName = state.players.firstOrNull { it.id == state.hostId }?.name ?: "Unknown"
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Lobby Code: ${state.lobbyCode}",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Text(
+            text = "Host: $hostName",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Text(
+            text = "Players (${players.size}/$MAX_PLAYERS)",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        ActiveLobbyPlayerList(
+            players = players,
+            hostId = state.hostId,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        )
+
+        playerCountError?.let {
+            ActiveLobbyMessage(
+                text = it,
+                color = MaterialTheme.colorScheme.error
             )
+        }
 
-            Text(
-                text = "Host: ${hostName ?: "Unknown"}",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onBackground
+        errorMessage?.let {
+            ActiveLobbyMessage(
+                text = "Error: $it",
+                color = MaterialTheme.colorScheme.error
             )
+        }
 
-            Text(
-                text = "Players (${players.size})",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+        if (isHost) {
+            HostStartGameButton(
+                enabled = playerCountError == null,
+                onClick = onStartGameClick
             )
+        }
+    }
+}
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+@Composable
+private fun ActiveLobbyPlayerList(
+    players: List<Player>,
+    hostId: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(players) { player ->
+                ActiveLobbyPlayerItem(
+                    player = player,
+                    isHost = player.id == hostId
                 )
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(players) { player ->
-                        val isHost = player.id == currentState.hostId
-                        Text(
-                            text = if (isHost) "${player.name} (Host) 👑" else player.name,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-
-            errorMessage?.let {
-                Text(
-                    text = "Error: $it",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Button(
-                onClick = {
-                    viewModel.startGame()
-                    onStartGame()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = players.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text("START GAME", fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+@Composable
+private fun ActiveLobbyPlayerItem(
+    player: Player,
+    isHost: Boolean
+) {
+    Text(
+        text = playerDisplayName(player, isHost),
+        fontSize = 16.sp
+    )
+}
+
+@Composable
+private fun ActiveLobbyMessage(
+    text: String,
+    color: Color
+) {
+    Text(
+        text = text,
+        color = color,
+        style = MaterialTheme.typography.bodyMedium
+    )
+}
+
+@Composable
+private fun HostStartGameButton(
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Spacer(modifier = Modifier.height(4.dp))
+
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        )
+    ) {
+        Text("START GAME", fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun playerDisplayName(player: Player, isHost: Boolean): String {
+    return if (isHost) "${player.name} (Host) 👑" else player.name
+}
+
+private fun playerCountError(playerCount: Int): String? {
+    return when {
+        playerCount < MIN_PLAYERS -> "At least $MIN_PLAYERS players are required to start the game."
+        playerCount > MAX_PLAYERS -> "A maximum of $MAX_PLAYERS players is allowed in a lobby."
+        else -> null
     }
 }

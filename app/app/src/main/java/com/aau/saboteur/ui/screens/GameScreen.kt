@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +30,6 @@ fun GameScreen(
     val uiState by viewModel.uiState.collectAsState()
     val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
     val currentHand = uiState.gameState.currentPlayerId?.let { uiState.hands?.get(it) }
-    val isGameStarted = sortedPlayers.isNotEmpty() || uiState.gameState.boardPlacements.isNotEmpty()
 
     Box(
         modifier = Modifier
@@ -66,16 +64,9 @@ fun GameScreen(
                         .weight(1f)
                 )
 
-                if (!isGameStarted) {
-                    Button(
-                        onClick = viewModel::startGame,
-                        enabled = !uiState.isStartingGame
-                    ) {
-                        Text(if (uiState.isStartingGame) "Starting game..." else "Start Game")
-                    }
-
+                if (sortedPlayers.isEmpty()) {
                     Text(
-                        text = "Start a game to load the board.",
+                        text = if (uiState.isStartingGame) "Starting game..." else "Waiting for game state...",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
