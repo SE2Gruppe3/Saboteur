@@ -39,7 +39,9 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       - name: Analyze server
-        run: ./gradlew :server:test :server:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew :server:test :server:sonar
 
   app:
     name: App Analysis
