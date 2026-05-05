@@ -3,6 +3,7 @@ package com.aau.saboteur.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.network.lobby.LobbyApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,8 +37,7 @@ class LobbyViewModel : ViewModel() {
                 _errorMessage.value = msg
             }
         }
-        
-        // Initial fetch of lobbies
+
         refreshLobbies()
     }
 
@@ -49,6 +49,14 @@ class LobbyViewModel : ViewModel() {
     fun joinLobby(lobbyCode: String, playerName: String) {
         _errorMessage.value = null
         LobbyApi.joinLobby(lobbyCode, playerName)
+    }
+
+    fun startGame() {
+        val players = _lobbyState.value?.players.orEmpty()
+        if (players.isEmpty()) return
+
+        _errorMessage.value = null
+        GameApi.startGame(players)
     }
 
     fun refreshLobbies() {

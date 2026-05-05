@@ -46,6 +46,7 @@ fun AppNavHost(
                             currentRoute?.startsWith("menu") == true -> "Menu"
                             currentRoute == "login" -> "Login"
                             currentRoute?.startsWith("lobby") == true -> "Lobby"
+                            currentRoute?.startsWith("activeLobby") == true -> "Active Lobby"
                             currentRoute == "game" -> "Game"
                             currentRoute == "connectivity" -> "Connectivity"
                             else -> ""
@@ -75,7 +76,6 @@ fun AppNavHost(
                 startDestination = "login",
                 modifier = Modifier.fillMaxSize()
             ) {
-                // LOGIN ROUTE
                 composable("login") {
                     val loginViewModel: LoginViewModel = viewModel()
                     LoginScreen(
@@ -91,7 +91,6 @@ fun AppNavHost(
                     )
                 }
 
-                // MENU ROUTE
                 composable(
                     route = "menu/{username}",
                     arguments = listOf(
@@ -109,7 +108,6 @@ fun AppNavHost(
                     MenuScreen(navController = navController, username = "Gast")
                 }
 
-                // LOBBY ROUTE with username parameter
                 composable(
                     route = "lobby/{username}",
                     arguments = listOf(
@@ -124,7 +122,32 @@ fun AppNavHost(
                     LobbyScreen(
                         viewModel = lobbyViewModel,
                         username = username,
-                        onGameStarted = { navController.navigate("game") }
+                        onLobbyJoined = {
+                            navController.navigate("activeLobby/$username")
+                        },
+                        onGameStarted = {
+                            navController.navigate("game")
+                        }
+                    )
+                }
+
+                composable(
+                    route = "activeLobby/{username}",
+                    arguments = listOf(
+                        navArgument("username") {
+                            type = NavType.StringType
+                            defaultValue = "Gast"
+                        }
+                    )
+                ) { backStackEntry ->
+                    val username = backStackEntry.arguments?.getString("username") ?: "Gast"
+                    val lobbyViewModel: LobbyViewModel = viewModel()
+                    ActiveLobbyScreen(
+                        viewModel = lobbyViewModel,
+                        username = username,
+                        onStartGame = {
+                            navController.navigate("game")
+                        }
                     )
                 }
 
