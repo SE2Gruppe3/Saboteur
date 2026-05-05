@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -22,14 +23,21 @@ import com.aau.saboteur.ui.components.PlayerHandRow
 import com.aau.saboteur.ui.components.PlayerTurnOrderRow
 import com.aau.saboteur.ui.components.RoleCardView
 import com.aau.saboteur.viewModels.GameViewModel
+import com.aau.saboteur.viewModels.LobbyViewModel
 
 @Composable
 fun GameScreen(
+    lobbyViewModel: LobbyViewModel,
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val localPlayerId by lobbyViewModel.playerId.collectAsState()
     val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
-    val currentHand = uiState.gameState.currentPlayerId?.let { uiState.hands?.get(it) }
+    val currentHand = uiState.localPlayerId?.let { uiState.hands?.get(it) }
+
+    LaunchedEffect(localPlayerId) {
+        viewModel.setLocalPlayerId(localPlayerId)
+    }
 
     Box(
         modifier = Modifier

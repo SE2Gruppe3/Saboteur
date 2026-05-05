@@ -89,6 +89,16 @@ class MessagingService(private val objectMapper: ObjectMapper) {
     }
 
     fun sendToPlayer(playerId: String, type: String, data: Any) {
-        broadcast("${type}_$playerId", data)
+        val sessionIds = sessionToPlayer
+            .filterValues { it == playerId }
+            .keys
+            .toSet()
+
+        val messageType = "${type}_$playerId"
+        val message = TextMessage(objectMapper.writeValueAsString(WsMessage(messageType, data)))
+
+        sessionIds.forEach { sessionId ->
+            sessionsById[sessionId]?.let { sendMessage(it, message) }
+        }
     }
 }

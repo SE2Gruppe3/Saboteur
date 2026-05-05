@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -24,6 +25,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.ui.screens.*
 import com.aau.saboteur.viewModels.LoginViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
@@ -34,8 +36,11 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
+    remember { GameApi }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val lobbyViewModel: LobbyViewModel = viewModel()
 
     Scaffold(
         topBar = {
@@ -118,7 +123,6 @@ fun AppNavHost(
                     )
                 ) { backStackEntry ->
                     val username = backStackEntry.arguments?.getString("username") ?: "Gast"
-                    val lobbyViewModel: LobbyViewModel = viewModel()
                     LobbyScreen(
                         viewModel = lobbyViewModel,
                         username = username,
@@ -141,7 +145,6 @@ fun AppNavHost(
                     )
                 ) { backStackEntry ->
                     val username = backStackEntry.arguments?.getString("username") ?: "Gast"
-                    val lobbyViewModel: LobbyViewModel = viewModel()
                     ActiveLobbyScreen(
                         viewModel = lobbyViewModel,
                         username = username,
@@ -152,7 +155,7 @@ fun AppNavHost(
                 }
 
                 composable("game") {
-                    GameScreen()
+                    GameScreen(lobbyViewModel = lobbyViewModel)
                 }
 
                 composable("connectivity") {

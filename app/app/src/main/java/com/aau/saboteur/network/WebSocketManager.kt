@@ -12,7 +12,7 @@ import okhttp3.WebSocketListener
 import org.json.JSONObject
 
 object WebSocketManager {
-    private val _messages = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 100)
+    private val _messages = MutableSharedFlow<Pair<String, String>>(replay = 1, extraBufferCapacity = 100)
     val messages: SharedFlow<Pair<String, String>> = _messages.asSharedFlow()
 
     private val _errorMessages = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 10)
@@ -31,7 +31,7 @@ object WebSocketManager {
         val request = Request.Builder()
             .url(endpoint)
             .build()
-        
+
         webSocket = HttpClient.okHttpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 isConnecting = false
@@ -54,7 +54,7 @@ object WebSocketManager {
                 val errorMsg = response?.let { "Connection failed: ${it.code}" } ?: "Connection failed: ${t.message}"
                 _errorMessages.tryEmit(errorMsg)
                 t.printStackTrace()
-                
+
                 handleReconnect()
             }
 
@@ -68,11 +68,11 @@ object WebSocketManager {
     private fun handleReconnect() {
         webSocket = null
         isConnecting = false
-        
+
         handler.postDelayed({
             connect()
         }, reconnectDelay)
-        
+
         reconnectDelay = (reconnectDelay * 2).coerceAtMost(30000L)
     }
 
@@ -81,22 +81,10 @@ object WebSocketManager {
             put("type", type)
             put("data", data)
         }.toString()
-        
+
         val sent = webSocket?.send(message) ?: false
         if (!sent) {
             _errorMessages.tryEmit("Failed to send message: $type. Connection might be down.")
         }
-    }
-
-    fun close() {
-        handler.removeCallbacksAndMessages(null)
-        webSocket?.close(1000, "App closing")
-        webSocket = null
-        isConnecting = false
-    }
-
-    fun reset() {
-        close()
-        reconnectDelay = 2000L
     }
 }

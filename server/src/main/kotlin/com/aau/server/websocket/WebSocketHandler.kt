@@ -59,11 +59,11 @@ class WebSocketHandler(
                         val startedLobby = lobbyService.markGameStarted(lobbyCode)
 
                         messagingService.broadcastToLobby(lobbyCode, "LOBBY_STATE_UPDATE", startedLobby)
-                        messagingService.broadcast("GAME_STATE_UPDATE", result.gameState)
+                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.gameState)
                         result.playerRoles.forEach { (targetPlayerId, player) ->
                             messagingService.sendToPlayer(targetPlayerId, "PLAYER_DATA", player)
                         }
-                        messagingService.broadcast("CARDS_DEALT", result.cardDistribution.hands)
+                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.cardDistribution.hands)
                         messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                     }
                 }

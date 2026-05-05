@@ -2,10 +2,10 @@ package com.aau.saboteur.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.network.game.GameApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 data class GameUiState(
     val isStartingGame: Boolean = false,
     val gameState: GameState = GameState(players = emptyList(), currentPlayerId = null),
+    val localPlayerId: String? = null,
     val player: Player? = null,
     val hands: Map<String, List<TunnelCard>>? = null,
     val errorMessage: String? = null
@@ -69,5 +70,9 @@ class GameViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    fun setLocalPlayerId(playerId: String?) {
+        _uiState.value = _uiState.value.copy(localPlayerId = playerId)
     }
 }
