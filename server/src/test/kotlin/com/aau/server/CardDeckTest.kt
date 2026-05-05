@@ -8,8 +8,7 @@ import kotlin.test.assertTrue
 
 class CardDeckTest {
 
-
-    private val EXPECTED_TUNNEL_DECK_SIZE = 51
+    private val EXPECTED_TUNNEL_DECK_SIZE = 64
 
     @Test
     fun `createTunnelDeck returns correct total count`() {
