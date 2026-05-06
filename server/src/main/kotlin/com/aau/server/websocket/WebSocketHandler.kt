@@ -1,9 +1,6 @@
 package com.aau.server.websocket
 
-import com.aau.saboteur.model.CreateGameRequest
-import com.aau.saboteur.model.LobbyCreateRequest
-import com.aau.saboteur.model.LobbyJoinRequest
-import com.aau.saboteur.model.WsMessage
+import com.aau.saboteur.model.*
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
@@ -85,6 +82,20 @@ class WebSocketHandler(
                         messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
                         messagingService.registerPlayer(session.id, joinedPlayer.id)
                         messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                    }
+                }
+                "LOBBY_LEAVE" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<LobbyLeaveRequest>(data)
+                        val updatedLobby = lobbyService.leaveLobby(request.lobbyCode, request.playerId)
+                        
+                        messagingService.leaveLobbyGroup(session.id, request.lobbyCode)
+                        messagingService.sendToSession(session.id, "LOBBY_LEFT", "")
+                        
+                        if (updatedLobby != null) {
+                            messagingService.broadcastToLobby(request.lobbyCode, "LOBBY_STATE_UPDATE", updatedLobby)
+                        }
                         messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                     }
                 }

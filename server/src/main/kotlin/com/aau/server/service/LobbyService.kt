@@ -48,6 +48,30 @@ class LobbyService {
         } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
     }
 
+    fun leaveLobby(lobbyCode: String, playerId: String): LobbyState? {
+        val currentLobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        
+        val updatedPlayers = currentLobby.players.filter { it.id != playerId }
+        
+        if (updatedPlayers.isEmpty()) {
+            lobbies.remove(lobbyCode)
+            return null
+        }
+
+        var newHostId = currentLobby.hostId
+        if (currentLobby.hostId == playerId) {
+            newHostId = updatedPlayers.first().id
+        }
+
+        val updatedLobby = currentLobby.copy(
+            players = updatedPlayers,
+            hostId = newHostId
+        )
+        
+        lobbies[lobbyCode] = updatedLobby
+        return updatedLobby
+    }
+
     fun markGameStarted(lobbyCode: String): LobbyState {
         return lobbies.compute(lobbyCode) { _, lobby ->
             requireNotNull(lobby) { LOBBY_NOT_FOUND }

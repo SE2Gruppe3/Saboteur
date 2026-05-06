@@ -49,6 +49,14 @@ class MessagingService(private val objectMapper: ObjectMapper) {
         lobbyToSessions.computeIfAbsent(lobbyCode) { ConcurrentHashMap.newKeySet() }.add(sessionId)
     }
 
+    fun leaveLobbyGroup(sessionId: String, lobbyCode: String) {
+        sessionToLobby.remove(sessionId)
+        lobbyToSessions[lobbyCode]?.remove(sessionId)
+        if (lobbyToSessions[lobbyCode]?.isEmpty() == true) {
+            lobbyToSessions.remove(lobbyCode)
+        }
+    }
+
     fun registerPlayer(sessionId: String, playerId: String) {
         sessionToPlayer[sessionId] = playerId
     }

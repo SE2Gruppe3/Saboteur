@@ -54,6 +54,13 @@ class LobbyViewModel : ViewModel() {
         LobbyApi.joinLobby(lobbyCode, playerName)
     }
 
+    fun leaveLobby() {
+        val currentState = _lobbyState.value ?: return
+        val currentPlayerId = _playerId.value ?: return
+        _errorMessage.value = null
+        LobbyApi.leaveLobby(currentState.lobbyCode, currentPlayerId)
+    }
+
     fun setCurrentPlayerId(username: String) {
         val currentPlayer = _lobbyState.value?.players?.firstOrNull { it.name == username }
         _playerId.value = currentPlayer?.id

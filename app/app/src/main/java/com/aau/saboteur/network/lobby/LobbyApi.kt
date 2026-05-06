@@ -2,6 +2,7 @@ package com.aau.saboteur.network.lobby
 
 import com.aau.saboteur.model.LobbyCreateRequest
 import com.aau.saboteur.model.LobbyJoinRequest
+import com.aau.saboteur.model.LobbyLeaveRequest
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
@@ -18,8 +19,8 @@ import org.json.JSONObject
 object LobbyApi {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _lobbyStateUpdates = MutableSharedFlow<LobbyState>(replay = 1, extraBufferCapacity = 10)
-    val lobbyStateUpdates: SharedFlow<LobbyState> = _lobbyStateUpdates.asSharedFlow()
+    private val _lobbyStateUpdates = MutableSharedFlow<LobbyState?>(replay = 1, extraBufferCapacity = 10)
+    val lobbyStateUpdates: SharedFlow<LobbyState?> = _lobbyStateUpdates.asSharedFlow()
 
     private val _allLobbies = MutableSharedFlow<List<LobbyState>>(replay = 1, extraBufferCapacity = 10)
     val allLobbies: SharedFlow<List<LobbyState>> = _allLobbies.asSharedFlow()
@@ -45,6 +46,9 @@ object LobbyApi {
                         } catch (e: Exception) {
                             _errorMessages.tryEmit("Failed to parse lobby state: ${e.message}")
                         }
+                    }
+                    "LOBBY_LEFT" -> {
+                        _lobbyStateUpdates.tryEmit(null)
                     }
                     "LOBBY_LIST_UPDATE" -> {
                         try {
@@ -72,6 +76,12 @@ object LobbyApi {
         val request = LobbyJoinRequest(lobbyCode, playerName)
         val jsonString = json.encodeToString(request)
         WebSocketManager.sendMessage("LOBBY_JOIN", JSONObject(jsonString))
+    }
+
+    fun leaveLobby(lobbyCode: String, playerId: String) {
+        val request = LobbyLeaveRequest(lobbyCode, playerId)
+        val jsonString = json.encodeToString(request)
+        WebSocketManager.sendMessage("LOBBY_LEAVE", JSONObject(jsonString))
     }
 
     fun fetchAllLobbies() {

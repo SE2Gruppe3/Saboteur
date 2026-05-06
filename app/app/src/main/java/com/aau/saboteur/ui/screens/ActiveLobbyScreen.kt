@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -34,7 +35,8 @@ private const val MAX_PLAYERS = 10
 fun ActiveLobbyScreen(
     viewModel: LobbyViewModel,
     username: String,
-    onStartGame: () -> Unit = {}
+    onStartGame: () -> Unit = {},
+    onLeaveLobby: () -> Unit = {}
 ) {
     val lobbyState by viewModel.lobbyState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -49,6 +51,7 @@ fun ActiveLobbyScreen(
         currentState = currentState,
         username = username,
         onStartGame = onStartGame,
+        onLeaveLobby = onLeaveLobby,
         setCurrentPlayerId = viewModel::setCurrentPlayerId
     )
 
@@ -62,14 +65,28 @@ fun ActiveLobbyScreen(
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "Game Lobby",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.ExtraBold
-                ),
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Game Lobby",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.ExtraBold
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                IconButton(onClick = viewModel::leaveLobby) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = "Leave Lobby",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
 
             ActiveLobbyHeader(username = username)
 
@@ -93,10 +110,15 @@ private fun HandleActiveLobbyEffects(
     currentState: LobbyState?,
     username: String,
     onStartGame: () -> Unit,
+    onLeaveLobby: () -> Unit,
     setCurrentPlayerId: (String) -> Unit
 ) {
     LaunchedEffect(currentState) {
-        currentState?.let { setCurrentPlayerId(username) }
+        if (currentState == null) {
+            onLeaveLobby()
+        } else {
+            setCurrentPlayerId(username)
+        }
     }
 
     LaunchedEffect(currentState?.gameStarted) {

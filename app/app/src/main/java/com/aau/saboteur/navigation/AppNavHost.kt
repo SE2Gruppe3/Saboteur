@@ -93,6 +93,9 @@ fun AppNavHost(
                     username = username,
                     onStartGame = {
                         navController.navigate("game")
+                    },
+                    onLeaveLobby = {
+                        navController.popBackStack()
                     }
                 )
             }
