@@ -45,15 +45,15 @@ class WebSocketHandlerTests {
         `when`(session.id).thenReturn("test-session")
     }
 
-    // Helpers for Kotlin non-nullable parameters
-    private inline fun <reified T> anyK(default: T): T = any(T::class.java) ?: default
-    private inline fun <reified T> eqK(value: T): T = org.mockito.ArgumentMatchers.eq(value) ?: value
-
     private fun createDummyCard() = TunnelCard(
         id = "dummy",
         type = CardType.START,
         connections = emptySet()
     )
+
+    // Helpers for Mockito with Kotlin non-nullable types
+    private fun <T> anyK(): T = any() ?: null as T
+    private fun <T> eqK(value: T): T = eq(value) ?: value
 
     // ── Session lifecycle ────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ class WebSocketHandlerTests {
         verify(messagingService).removeSession(session)
     }
 
-    // ── LOBBY handling (this is what Sonar says is uncovered) ────────────────
+    // ── LOBBY handling ───────────────────────────────────────────────────────
 
     @Test
     fun `handleTextMessage LOBBY_CREATE broadcasts LOBBY_STATE_UPDATE`() {
@@ -92,18 +92,17 @@ class WebSocketHandlerTests {
             gameStarted = false
         )
 
-        `when`(lobbyService.createLobby("Host")).thenReturn(lobbyState)
+        `when`(lobbyService.createLobby(anyString())).thenReturn(lobbyState)
 
         handler.handleTextMessage(session, message)
 
         verify(lobbyService).createLobby("Host")
-        verify(messagingService).broadcast("LOBBY_STATE_UPDATE", lobbyState)
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("LOBBY_STATE_UPDATE"), eqK(lobbyState))
+        verify(messagingService).broadcast(eqK("LOBBY_LIST_UPDATE"), anyK())
     }
 
     @Test
     fun `handleTextMessage LOBBY_JOIN broadcasts LOBBY_STATE_UPDATE`() {
-        // IMPORTANT: this class name must match what WebSocketHandler.kt parses in the LOBBY_JOIN branch.
-        // If compilation fails here, tell me the exact DTO name from WebSocketHandler.kt (treeToValue<...>).
         val request = LobbyJoinRequest(lobbyCode = "1234", playerName = "Max")
         val message = TextMessage(
             objectMapper.writeValueAsString(
@@ -116,7 +115,7 @@ class WebSocketHandlerTests {
 
         val lobbyState = LobbyState(
             lobbyCode = "1234",
-            hostId = "1", // Die ID des Hosts!
+            hostId = "1",
             players = listOf(
                 Player(id = "1", name = "Host"),
                 Player(id = "2", name = "Max")
@@ -124,12 +123,51 @@ class WebSocketHandlerTests {
             gameStarted = false
         )
 
-        `when`(lobbyService.joinLobby("1234", "Max")).thenReturn(lobbyState)
+        `when`(lobbyService.joinLobby(anyString(), anyString())).thenReturn(lobbyState)
 
         handler.handleTextMessage(session, message)
 
         verify(lobbyService).joinLobby("1234", "Max")
-        verify(messagingService).broadcast("LOBBY_STATE_UPDATE", lobbyState)
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("LOBBY_STATE_UPDATE"), eqK(lobbyState))
+    }
+
+    @Test
+    fun `handleTextMessage LOBBY_LEAVE broadcasts update`() {
+        val request = LobbyLeaveRequest(lobbyCode = "1234", playerId = "2")
+        val message = TextMessage(
+            objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "LOBBY_LEAVE",
+                    "data" to request
+                )
+            )
+        )
+
+        val lobbyState = LobbyState(
+            lobbyCode = "1234",
+            hostId = "1",
+            players = listOf(Player(id = "1", name = "Host")),
+            gameStarted = false
+        )
+
+        `when`(lobbyService.leaveLobby(anyString(), anyString())).thenReturn(lobbyState)
+
+        handler.handleTextMessage(session, message)
+
+        verify(messagingService).leaveLobbyGroup("test-session", "1234")
+        verify(messagingService).sendToSession(eqK("test-session"), eqK("LOBBY_LEFT"), anyK())
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("LOBBY_STATE_UPDATE"), eqK(lobbyState))
+    }
+
+    @Test
+    fun `handleTextMessage LOBBY_LIST_FETCH sends current lobbies`() {
+        val message = TextMessage("{\"type\":\"LOBBY_LIST_FETCH\"}")
+        val lobbies = listOf(LobbyState("1234", "1", emptyList()))
+        `when`(lobbyService.getAllLobbies()).thenReturn(lobbies)
+
+        handler.handleTextMessage(session, message)
+
+        verify(messagingService).sendToSession(eqK("test-session"), eqK("LOBBY_LIST_UPDATE"), eqK(lobbies))
     }
 
     // ── START_GAME handling ──────────────────────────────────────────────────
@@ -147,6 +185,14 @@ class WebSocketHandlerTests {
             )
         )
 
+        val lobbyCode = "1234"
+        val hostId = "1"
+        val lobbyState = LobbyState(lobbyCode, hostId, players)
+        
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn(lobbyCode)
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn(hostId)
+        `when`(lobbyService.getLobby(anyString())).thenReturn(lobbyState)
+
         val newState = GameState(
             players = listOf(
                 PlayerTurn("1", "Alice", 1),
@@ -163,57 +209,60 @@ class WebSocketHandlerTests {
         )
 
         `when`(gameService.startGame(anyList())).thenReturn(startResult)
+        `when`(lobbyService.markGameStarted(anyString())).thenReturn(lobbyState.copy(gameStarted = true))
 
         handler.handleTextMessage(session, message)
 
-        verify(messagingService).broadcast("GAME_STATE_UPDATE", newState)
-        verify(messagingService).broadcast(eqK("CARDS_DEALT"), anyK(emptyMap<String, List<TunnelCard>>()))
+        verify(messagingService).broadcastToLobby(eqK(lobbyCode), eqK("GAME_STATE_UPDATE"), eqK(newState))
+        verify(messagingService).broadcastToLobby(eqK(lobbyCode), eqK("CARDS_DEALT"), anyK())
     }
 
     @Test
-    fun `handleTextMessage START_GAME triggers game start and delegates to messagingService`() {
-        val players = listOf(Player("1", "Alice"), Player("2", "Bob"), Player("3", "Charlie"))
+    fun `handleTextMessage START_GAME throws when not host`() {
+        val players = listOf(Player("1", "Alice"), Player("2", "Bob"))
         val request = CreateGameRequest(players = players)
-        val message = TextMessage(
-            objectMapper.writeValueAsString(
-                mapOf(
-                    "type" to "START_GAME",
-                    "data" to request
-                )
-            )
-        )
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "START_GAME", "data" to request)))
 
-        val newState = GameState(
-            players = listOf(
-                PlayerTurn("1", "Alice", 1),
-                PlayerTurn("2", "Bob", 2),
-                PlayerTurn("3", "Charlie", 3)
-            ),
-            currentPlayerId = "1"
-        )
-
-        val playerWithRole = Player("1", "Alice", role = Role.GOLDDIGGER)
-        val assignedPlayers = mapOf("1" to playerWithRole)
-
-        val startResult = GameStartResult(
-            gameState = newState,
-            playerRoles = assignedPlayers,
-            cardDistribution = CardDistributionResult(emptyMap(), emptyList(), emptyList(), createDummyCard())
-        )
-
-        `when`(gameService.startGame(anyList())).thenReturn(startResult)
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("2") // Not the host
+        `when`(lobbyService.getLobby(anyString())).thenReturn(LobbyState("1234", "1", players))
 
         handler.handleTextMessage(session, message)
 
-        verify(gameService).startGame(anyList())
-
-        verify(messagingService).broadcast("GAME_STATE_UPDATE", newState)
-        verify(messagingService).sendToPlayer("1", "PLAYER_DATA", playerWithRole)
-        verify(messagingService).broadcast(eqK("CARDS_DEALT"), anyK(emptyMap<String, List<TunnelCard>>()))
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Only the host can start the game"))
     }
 
     @Test
-    fun `handleTextMessage START_GAME with null data does nothing`() {
+    fun `handleTextMessage START_GAME throws when session not in lobby`() {
+        val message = TextMessage("{\"type\":\"START_GAME\", \"data\": {\"players\": []}}")
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn(null)
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Session is not connected to a lobby"))
+    }
+
+    @Test
+    fun `handleTextMessage START_GAME throws when player not registered`() {
+        val message = TextMessage("{\"type\":\"START_GAME\", \"data\": {\"players\": []}}")
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn(null)
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Session is not linked to a player"))
+    }
+
+    // ── Generic handling ─────────────────────────────────────────────────────
+
+    @Test
+    fun `handleTextMessage with null data does nothing`() {
         val message = TextMessage("{\"type\":\"START_GAME\"}")
         handler.handleTextMessage(session, message)
         verify(gameService, never()).startGame(anyList())
@@ -251,7 +300,7 @@ class WebSocketHandlerTests {
         val mockMapper = mock(ObjectMapper::class.java)
         val handlerWithMock = WebSocketHandler(mockMapper, gameService, messagingService, lobbyService)
 
-        `when`(mockMapper.readTree(anyString() ?: "")).thenThrow(RuntimeException())
+        `when`(mockMapper.readTree(anyString())).thenThrow(RuntimeException())
         `when`(mockMapper.writeValueAsString(any())).thenReturn("{\"type\":\"ERROR\",\"data\":\"Unknown error\"}")
 
         handlerWithMock.handleTextMessage(session, TextMessage("{}"))
@@ -266,20 +315,20 @@ class WebSocketHandlerTests {
     @Test
     fun `sendMessage handles exception`() {
         val message = TextMessage("invalid json")
-        doThrow(IOException("Fail")).`when`(session).sendMessage(anyK(TextMessage("")))
+        doThrow(IOException("Fail")).`when`(session).sendMessage(anyK())
 
         handler.handleTextMessage(session, message)
 
-        verify(session, atLeastOnce()).sendMessage(anyK(TextMessage("")))
+        verify(session, atLeastOnce()).sendMessage(anyK())
     }
 
     @Test
     fun `sendMessage handles exception without message`() {
         val message = TextMessage("invalid json")
-        doThrow(RuntimeException()).`when`(session).sendMessage(anyK(TextMessage("")))
+        doThrow(RuntimeException()).`when`(session).sendMessage(anyK())
 
         handler.handleTextMessage(session, message)
 
-        verify(session, atLeastOnce()).sendMessage(anyK(TextMessage("")))
+        verify(session, atLeastOnce()).sendMessage(anyK())
     }
 }

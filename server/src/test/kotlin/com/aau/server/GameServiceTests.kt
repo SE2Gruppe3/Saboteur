@@ -53,6 +53,9 @@ class GameServiceTests {
         val player1 = gameService.getPlayer("1")
         assertNotNull(player1)
         assertEquals(roleData["1"]?.role, player1?.role)
+        
+        // Non-existent player
+        assertNull(gameService.getPlayer("999"))
 
         // Verify card distribution
         val cardDist = result.cardDistribution
@@ -65,9 +68,14 @@ class GameServiceTests {
 
     @Test
     fun `startGame handles invalid player count`() {
-        val players = listOf(Player("1", "Alice"), Player("2", "Bob")) // Only 2 players
+        // Too few
         assertThrows(IllegalArgumentException::class.java) {
-            gameService.startGame(players)
+            gameService.startGame(listOf(Player("1", "A"), Player("2", "B")))
+        }
+        // Too many
+        val tooMany = (1..11).map { Player(it.toString(), "P$it") }
+        assertThrows(IllegalArgumentException::class.java) {
+            gameService.startGame(tooMany)
         }
     }
 }

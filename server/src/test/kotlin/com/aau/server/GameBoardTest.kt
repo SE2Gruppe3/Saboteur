@@ -59,6 +59,19 @@ class GameBoardTest {
         assertTrue(board().canPlaceCard(-1, 0, card))
     }
 
+    @Test
+    fun `can place card when both sides have no connection`() {
+        val b = board()
+        // Create a card at (1,0) that has NO RIGHT connection
+        val first = TunnelCard("t11", CardType.PATH, setOf(Direction.LEFT))
+        b.placeCard(1, 0, first)
+        
+        // Card at (2,0) has NO LEFT connection
+        // (1,0) RIGHT is NO, (2,0) LEFT is NO -> NO == NO is true
+        val second = TunnelCard("t12", CardType.PATH, setOf(Direction.RIGHT))
+        assertTrue(b.canPlaceCard(2, 0, second))
+    }
+
     // ── canPlaceCard – incompatible cases ─────────────────────────────────────
 
     @Test
@@ -70,7 +83,6 @@ class GameBoardTest {
 
     @Test
     fun `cannot place card to the right of start when it has LEFT but start RIGHT is blocked`() {
-        // Create a card that has LEFT but the start card's RIGHT is present → mismatch test:
         // Reuse incompatible direction: card has NO left connection → fails
         val card = TunnelCard("t6", CardType.DEAD_END, setOf(Direction.TOP))
         assertFalse(board().canPlaceCard(1, 0, card))
