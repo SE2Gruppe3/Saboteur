@@ -41,7 +41,7 @@ jobs:
       - name: Analyze server
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew :server:test :server:sonar
+        run: ./gradlew :server:test :server:sonar -Dsonar.branch.name=main
 
   app:
     name: App Analysis
@@ -86,3 +86,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: .
+          args: >
+            -Dsonar.branch.name=main
