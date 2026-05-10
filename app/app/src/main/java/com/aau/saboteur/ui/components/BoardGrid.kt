@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
@@ -24,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
@@ -49,28 +51,25 @@ import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
 import com.aau.saboteur.ui.toContentDescription
 import com.aau.saboteur.ui.toDrawableName
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
+import kotlin.math.PI
+import kotlin.random.Random
 
 private const val BoardColumns = 13
 private const val BoardRows = 9
-private const val BackgroundGridColumns = (BoardColumns + 1) * 3
-private const val BackgroundGridRows = (BoardRows + 1) * 3
+private const val ExtraPaddingTiles = 4
 private const val BoardCardWidthDp = 86
 private const val BoardCardHeightDp = 126
 private const val BoardCardSpacingDp = 0
 private const val BoardContentWidthDp = BoardColumns * BoardCardWidthDp + (BoardColumns - 1) * BoardCardSpacingDp
 private const val BoardContentHeightDp = BoardRows * BoardCardHeightDp + (BoardRows - 1) * BoardCardSpacingDp
-private const val BoardGridLineAlpha = 0.28f
-private const val BoardSurfaceAlpha = 0.86f
-private const val MinBoardZoom = 0.75f
+private const val BoardGridLineAlpha = 0.12f
+private const val MinBoardZoom = 0.5f
 private const val MaxBoardZoom = 2.0f
-private val BoardOuterPadding = 14.dp
-private val BoardMinHeight = 320.dp
-private val BoardDefaultHeight = 520.dp
-private val BoardTonalElevation = 6.dp
-private val BoardShadowElevation = 12.dp
-private val BoardSurfaceShape = RoundedCornerShape(28.dp)
-private val BoardShape = RoundedCornerShape(18.dp)
+private val BoardOuterPadding = 0.dp
+private val BoardShape = RoundedCornerShape(8.dp)
 private val TileElevation = 4.dp
 private val TileBorderWidth = 2.dp
 private val TileContentPadding = 6.dp
@@ -79,18 +78,6 @@ private val TileContentPadding = 6.dp
  * Scrollbares, zoombares Spielfeld für Saboteur.
  *
  * Zeigt ein [BoardColumns]×[BoardRows]-Raster aus [BoardTile]-Kacheln.
- * Gelegte Karten werden anhand ihrer [BoardPosition] aus [placements] gesucht;
- * leere Zellen erscheinen als leere Kacheln.
- *
- * **Gesten**
- * - Einfingeriges Wischen → scrollt das Raster horizontal und vertikal.
- * - Zwei-Finger-Pinch → zoomt zwischen [MinBoardZoom] und [MaxBoardZoom].
- *   Der Zoom skaliert die Kacheln direkt (kein `graphicsLayer`), damit der
- *   Scroll-Bereich mit dem sichtbaren Inhalt übereinstimmt.
- *
- * @param placements Liste aller bereits gelegten Karten mit Position.
- * @param onCellClick Wird aufgerufen, wenn der Spieler eine Zelle antippt. Liefert die [BoardPosition] der angeklickten Zelle.
- * @param modifier Wird an die äußere [Surface] weitergegeben.
  */
 @Composable
 fun BoardGrid(
@@ -101,26 +88,35 @@ fun BoardGrid(
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
-    val lineColor = MaterialTheme.colorScheme.outline.copy(alpha = BoardGridLineAlpha)
-    var scale by remember { mutableFloatStateOf(1f) }
+    val gridColor = Color(0xFF000000).copy(alpha = BoardGridLineAlpha)
+    var scale by remember { mutableFloatStateOf(0.8f) }
+
+    // Initial scroll to center
+    LaunchedEffect(Unit) {
+        horizontalScroll.scrollTo(horizontalScroll.maxValue / 2)
+        verticalScroll.scrollTo(verticalScroll.maxValue / 2)
+    }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = BoardSurfaceAlpha),
-        shape = BoardSurfaceShape,
-        tonalElevation = BoardTonalElevation,
-        shadowElevation = BoardShadowElevation
+        modifier = modifier,
+        color = Color(0xFF1A1614) // Deep earth base color
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = BoardMinHeight, max = BoardDefaultHeight)
+                .fillMaxSize()
                 .padding(BoardOuterPadding)
         ) {
             val scaledCardWidth  = (BoardCardWidthDp  * scale).dp
             val scaledCardHeight = (BoardCardHeightDp * scale).dp
+            
             val scaledWidth      = (BoardContentWidthDp  * scale).dp
             val scaledHeight     = (BoardContentHeightDp * scale).dp
+
+            val extraWidth = (ExtraPaddingTiles * 2 * BoardCardWidthDp * scale).dp
+            val extraHeight = (ExtraPaddingTiles * 2 * BoardCardHeightDp * scale).dp
+            
+            val totalWidth = scaledWidth + extraWidth
+            val totalHeight = scaledHeight + extraHeight
 
             Box(
                 modifier = Modifier
@@ -151,24 +147,31 @@ fun BoardGrid(
                     .verticalScroll(verticalScroll, enabled = false)
                     .horizontalScroll(horizontalScroll, enabled = false)
             ) {
-                // Tatsächliche Größe = skaliert → Scroll-Bereich wächst/schrumpft korrekt
-                Box(modifier = Modifier.size(width = scaledWidth, height = scaledHeight)) {
+                Box(
+                    modifier = Modifier.size(width = totalWidth, height = totalHeight),
+                    contentAlignment = Alignment.Center
+                ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        val spacing = size.width / BackgroundGridColumns
-                        repeat(BackgroundGridColumns + 1) { index ->
+                        drawRubbleBackground()
+                        
+                        val gridCols = (BoardColumns + 2 * ExtraPaddingTiles + 1) * 3
+                        val gridRows = (BoardRows + 2 * ExtraPaddingTiles + 1) * 3
+                        
+                        val spacing = size.width / gridCols
+                        repeat(gridCols + 1) { index ->
                             val x = spacing * index
                             drawLine(
-                                color = lineColor,
+                                color = gridColor,
                                 start = Offset(x, 0f),
                                 end = Offset(x, size.height),
                                 strokeWidth = 1.dp.toPx()
                             )
                         }
-                        val rowSpacing = size.height / BackgroundGridRows
-                        repeat(BackgroundGridRows + 1) { index ->
+                        val rowSpacing = size.height / gridRows
+                        repeat(gridRows + 1) { index ->
                             val y = rowSpacing * index
                             drawLine(
-                                color = lineColor,
+                                color = gridColor,
                                 start = Offset(0f, y),
                                 end = Offset(size.width, y),
                                 strokeWidth = 1.dp.toPx()
@@ -176,7 +179,7 @@ fun BoardGrid(
                         }
                     }
 
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.size(width = scaledWidth, height = scaledHeight)) {
                         repeat(BoardRows) { row ->
                             Row {
                                 repeat(BoardColumns) { column ->
@@ -195,6 +198,90 @@ fun BoardGrid(
                 }
             }
         }
+    }
+}
+
+private fun DrawScope.drawRubbleBackground() {
+    val random = Random(42) // Fixed seed for stability
+    
+    // Background gradient for depth
+    drawRect(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFF241F1C), Color(0xFF14110F)),
+            center = Offset(size.width / 2, size.height / 2),
+            radius = size.maxDimension
+        )
+    )
+
+    val stoneColors = listOf(
+        Color(0xFF2D2622),
+        Color(0xFF241E1A),
+        Color(0xFF352D28),
+        Color(0xFF1E1A17)
+    )
+    val highlightColor = Color(0xFF423A34)
+
+    // Draw stone shapes
+    repeat(400) {
+        val x = random.nextFloat() * size.width
+        val y = random.nextFloat() * size.height
+        val w = random.nextFloat() * 100f + 20f
+        val h = random.nextFloat() * 80f + 20f
+        val rotation = random.nextFloat() * 360f
+        
+        val stonePath = Path().apply {
+            moveTo(0f, 0f)
+            lineTo(w * 0.8f, h * 0.1f)
+            lineTo(w, h * 0.6f)
+            lineTo(w * 0.4f, h)
+            lineTo(w * 0.1f, h * 0.8f)
+            close()
+        }
+
+        withTransform({
+            translate(x, y)
+            rotate(rotation, Offset.Zero)
+        }) {
+            // Shadow
+            drawPath(
+                path = stonePath,
+                color = Color.Black,
+                alpha = 0.4f
+            )
+            // Stone
+            drawPath(
+                path = stonePath,
+                color = stoneColors[random.nextInt(stoneColors.size)],
+                alpha = 0.7f
+            )
+            // Tiny highlight on one edge
+            drawLine(
+                color = highlightColor,
+                start = Offset(0f, 0f),
+                end = Offset(w * 0.3f, h * 0.05f),
+                strokeWidth = 2f,
+                alpha = 0.3f
+            )
+        }
+    }
+
+    // Cracks and crevices
+    repeat(150) {
+        val x = random.nextFloat() * size.width
+        val y = random.nextFloat() * size.height
+        val length = random.nextFloat() * 120f + 30f
+        val angle = (random.nextFloat() * 2 * PI).toFloat()
+        
+        drawLine(
+            color = Color(0xFF080605),
+            start = Offset(x, y),
+            end = Offset(
+                x + cos(angle) * length,
+                y + sin(angle) * length
+            ),
+            strokeWidth = 1.2f,
+            alpha = 0.5f
+        )
     }
 }
 
@@ -269,13 +356,20 @@ private fun EmptyTilePattern() {
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
+        // Show the rubble background through empty slots
         drawRect(
-            brush = Brush.linearGradient(
-                colors = listOf(Color(0x33241812), Color(0x11110C08)),
-                start = Offset.Zero,
-                end = Offset(size.width, size.height)
-            )
+            color = Color.Black,
+            alpha = 0.15f
         )
+        
+        val random = Random(42)
+        repeat(3) {
+            drawCircle(
+                color = Color.White.copy(alpha = 0.05f),
+                radius = random.nextFloat() * 10f,
+                center = Offset(random.nextFloat() * size.width, random.nextFloat() * size.height)
+            )
+        }
     }
 }
 
@@ -332,7 +426,7 @@ private fun ConnectionPattern(card: TunnelCard) {
 }
 
 private fun tileColor(card: TunnelCard?): Color = when {
-    card == null -> Color(0xFF231914)
+    card == null -> Color.Transparent // Let the rubble background show through
     card.type == CardType.START -> Color(0xFF416A43)
     card.type == CardType.GOAL && !card.isRevealed -> Color(0xFF2A211A)
     card.type == CardType.GOAL -> Color(0xFF6E5524)
@@ -340,7 +434,7 @@ private fun tileColor(card: TunnelCard?): Color = when {
 }
 
 private fun tileBorderColor(card: TunnelCard?): Color = when {
-    card == null -> Color(0xFF4A3A2C)
+    card == null -> Color(0xFF4A3A2C).copy(alpha = 0.3f)
     card.type == CardType.START -> Color(0xFFA7D6A2)
     card.type == CardType.GOAL -> Color(0xFFE7C67A)
     else -> Color(0xFFC8D0DB)

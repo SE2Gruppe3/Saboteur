@@ -7,6 +7,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
+private const val LOBBY_NOT_FOUND = "Lobby not found"
+
 @Service
 class LobbyService {
 
@@ -32,20 +34,55 @@ class LobbyService {
     }
 
     fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
-        val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
+        return lobbies.compute(lobbyCode) { _, lobby ->
+            requireNotNull(lobby) { LOBBY_NOT_FOUND }
+            require(lobby.players.size < 10) { "Lobby is full" }
+            require(!lobby.gameStarted) { "Game has already started" }
 
-        val newPlayer = Player(
-            id = UUID.randomUUID().toString(),
-            name = playerName
-        )
+            val newPlayer = Player(
+                id = UUID.randomUUID().toString(),
+                name = playerName
+            )
 
-        val updated = lobby.copy(players = lobby.players + newPlayer)
-        lobbies[lobbyCode] = updated
-        return updated
+            lobby.copy(players = lobby.players + newPlayer)
+        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
     }
 
+    fun leaveLobby(lobbyCode: String, playerId: String): LobbyState? {
+        val currentLobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        
+        val updatedPlayers = currentLobby.players.filter { it.id != playerId }
+        
+        if (updatedPlayers.isEmpty()) {
+            lobbies.remove(lobbyCode)
+            return null
+        }
+
+        var newHostId = currentLobby.hostId
+        if (currentLobby.hostId == playerId) {
+            newHostId = updatedPlayers.first().id
+        }
+
+        val updatedLobby = currentLobby.copy(
+            players = updatedPlayers,
+            hostId = newHostId
+        )
+        
+        lobbies[lobbyCode] = updatedLobby
+        return updatedLobby
+    }
+
+    fun markGameStarted(lobbyCode: String): LobbyState {
+        return lobbies.compute(lobbyCode) { _, lobby ->
+            requireNotNull(lobby) { LOBBY_NOT_FOUND }
+            lobby.copy(gameStarted = true)
+        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+    }
+
+    fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
+
     fun getLobby(lobbyCode: String): LobbyState =
-        lobbies[lobbyCode] ?: throw IllegalArgumentException("Lobby not found")
+        lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
 
     private fun generateUniqueCode(): String {
         repeat(50) {

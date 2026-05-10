@@ -1,281 +1,341 @@
 package com.aau.saboteur.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
-import com.aau.saboteur.ui.theme.DarkBrown
-import com.aau.saboteur.ui.theme.FadedRed
-import com.aau.saboteur.ui.theme.Gold
-import com.aau.saboteur.ui.theme.MossyGreen
-import com.aau.saboteur.ui.theme.Parchment
+import com.aau.saboteur.ui.components.AvailableLobbies
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 @Composable
 fun LobbyScreen(
     viewModel: LobbyViewModel,
-    onBackPressed: () -> Unit = {},
+    username: String,
+    onLobbyJoined: () -> Unit = {},
     onGameStarted: () -> Unit = {}
 ) {
     val lobbyState by viewModel.lobbyState.collectAsState()
+    val availableLobbies by viewModel.availableLobbies.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // Local input state (Name + Code)
-    var playerName by remember { mutableStateOf("") }
-    var lobbyCode by remember { mutableStateOf("") }
+    var lobbyCodeInput by remember { mutableStateOf("") }
 
-    // Convenience: if null, use empty placeholders
-    val currentState: LobbyState? = lobbyState
-    val players: List<Player> = currentState?.players ?: emptyList()
+    HandleLobbyNavigation(
+        currentState = lobbyState,
+        onLobbyJoined = onLobbyJoined,
+        onGameStarted = onGameStarted
+    )
 
-    val hostName: String? = currentState
-        ?.let { state -> state.players.firstOrNull { it.id == state.hostId }?.name }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkBrown)
-            .padding(16.dp)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        // Header
-        Text(
-            text = "SABOTEUR - LobbyScreen",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Gold,
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        )
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "Join a Game",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
 
-        if (errorMessage != null) {
+            LobbyHeader(username = username)
+
+            ErrorMessage(errorMessage = errorMessage)
+
             Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0x33FF0000))
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                shape = RoundedCornerShape(8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text(
-                    text = "Error: $errorMessage",
-                    color = Color.White,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    LobbyCodeInput(
+                        lobbyCodeInput = lobbyCodeInput,
+                        onLobbyCodeChange = { lobbyCodeInput = it }
+                    )
 
-        // Inputs
-        OutlinedTextField(
-            value = playerName,
-            onValueChange = { playerName = it },
-            label = { Text("Player name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = lobbyCode,
-            onValueChange = { lobbyCode = it },
-            label = { Text("Lobby code (zum Joinen)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        // Quick actions
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { viewModel.createLobby(playerName.trim()) },
-                enabled = playerName.isNotBlank(),
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Gold)
-            ) {
-                Text(
-                    "CREATE",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Button(
-                onClick = { viewModel.joinLobby(lobbyCode.trim(), playerName.trim()) },
-                enabled = playerName.isNotBlank() && lobbyCode.isNotBlank(),
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = FadedRed)
-            ) {
-                Text("JOIN", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Lobby info (only if we have a state from server)
-        if (currentState != null) {
-            Text(
-                text = "Lobby Code: ${currentState.lobbyCode}",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Gold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            Text(
-                text = "Host: ${hostName ?: "Unbekannt"}",
-                fontSize = 14.sp,
-                color = Gold,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-        } else {
-            Text(
-                text = "Noch keine Lobby – erst CREATE oder JOIN drücken.",
-                fontSize = 14.sp,
-                color = Gold,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-        }
-
-        // Online Spieler Section
-        Text(
-            text = "👨‍💻 ONLINE SPIELER",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Gold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = Parchment)
-        ) {
-            if (players.isEmpty()) {
-                Text(
-                    text = "Keine Spieler vorhanden.",
-                    fontSize = 14.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(12.dp)
-                )
-            } else {
-                LazyColumn(modifier = Modifier.padding(12.dp)) {
-                    items(players) { player ->
-                        val isHost = currentState != null && player.id == currentState.hostId
-
-                        Text(
-                            text = buildString {
-                                append(player.name)
-                                if (isHost) append(" (Host)")
-                            },
-                            fontSize = 14.sp,
-                            color = Color.Black,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
+                    LobbyActions(
+                        username = username,
+                        lobbyCodeInput = lobbyCodeInput,
+                        onCreateLobby = viewModel::createLobby,
+                        onJoinLobby = viewModel::joinLobby
+                    )
                 }
             }
+
+            LobbyDetails(currentState = lobbyState)
+
+            AvailableLobbies(
+                availableLobbies = availableLobbies,
+                onLobbySelected = { lobbyCodeInput = it },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HandleLobbyNavigation(
+    currentState: LobbyState?,
+    onLobbyJoined: () -> Unit,
+    onGameStarted: () -> Unit
+) {
+    LaunchedEffect(currentState?.lobbyCode) {
+        currentState?.let { onLobbyJoined() }
+    }
+
+    LaunchedEffect(currentState?.gameStarted) {
+        if (currentState?.gameStarted == true) {
+            onGameStarted()
+        }
+    }
+}
+
+@Composable
+private fun LobbyHeader(username: String) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "Signed in as: $username",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ErrorMessage(errorMessage: String?) {
+    errorMessage?.let {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+            ),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LobbyCodeInput(
+    lobbyCodeInput: String,
+    onLobbyCodeChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = lobbyCodeInput,
+        onValueChange = onLobbyCodeChange,
+        label = { Text("Lobby Code") },
+        placeholder = { Text("Enter code to join...") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        shape = RoundedCornerShape(8.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+    )
+}
+
+@Composable
+private fun LobbyActions(
+    username: String,
+    lobbyCodeInput: String,
+    onCreateLobby: (String) -> Unit,
+    onJoinLobby: (String, String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = { onCreateLobby(username.trim()) },
+            modifier = Modifier.weight(1f).height(48.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("CREATE", fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold)
         }
 
-        // Verfügbare Lobbys Section (noch Dummy)
-        Text(
-            text = "🎮 VERFÜGBARE LOBBYS",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Gold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
+        Button(
+            onClick = { onJoinLobby(lobbyCodeInput.trim(), username.trim()) },
+            enabled = lobbyCodeInput.isNotBlank(),
+            modifier = Modifier.weight(1f).height(48.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            )
         ) {
-            items(3) { index ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Parchment)
-                ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("JOIN", fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun LobbyDetails(currentState: LobbyState?) {
+    currentState?.let { state ->
+        val players = state.players
+        
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "Current Selection",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Text(
+                            text = "Lobby: ${state.lobbyCode}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontFamily = FontFamily.Default,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            shape = CircleShape
+                        ) {
                             Text(
-                                text = "Lobby ${index + 1}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-                            Text(
-                                text = "${index + 2}/${10} Spieler",
-                                fontSize = 12.sp,
-                                color = Color.Gray
+                                text = "${players.size} Players",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
+                    }
 
-                        Button(
-                            onClick = {
-                                // weiterhin Dummy: füllt nur LobbyCode in Textfield,
-                                // damit du schnell JOIN drücken kannst
-                                lobbyCode = currentState?.lobbyCode ?: lobbyCode
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
-                        ) {
-                            Text("SELECT", color = Color.White, fontSize = 12.sp)
+                    Spacer(Modifier.height(8.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 120.dp)
+                    ) {
+                        items(players) { player ->
+                            LobbyPlayerItem(
+                                player = player,
+                                isHost = player.id == state.hostId
+                            )
                         }
                     }
                 }
-            }
-        }
-
-        // Action Buttons unten
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { /* später: Lobby-Liste vom Backend laden */ },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MossyGreen)
-            ) {
-                Text("REFRESH", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = onBackPressed,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
-            ) {
-                Text("BACK", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun LobbyScreenPreview() {
-    Text("LobbyScreen Preview disabled (requires server-backed ViewModel)")
+private fun LobbyPlayerItem(
+    player: Player,
+    isHost: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isHost) MaterialTheme.colorScheme.primary 
+                    else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isHost) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(14.dp)
+                )
+            } else {
+                Text(
+                    text = player.name.take(1).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+        Text(
+            text = player.name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isHost) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (isHost) FontWeight.Bold else FontWeight.Normal
+        )
+    }
 }

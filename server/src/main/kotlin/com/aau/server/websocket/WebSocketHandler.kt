@@ -1,9 +1,6 @@
 package com.aau.server.websocket
 
-import com.aau.saboteur.model.CreateGameRequest
-import com.aau.saboteur.model.LobbyCreateRequest
-import com.aau.saboteur.model.LobbyJoinRequest
-import com.aau.saboteur.model.WsMessage
+import com.aau.saboteur.model.*
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
@@ -41,28 +38,70 @@ class WebSocketHandler(
             val type = jsonNode["type"]?.asText()
             val data = jsonNode["data"]
 
-            if (type == "START_GAME" && data != null) {
-                val request = objectMapper.treeToValue<CreateGameRequest>(data)
+            when (type) {
+                "START_GAME" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<CreateGameRequest>(data)
+                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+                        val lobbyState = lobbyService.getLobby(lobbyCode)
+                        val playerId = messagingService.getPlayerIdForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not linked to a player")
 
-                val result = gameService.startGame(request.players)
+                        require(lobbyState.hostId == playerId) {
+                            "Only the host can start the game"
+                        }
 
-                messagingService.broadcast("GAME_STATE_UPDATE", result.gameState)
+                        val result = gameService.startGame(request.players)
+                        val startedLobby = lobbyService.markGameStarted(lobbyCode)
 
-                result.playerRoles.forEach { (playerId, player) ->
-                    messagingService.sendToPlayer(playerId, "PLAYER_DATA", player)
+                        messagingService.broadcastToLobby(lobbyCode, "LOBBY_STATE_UPDATE", startedLobby)
+                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.gameState)
+                        result.playerRoles.forEach { (targetPlayerId, player) ->
+                            messagingService.sendToPlayer(targetPlayerId, "PLAYER_DATA", player)
+                        }
+                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.cardDistribution.hands)
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                    }
                 }
-
-                messagingService.broadcast("CARDS_DEALT", result.cardDistribution.hands)
-
-            } else if (type == "LOBBY_CREATE" && data != null) {
-                val request = objectMapper.treeToValue<LobbyCreateRequest>(data)
-                val lobbyState = lobbyService.createLobby(request.playerName)
-                messagingService.broadcast("LOBBY_STATE_UPDATE", lobbyState)
-
-            } else if (type == "LOBBY_JOIN" && data != null) {
-                val request = objectMapper.treeToValue<LobbyJoinRequest>(data)
-                val lobbyState = lobbyService.joinLobby(request.lobbyCode, request.playerName)
-                messagingService.broadcast("LOBBY_STATE_UPDATE", lobbyState)
+                "LOBBY_CREATE" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<LobbyCreateRequest>(data)
+                        val lobbyState = lobbyService.createLobby(request.playerName)
+                        messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
+                        messagingService.registerPlayer(session.id, lobbyState.players.first().id)
+                        messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                    }
+                }
+                "LOBBY_JOIN" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<LobbyJoinRequest>(data)
+                        val lobbyState = lobbyService.joinLobby(request.lobbyCode, request.playerName)
+                        val joinedPlayer = lobbyState.players.last()
+                        messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
+                        messagingService.registerPlayer(session.id, joinedPlayer.id)
+                        messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                    }
+                }
+                "LOBBY_LEAVE" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<LobbyLeaveRequest>(data)
+                        val updatedLobby = lobbyService.leaveLobby(request.lobbyCode, request.playerId)
+                        
+                        messagingService.leaveLobbyGroup(session.id, request.lobbyCode)
+                        messagingService.sendToSession(session.id, "LOBBY_LEFT", "")
+                        
+                        if (updatedLobby != null) {
+                            messagingService.broadcastToLobby(request.lobbyCode, "LOBBY_STATE_UPDATE", updatedLobby)
+                        }
+                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                    }
+                }
+                "LOBBY_LIST_FETCH" -> {
+                    messagingService.sendToSession(session.id, "LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                }
             }
         } catch (e: Exception) {
             logger.error("Error handling text message: {}", e.message)

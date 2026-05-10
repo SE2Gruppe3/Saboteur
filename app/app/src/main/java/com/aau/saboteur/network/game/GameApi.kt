@@ -1,32 +1,32 @@
 package com.aau.saboteur.network.game
 
-import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.model.CreateGameRequest
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 object GameApi {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _gameStateUpdates = MutableSharedFlow<GameState>(replay = 1, extraBufferCapacity = 10)
-    val gameStateUpdates: SharedFlow<GameState> = _gameStateUpdates.asSharedFlow()
+    private val _gameStateUpdates = MutableStateFlow(GameState(players = emptyList(), currentPlayerId = null))
+    val gameStateUpdates: StateFlow<GameState> = _gameStateUpdates.asStateFlow()
 
-    private val _playerUpdates = MutableSharedFlow<Player>(replay = 1, extraBufferCapacity = 10)
-    val playerUpdates: SharedFlow<Player> = _playerUpdates.asSharedFlow()
-    private val _cardsDealtUpdates = MutableSharedFlow<Map<String, List<TunnelCard>>>(replay = 1, extraBufferCapacity = 10)
-    val cardsDealtUpdates: SharedFlow<Map<String, List<TunnelCard>>> = _cardsDealtUpdates.asSharedFlow()
+    private val _playerUpdates = MutableStateFlow<Player?>(null)
+    val playerUpdates: StateFlow<Player?> = _playerUpdates.asStateFlow()
 
-    val errorMessages: SharedFlow<String> = WebSocketManager.errorMessages
+    private val _cardsDealtUpdates = MutableStateFlow<Map<String, List<TunnelCard>>?>(null)
+    val cardsDealtUpdates: StateFlow<Map<String, List<TunnelCard>>?> = _cardsDealtUpdates.asStateFlow()
+
+    val errorMessages = WebSocketManager.errorMessages
 
     init {
         observeWebSocketMessages()
@@ -37,28 +37,19 @@ object GameApi {
             WebSocketManager.messages.collect { (type, data) ->
                 when {
                     type == "GAME_STATE_UPDATE" -> {
-                        try {
-                            val newState = data.toGameState()
-                            _gameStateUpdates.tryEmit(newState)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        runCatching { data.toGameState() }
+                            .onSuccess { _gameStateUpdates.value = it }
+                            .onFailure { it.printStackTrace() }
                     }
                     type.startsWith("PLAYER_DATA_") -> {
-                        try {
-                            val player = data.toPlayer()
-                            _playerUpdates.tryEmit(player)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        runCatching { data.toPlayer() }
+                            .onSuccess { _playerUpdates.value = it }
+                            .onFailure { it.printStackTrace() }
                     }
                     type == "CARDS_DEALT" -> {
-                        try {
-                            val hands = data.toHands()
-                            _cardsDealtUpdates.tryEmit(hands)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        runCatching { data.toHands() }
+                            .onSuccess { _cardsDealtUpdates.value = it }
+                            .onFailure { it.printStackTrace() }
                     }
                 }
             }
@@ -69,12 +60,5 @@ object GameApi {
         val request = CreateGameRequest(players = players)
         val data = JSONObject(request.toJson())
         WebSocketManager.sendMessage("START_GAME", data)
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun reset() {
-        _gameStateUpdates.resetReplayCache()
-        _playerUpdates.resetReplayCache()
-        _cardsDealtUpdates.resetReplayCache()
     }
 }

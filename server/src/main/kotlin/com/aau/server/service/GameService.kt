@@ -27,20 +27,23 @@ class GameService {
     fun getPlayer(id: String): Player? = playerData.get()[id]
 
     fun startGame(players: List<Player>): GameStartResult {
-        // 1. Assign Turn Order
+        validatePlayerCount(players.size)
+
         val gameState = assignRandomTurnOrder(players)
-        
-        // 2. Assign Roles
         val assignedPlayers = assignRandomRoles(players)
-        
-        // 3. Distribute Cards
         val distribution = CardDistributor.distribute(players.map { it.id })
-        
+
         return GameStartResult(
             gameState = gameState,
             playerRoles = assignedPlayers,
             cardDistribution = distribution
         )
+    }
+
+    private fun validatePlayerCount(playerCount: Int) {
+        require(playerCount in 3..10) {
+            "Game requires between 3 and 10 players"
+        }
     }
 
     private fun assignRandomTurnOrder(players: List<Player>): GameState {

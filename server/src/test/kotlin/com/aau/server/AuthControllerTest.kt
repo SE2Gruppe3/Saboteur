@@ -1,10 +1,12 @@
-package com.aau.server.controller
+package com.aau.server
 
 import com.aau.saboteur.model.User
+import com.aau.server.controller.AuthController
 import com.aau.server.model.UserEntity
 import com.aau.server.repository.UserRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -47,8 +49,29 @@ class AuthControllerTest {
         assertEquals(HttpStatus.OK, response.statusCode)
         assertNotNull(response.body)
         assertEquals(username, response.body?.username)
-        // Wir prüfen, ob der Server den korrekten Hash zurückgibt
         assertEquals(hashedPassword, response.body?.passwordHash)
+    }
+
+    @Test
+    fun `login performs lazy registration if user does not exist`() {
+        // GIVEN
+        val username = "newGuy"
+        val password = "password123"
+        val hashedPassword = hashPassword(password)
+        val loginData = mapOf("username" to username, "password" to password)
+
+        `when`(userRepository.findByUsername(username)).thenReturn(null)
+        val savedEntity = UserEntity(id = 100L, username = username, passwordHash = hashedPassword)
+        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(savedEntity)
+
+        // WHEN
+        val response = authController.login(loginData) as ResponseEntity<User>
+
+        // THEN
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertEquals(username, response.body?.username)
+        assertEquals(100L, response.body?.id)
+        verify(userRepository).save(any(UserEntity::class.java))
     }
 
     @Test
@@ -67,6 +90,7 @@ class AuthControllerTest {
         assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
         assertEquals("Dieser Nutzername ist bereits vergeben oder das Passwort ist falsch.", response.body)
     }
+
     @Test
     fun `login returns bad request for empty username`() {
         // GIVEN
@@ -100,7 +124,6 @@ class AuthControllerTest {
         val sharedUser = User(id = null, username = "newGuy", passwordHash = "rawPw")
         `when`(userRepository.findByUsername("newGuy")).thenReturn(null)
 
-        // Wir mocken das Speichern, damit keine NPE fliegt
         val savedEntity = UserEntity(id = 99L, username = "newGuy", passwordHash = "hashedPw")
         `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(savedEntity)
 
@@ -111,6 +134,7 @@ class AuthControllerTest {
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals("newGuy", response.body?.username)
     }
+
     @Test
     fun `test UserEntity properties`() {
         val entity = UserEntity(username = "test", passwordHash = "hash")
