@@ -4,6 +4,7 @@ import com.aau.saboteur.model.*
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
+import com.aau.server.service.TurnManager
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.treeToValue
 import org.slf4j.LoggerFactory
@@ -18,7 +19,8 @@ class WebSocketHandler(
     private val objectMapper: ObjectMapper,
     private val gameService: GameService,
     private val messagingService: MessagingService,
-    private val lobbyService: LobbyService
+    private val lobbyService: LobbyService,
+    private val turnManager: TurnManager
 ) : TextWebSocketHandler() {
 
     private val logger = LoggerFactory.getLogger(WebSocketHandler::class.java)
@@ -53,6 +55,8 @@ class WebSocketHandler(
                         }
 
                         val result = gameService.startGame(request.players)
+                        turnManager.initializeGame(result.cardDistribution, result.gameState)
+
                         val startedLobby = lobbyService.markGameStarted(lobbyCode)
 
                         messagingService.broadcastToLobby(lobbyCode, "LOBBY_STATE_UPDATE", startedLobby)
@@ -62,6 +66,50 @@ class WebSocketHandler(
                         }
                         messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.cardDistribution.hands)
                         messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
+                    }
+                }
+                "PLAY_CARD" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<PlayCardRequest>(data)
+                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not linked to a player")
+
+                        require(sessionPlayerId == request.playerId) {
+                            "Player ID mismatch: session belongs to $sessionPlayerId"
+                        }
+
+                        val result = turnManager.playCard(
+                            playerId = request.playerId,
+                            cardId = request.cardId,
+                            position = request.position,
+                            isRotated = request.isRotated
+                        )
+
+                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
+                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
+                    }
+                }
+                "DISCARD_CARD" -> {
+                    if (data != null) {
+                        val request = objectMapper.treeToValue<DiscardCardRequest>(data)
+                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not linked to a player")
+
+                        require(sessionPlayerId == request.playerId) {
+                            "Player ID mismatch: session belongs to $sessionPlayerId"
+                        }
+
+                        val result = turnManager.discardCard(
+                            playerId = request.playerId,
+                            cardId = request.cardId
+                        )
+
+                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
+                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
                     }
                 }
                 "LOBBY_CREATE" -> {
@@ -89,10 +137,10 @@ class WebSocketHandler(
                     if (data != null) {
                         val request = objectMapper.treeToValue<LobbyLeaveRequest>(data)
                         val updatedLobby = lobbyService.leaveLobby(request.lobbyCode, request.playerId)
-                        
+
                         messagingService.leaveLobbyGroup(session.id, request.lobbyCode)
                         messagingService.sendToSession(session.id, "LOBBY_LEFT", "")
-                        
+
                         if (updatedLobby != null) {
                             messagingService.broadcastToLobby(request.lobbyCode, "LOBBY_STATE_UPDATE", updatedLobby)
                         }
