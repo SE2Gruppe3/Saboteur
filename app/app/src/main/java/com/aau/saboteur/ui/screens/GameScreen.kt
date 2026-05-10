@@ -72,30 +72,59 @@ fun GameScreen(
             }
         )
 
-        // Top: turn order
-        if (sortedPlayers.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
-                                Color.Transparent
+        // Top: turn order + placement hint
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (sortedPlayers.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
+                                    Color.Transparent
+                                )
                             )
                         )
+                        .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                ) {
+                    PlayerTurnOrderRow(
+                        players = sortedPlayers,
+                        currentPlayerId = uiState.gameState.currentPlayerId
                     )
-                    .padding(top = 16.dp, bottom = 24.dp, start = 16.dp, end = 16.dp)
-                    .align(Alignment.TopCenter)
-            ) {
-                PlayerTurnOrderRow(
-                    players = sortedPlayers,
-                    currentPlayerId = uiState.gameState.currentPlayerId
-                )
+                }
+            }
+
+            if (isMyTurn && sortedPlayers.isNotEmpty()) {
+                val hintText = when {
+                    uiState.selectedCard != null -> "Tap a board cell to place – or discard below"
+                    showTurnHint -> "Your turn! Tap a card to select"
+                    else -> null
+                }
+                hintText?.let {
+                    Surface(
+                        color = Color(0xFF6E5524).copy(alpha = 0.9f),
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 4.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
             }
         }
 
-        // Center: status / errors
+        // Center: waiting text + errors
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -109,29 +138,6 @@ fun GameScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-            }
-
-            if (isMyTurn && sortedPlayers.isNotEmpty()) {
-                val hintText = if (uiState.selectedCard != null)
-                    "Tap a board cell to place – or discard below"
-                else if (showTurnHint)
-                    "Your turn! Tap a card to select"
-                else null
-
-                hintText?.let {
-                    Surface(
-                        color = Color(0xFF6E5524).copy(alpha = 0.9f),
-                        shape = MaterialTheme.shapes.medium,
-                        tonalElevation = 4.dp
-                    ) {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    }
-                }
             }
 
             uiState.errorMessage?.let {

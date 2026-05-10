@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,8 @@ fun TunnelCardView(
     modifier: Modifier = Modifier
 ) {
     var isRotated by remember { mutableStateOf(card.isRotated) }
+    val currentOnCardSelected by rememberUpdatedState(onCardSelected)
+    val currentOnRotationChanged by rememberUpdatedState(onRotationChanged)
 
     val rotation by animateFloatAsState(
         targetValue = if (isRotated) 180f else 0f,
@@ -65,10 +68,10 @@ fun TunnelCardView(
             )
             .pointerInput(card.id) {
                 detectTapGestures(
-                    onTap = { onCardSelected(card) },
+                    onTap = { currentOnCardSelected(card) },
                     onDoubleTap = {
                         isRotated = !isRotated
-                        onRotationChanged(card, isRotated)
+                        currentOnRotationChanged(card, isRotated)
                     }
                 )
             }
