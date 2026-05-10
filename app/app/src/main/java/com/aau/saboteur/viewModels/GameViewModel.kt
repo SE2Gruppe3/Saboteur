@@ -2,6 +2,7 @@ package com.aau.saboteur.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
@@ -17,7 +18,9 @@ data class GameUiState(
     val localPlayerId: String? = null,
     val player: Player? = null,
     val hands: Map<String, List<TunnelCard>>? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val selectedCard: TunnelCard? = null,
+    val selectedCardRotated: Boolean = false
 )
 
 class GameViewModel : ViewModel() {
@@ -46,9 +49,7 @@ class GameViewModel : ViewModel() {
     private fun observePlayerUpdates() {
         viewModelScope.launch {
             GameApi.playerUpdates.collect { updatedPlayer ->
-                _uiState.value = _uiState.value.copy(
-                    player = updatedPlayer
-                )
+                _uiState.value = _uiState.value.copy(player = updatedPlayer)
             }
         }
     }
@@ -74,5 +75,40 @@ class GameViewModel : ViewModel() {
 
     fun setLocalPlayerId(playerId: String?) {
         _uiState.value = _uiState.value.copy(localPlayerId = playerId)
+    }
+
+    fun selectCard(card: TunnelCard) {
+        val current = _uiState.value.selectedCard
+        if (current?.id == card.id) {
+            _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
+        } else {
+            _uiState.value = _uiState.value.copy(selectedCard = card, selectedCardRotated = false)
+        }
+    }
+
+    fun onCardRotated(card: TunnelCard, isRotated: Boolean) {
+        if (_uiState.value.selectedCard?.id == card.id) {
+            _uiState.value = _uiState.value.copy(selectedCardRotated = isRotated)
+        }
+    }
+
+    fun onBoardCellClicked(position: BoardPosition) {
+        val state = _uiState.value
+        val card = state.selectedCard ?: return
+        val playerId = state.localPlayerId ?: return
+        if (state.gameState.currentPlayerId != playerId) return
+
+        GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
+        _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
+    }
+
+    fun discardSelectedCard() {
+        val state = _uiState.value
+        val card = state.selectedCard ?: return
+        val playerId = state.localPlayerId ?: return
+        if (state.gameState.currentPlayerId != playerId) return
+
+        GameApi.discardCard(playerId, card.id)
+        _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
     }
 }

@@ -1,7 +1,10 @@
 package com.aau.saboteur.network.game
 
+import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CreateGameRequest
+import com.aau.saboteur.model.DiscardCardRequest
 import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.PlayCardRequest
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
 import com.aau.saboteur.network.WebSocketManager
@@ -58,7 +61,16 @@ object GameApi {
 
     fun startGame(players: List<Player>) {
         val request = CreateGameRequest(players = players)
-        val data = JSONObject(request.toJson())
-        WebSocketManager.sendMessage("START_GAME", data)
+        WebSocketManager.sendMessage("START_GAME", JSONObject(request.toJson()))
+    }
+
+    fun playCard(playerId: String, cardId: String, position: BoardPosition, isRotated: Boolean) {
+        val request = PlayCardRequest(playerId, cardId, position, isRotated)
+        WebSocketManager.sendMessage("PLAY_CARD", JSONObject(request.toJson()))
+    }
+
+    fun discardCard(playerId: String, cardId: String) {
+        val request = DiscardCardRequest(playerId, cardId)
+        WebSocketManager.sendMessage("DISCARD_CARD", JSONObject(request.toJson()))
     }
 }
