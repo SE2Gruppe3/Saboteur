@@ -40,7 +40,9 @@ class GameViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     gameState = newState,
                     isStartingGame = false,
-                    errorMessage = null
+                    errorMessage = null,
+                    selectedCard = null,
+                    selectedCardRotated = false
                 )
             }
         }
@@ -65,10 +67,12 @@ class GameViewModel : ViewModel() {
     private fun observeErrors() {
         viewModelScope.launch {
             GameApi.errorMessages.collect { message ->
-                _uiState.value = _uiState.value.copy(
-                    isStartingGame = false,
-                    errorMessage = message
-                )
+                if (message != null) {
+                    _uiState.value = _uiState.value.copy(
+                        isStartingGame = false,
+                        errorMessage = message
+                    )
+                }
             }
         }
     }
@@ -98,8 +102,8 @@ class GameViewModel : ViewModel() {
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
 
+        // Keep selection visible until server confirms; clear on GAME_STATE_UPDATE
         GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
-        _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
     }
 
     fun discardSelectedCard() {

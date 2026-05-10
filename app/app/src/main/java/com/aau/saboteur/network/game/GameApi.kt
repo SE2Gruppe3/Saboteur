@@ -29,10 +29,12 @@ object GameApi {
     private val _cardsDealtUpdates = MutableStateFlow<Map<String, List<TunnelCard>>?>(null)
     val cardsDealtUpdates: StateFlow<Map<String, List<TunnelCard>>?> = _cardsDealtUpdates.asStateFlow()
 
-    val errorMessages = WebSocketManager.errorMessages
+    private val _errorMessages = MutableStateFlow<String?>(null)
+    val errorMessages: StateFlow<String?> = _errorMessages.asStateFlow()
 
     init {
         observeWebSocketMessages()
+        observeConnectionErrors()
     }
 
     private fun observeWebSocketMessages() {
@@ -54,7 +56,16 @@ object GameApi {
                             .onSuccess { _cardsDealtUpdates.value = it }
                             .onFailure { it.printStackTrace() }
                     }
+                    type == "ERROR" -> _errorMessages.value = data
                 }
+            }
+        }
+    }
+
+    private fun observeConnectionErrors() {
+        scope.launch {
+            WebSocketManager.errorMessages.collect { error ->
+                _errorMessages.value = error
             }
         }
     }
