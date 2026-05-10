@@ -14,7 +14,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:theme="@style/Theme.SE2Game">
+        android:theme="@style/Theme.SE2Game"
+        android:usesCleartextTraffic="true"
+        >
         <activity
             android:name="com.aau.saboteur.MainActivity"
             android:exported="true"

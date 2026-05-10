@@ -3,9 +3,17 @@ services:
     image: ghcr.io/se2gruppe3/saboteur:latest
     restart: unless-stopped
     ports:
-      - "53207:${SERVER_PORT}"
+      - "53207:8080"
+    volumes:
+
+      - ./db-data:/data
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=${DB_URL}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      # 1. Pfad auf Datei im gemounteten Volume ändern
+      - SPRING_DATASOURCE_URL=jdbc:h2:file:/data/saboteur_db;DB_CLOSE_DELAY=-1
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
+      - SPRING_DATASOURCE_USERNAME=sa
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.H2Dialect
+
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_PROPERTIES_HIBERNATE_TEMP_USE_JDBC_METADATA_DEFAULTS=falseERNATE_TEMP_USE_JDBC_METADATA_DEFAULTS=false:-password}

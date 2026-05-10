@@ -1,3 +1,12 @@
+import java.util.Properties
+
+// 1. Properties-Lader: Liest die lokale Konfiguration aus local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -26,7 +35,10 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080\"")
+            // 2. Dynamische URL: Nimmt Wert aus local.properties oder Fallback auf Emulator-IP
+            val baseUrl = localProperties.getProperty("BASE_URL_LOCAL") ?: "http://10.0.2.2:8080"
+            buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
+
             enableUnitTestCoverage = true
         }
         release {
@@ -35,6 +47,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // 3. Feste URL für den Uni-Server (Produktion)
             buildConfigField("String", "BASE_URL", "\"http://se2-demo.aau.at:53207\"")
         }
     }
@@ -77,6 +90,8 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
+
+// --- Jacoco Configuration ---
 
 tasks.withType<Test> {
     configure<JacocoTaskExtension> {
