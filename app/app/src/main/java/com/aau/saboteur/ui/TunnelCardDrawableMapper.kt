@@ -4,7 +4,7 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.TunnelCard
 
-internal fun TunnelCard.toDrawableName(): String = when (type) {
+fun TunnelCard.toDrawableName(): String = when (type) {
 
     CardType.CART_RED -> "cart_red"
     CardType.CART_GREEN -> "cart_green"
@@ -41,7 +41,7 @@ internal fun TunnelCard.toDrawableName(): String = when (type) {
     }
 }
 
-internal fun TunnelCard.toContentDescription(): String = when (type) {
+fun TunnelCard.toContentDescription(): String = when (type) {
     CardType.START -> "Start card"
     CardType.GOAL -> if (isRevealed) "Revealed goal card" else "Hidden goal card"
     CardType.PATH -> "Path card"

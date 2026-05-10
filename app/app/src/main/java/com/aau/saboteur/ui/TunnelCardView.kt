@@ -37,7 +37,7 @@ fun TunnelCardView(
     card: TunnelCard,
     isSelected: Boolean = false,
     onCardSelected: (TunnelCard) -> Unit = {},
-    onRotationChanged: (TunnelCard, Boolean) -> Unit = {},
+    onRotationChanged: (TunnelCard, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var isRotated by remember { mutableStateOf(card.isRotated) }

@@ -16,7 +16,7 @@ fun PlayerHandRow(
     hand: List<TunnelCard>,
     selectedCardId: String? = null,
     onCardSelected: (TunnelCard) -> Unit = {},
-    onCardRotated: (TunnelCard, Boolean) -> Unit = {},
+    onCardRotated: (TunnelCard, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     LazyRow(
