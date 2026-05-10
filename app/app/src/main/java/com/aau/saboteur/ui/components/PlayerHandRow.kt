@@ -14,14 +14,22 @@ import com.aau.saboteur.ui.TunnelCardView
 @Composable
 fun PlayerHandRow(
     hand: List<TunnelCard>,
+    selectedCardId: String? = null,
+    onCardSelected: (TunnelCard) -> Unit = {},
+    onCardRotated: (TunnelCard, Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
     ) {
-        items(hand) { card ->
-            TunnelCardView(card = card)
+        items(hand, key = { it.id }) { card ->
+            TunnelCardView(
+                card = card,
+                isSelected = card.id == selectedCardId,
+                onCardSelected = onCardSelected,
+                onRotationChanged = onCardRotated
+            )
         }
     }
 }
