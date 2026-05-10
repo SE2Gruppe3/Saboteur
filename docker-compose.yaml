@@ -5,15 +5,12 @@ services:
     ports:
       - "53207:8080"
     volumes:
-
       - ./db-data:/data
     environment:
-      # 1. Pfad auf Datei im gemounteten Volume ändern
       - SPRING_DATASOURCE_URL=jdbc:h2:file:/data/saboteur_db;DB_CLOSE_DELAY=-1
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
       - SPRING_DATASOURCE_USERNAME=sa
       - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.H2Dialect
-
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SPRING_JPA_PROPERTIES_HIBERNATE_TEMP_USE_JDBC_METADATA_DEFAULTS=falseERNATE_TEMP_USE_JDBC_METADATA_DEFAULTS=false:-password}
+      - SPRING_JPA_PROPERTIES_hibernate.temp.use_jdbc_metadata_defaults=false

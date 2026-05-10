@@ -82,6 +82,9 @@ dependencies {
     testImplementation(libs.androidx.junit)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.robolectric)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
@@ -110,29 +113,18 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
         html.required.set(true)
     }
 
-    val buildDir = project.layout.buildDirectory.get().asFile
     val fileFilter = listOf(
-        "**/R.class",
-        "**/R$*.class",
-        "**/BuildConfig.*",
-        "**/Manifest*.*",
-        "**/*Test*.*",
-        "android/**/*.*",
-        "**/ComposableSingletons*",
-        "**/*\$lambda*",
-        "**/*\$inlined*",
-        "**/*\$ComposeAbortException*"
+        "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
+        "**/*Test*.*", "android/**/*.*"
     )
-
-    sourceDirectories.setFrom(files("${project.projectDir}/src/main/java", "${project.projectDir}/src/main/kotlin"))
-    
-    val kotlinTree = fileTree("$buildDir/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") {
+    val debugTree = fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
         exclude(fileFilter)
     }
-    val javaTree = fileTree("$buildDir/intermediates/javac/debug/compileDebugJavaWithJavac/classes") {
-        exclude(fileFilter)
-    }
+    val mainSrc = "${project.projectDir}/src/main/java"
 
-    classDirectories.setFrom(files(kotlinTree, javaTree))
-    executionData.setFrom(files("$buildDir/outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"))
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    executionData.setFrom(fileTree(project.layout.buildDirectory.get()) {
+        include("jacoco/testDebugUnitTest.exec", "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+    })
 }

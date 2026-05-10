@@ -6,6 +6,7 @@ plugins {
 	id("org.springframework.boot")
 	id("io.spring.dependency-management")
 	id("org.sonarqube") version "7.2.2.6593"
+	kotlin("plugin.serialization")
 }
 
 group = "com.aau"
@@ -34,13 +35,13 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	runtimeOnly("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	runtimeOnly("com.h2database:h2")
 }
 
 kotlin {
@@ -72,7 +73,7 @@ sonar {
 	properties {
 		property("sonar.organization", "se2gruppe3")
 		property("sonar.projectKey", "SE2Gruppe3_saboteur_server")
-		property("sonar.projectName", "saboteur-server")
+		property("projectName", "saboteur-server")
 		property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
 	}
 

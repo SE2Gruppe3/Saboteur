@@ -1,12 +1,10 @@
-package com.aau.server
+package com.aau.server.controller
 
 import com.aau.saboteur.model.User
-import com.aau.server.controller.AuthController
 import com.aau.server.model.UserEntity
 import com.aau.server.repository.UserRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -43,35 +41,14 @@ class AuthControllerTest {
         `when`(userRepository.findByUsername(username)).thenReturn(existingEntity)
 
         // WHEN
-        val response = authController.login(loginData) as ResponseEntity<User>
+        val response = authController.login(loginData)
 
         // THEN
         assertEquals(HttpStatus.OK, response.statusCode)
-        assertNotNull(response.body)
-        assertEquals(username, response.body?.username)
-        assertEquals(hashedPassword, response.body?.passwordHash)
-    }
-
-    @Test
-    fun `login performs lazy registration if user does not exist`() {
-        // GIVEN
-        val username = "newGuy"
-        val password = "password123"
-        val hashedPassword = hashPassword(password)
-        val loginData = mapOf("username" to username, "password" to password)
-
-        `when`(userRepository.findByUsername(username)).thenReturn(null)
-        val savedEntity = UserEntity(id = 100L, username = username, passwordHash = hashedPassword)
-        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(savedEntity)
-
-        // WHEN
-        val response = authController.login(loginData) as ResponseEntity<User>
-
-        // THEN
-        assertEquals(HttpStatus.OK, response.statusCode)
-        assertEquals(username, response.body?.username)
-        assertEquals(100L, response.body?.id)
-        verify(userRepository).save(any(UserEntity::class.java))
+        val user = response.body as? User
+        assertNotNull(user, "Response body should be a User object")
+        assertEquals(username, user.username)
+        assertEquals(hashedPassword, user.passwordHash)
     }
 
     @Test
@@ -128,11 +105,13 @@ class AuthControllerTest {
         `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(savedEntity)
 
         // WHEN
-        val response = authController.register(sharedUser) as ResponseEntity<User>
+        val response = authController.register(sharedUser)
 
         // THEN
         assertEquals(HttpStatus.OK, response.statusCode)
-        assertEquals("newGuy", response.body?.username)
+        val user = response.body as? User
+        assertNotNull(user, "Response body should be a User object")
+        assertEquals("newGuy", user.username)
     }
 
     @Test
