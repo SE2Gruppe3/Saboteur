@@ -7,6 +7,8 @@ import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
 import com.aau.saboteur.network.game.GameApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,12 +22,15 @@ data class GameUiState(
     val hands: Map<String, List<TunnelCard>>? = null,
     val errorMessage: String? = null,
     val selectedCard: TunnelCard? = null,
-    val selectedCardRotated: Boolean = false
+    val selectedCardRotated: Boolean = false,
+    val cardRotations: Map<String, Boolean> = emptyMap()
 )
 
 class GameViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+
+    private var errorClearJob: Job? = null
 
     init {
         observeGameStateUpdates()
@@ -59,7 +64,7 @@ class GameViewModel : ViewModel() {
     private fun observeCardsDealt() {
         viewModelScope.launch {
             GameApi.cardsDealtUpdates.collect { hands ->
-                _uiState.value = _uiState.value.copy(hands = hands)
+                _uiState.value = _uiState.value.copy(hands = hands, cardRotations = emptyMap())
             }
         }
     }
@@ -67,13 +72,17 @@ class GameViewModel : ViewModel() {
     private fun observeErrors() {
         viewModelScope.launch {
             GameApi.errorMessages.collect { message ->
-                if (message != null) {
-                    _uiState.value = _uiState.value.copy(
-                        isStartingGame = false,
-                        errorMessage = message
-                    )
-                }
+                showError(message)
             }
+        }
+    }
+
+    private fun showError(message: String) {
+        errorClearJob?.cancel()
+        _uiState.value = _uiState.value.copy(isStartingGame = false, errorMessage = message)
+        errorClearJob = viewModelScope.launch {
+            delay(2000)
+            _uiState.value = _uiState.value.copy(errorMessage = null)
         }
     }
 
@@ -86,14 +95,20 @@ class GameViewModel : ViewModel() {
         if (current?.id == card.id) {
             _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
         } else {
-            _uiState.value = _uiState.value.copy(selectedCard = card, selectedCardRotated = false)
+            // Preserve any rotation the user already applied before selecting
+            val isRotated = _uiState.value.cardRotations[card.id] ?: card.isRotated
+            _uiState.value = _uiState.value.copy(selectedCard = card, selectedCardRotated = isRotated)
         }
     }
 
     fun onCardRotated(card: TunnelCard, isRotated: Boolean) {
-        if (_uiState.value.selectedCard?.id == card.id) {
-            _uiState.value = _uiState.value.copy(selectedCardRotated = isRotated)
-        }
+        val newRotations = _uiState.value.cardRotations + (card.id to isRotated)
+        val newSelectedCardRotated = if (_uiState.value.selectedCard?.id == card.id) isRotated
+                                     else _uiState.value.selectedCardRotated
+        _uiState.value = _uiState.value.copy(
+            cardRotations = newRotations,
+            selectedCardRotated = newSelectedCardRotated
+        )
     }
 
     fun onBoardCellClicked(position: BoardPosition) {
@@ -102,7 +117,6 @@ class GameViewModel : ViewModel() {
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
 
-        // Keep selection visible until server confirms; clear on GAME_STATE_UPDATE
         GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
     }
 

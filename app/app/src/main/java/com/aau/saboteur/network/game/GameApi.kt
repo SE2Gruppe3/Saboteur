@@ -11,8 +11,11 @@ import com.aau.saboteur.network.WebSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -29,8 +32,9 @@ object GameApi {
     private val _cardsDealtUpdates = MutableStateFlow<Map<String, List<TunnelCard>>?>(null)
     val cardsDealtUpdates: StateFlow<Map<String, List<TunnelCard>>?> = _cardsDealtUpdates.asStateFlow()
 
-    private val _errorMessages = MutableStateFlow<String?>(null)
-    val errorMessages: StateFlow<String?> = _errorMessages.asStateFlow()
+    // SharedFlow(replay=0): new subscribers don't receive stale connection errors from before the game screen loaded
+    private val _errorMessages = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 10)
+    val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
     init {
         observeWebSocketMessages()
@@ -56,7 +60,7 @@ object GameApi {
                             .onSuccess { _cardsDealtUpdates.value = it }
                             .onFailure { it.printStackTrace() }
                     }
-                    type == "ERROR" -> _errorMessages.value = data
+                    type == "ERROR" -> _errorMessages.tryEmit(data)
                 }
             }
         }
@@ -65,7 +69,7 @@ object GameApi {
     private fun observeConnectionErrors() {
         scope.launch {
             WebSocketManager.errorMessages.collect { error ->
-                _errorMessages.value = error
+                _errorMessages.tryEmit(error)
             }
         }
     }

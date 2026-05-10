@@ -11,6 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -37,8 +41,20 @@ fun GameScreen(
     val isMyTurn = uiState.localPlayerId != null &&
             uiState.gameState.currentPlayerId == uiState.localPlayerId
 
+    var showTurnHint by remember { mutableStateOf(false) }
+
     LaunchedEffect(localPlayerId) {
         viewModel.setLocalPlayerId(localPlayerId)
+    }
+
+    LaunchedEffect(isMyTurn) {
+        if (isMyTurn) {
+            showTurnHint = true
+            delay(2000)
+            showTurnHint = false
+        } else {
+            showTurnHint = false
+        }
     }
 
     Box(
@@ -96,18 +112,25 @@ fun GameScreen(
             }
 
             if (isMyTurn && sortedPlayers.isNotEmpty()) {
-                Surface(
-                    color = Color(0xFF6E5524).copy(alpha = 0.9f),
-                    shape = MaterialTheme.shapes.medium,
-                    tonalElevation = 4.dp
-                ) {
-                    Text(
-                        text = if (uiState.selectedCard != null) "Tap a board cell to place – or discard below"
-                               else "Your turn! Tap a card to select",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                val hintText = if (uiState.selectedCard != null)
+                    "Tap a board cell to place – or discard below"
+                else if (showTurnHint)
+                    "Your turn! Tap a card to select"
+                else null
+
+                hintText?.let {
+                    Surface(
+                        color = Color(0xFF6E5524).copy(alpha = 0.9f),
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 4.dp
+                    ) {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
                 }
             }
 
