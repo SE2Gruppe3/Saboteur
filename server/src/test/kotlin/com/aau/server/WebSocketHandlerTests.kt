@@ -6,6 +6,7 @@ import com.aau.server.model.GameStartResult
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
+import com.aau.server.service.TurnManager
 import com.aau.server.websocket.WebSocketHandler
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -27,6 +28,7 @@ class WebSocketHandlerTests {
     private lateinit var gameService: GameService
     private lateinit var lobbyService: LobbyService
     private lateinit var messagingService: MessagingService
+    private lateinit var turnManager: TurnManager
     private lateinit var objectMapper: ObjectMapper
     private lateinit var handler: WebSocketHandler
     private lateinit var session: WebSocketSession
@@ -36,9 +38,10 @@ class WebSocketHandlerTests {
         gameService = mock(GameService::class.java)
         lobbyService = mock(LobbyService::class.java)
         messagingService = mock(MessagingService::class.java)
+        turnManager = mock(TurnManager::class.java)
         objectMapper = jacksonObjectMapper()
 
-        handler = WebSocketHandler(objectMapper, gameService, messagingService, lobbyService)
+        handler = WebSocketHandler(objectMapper, gameService, messagingService, lobbyService, turnManager)
 
         session = mock(WebSocketSession::class.java)
         `when`(session.isOpen).thenReturn(true)
@@ -298,7 +301,7 @@ class WebSocketHandlerTests {
     @Test
     fun `handleTextMessage handles exception without message`() {
         val mockMapper = mock(ObjectMapper::class.java)
-        val handlerWithMock = WebSocketHandler(mockMapper, gameService, messagingService, lobbyService)
+        val handlerWithMock = WebSocketHandler(mockMapper, gameService, messagingService, lobbyService, turnManager)
 
         `when`(mockMapper.readTree(anyString())).thenThrow(RuntimeException())
         `when`(mockMapper.writeValueAsString(any())).thenReturn("{\"type\":\"ERROR\",\"data\":\"Unknown error\"}")
