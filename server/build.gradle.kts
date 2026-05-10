@@ -26,6 +26,14 @@ springBoot {
 	mainClass.set("com.aau.server.ServerApplicationKt")
 }
 
+// Global erzwingen, um Konflikte mit Spring Boots Standardversionen (1.6.3) zu lösen
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+        force("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3")
+    }
+}
+
 dependencies {
 	implementation(project(":shared"))
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
@@ -35,7 +43,10 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+	
+	// Nutzung des Catalogs für Konsistenz
+	implementation(libs.kotlinx.serialization.json)
+
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	runtimeOnly("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
