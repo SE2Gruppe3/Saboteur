@@ -63,7 +63,12 @@ class TurnManager {
         playerHand.remove(card)
         drawCardForPlayer(playerId)
 
-        val newPlacements = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
+        val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
+        val newPlacements = if (effectiveCard.type == CardType.PATH) {
+            revealGoalCards(position, effectiveCard, placementsWithCard)
+        } else {
+            placementsWithCard
+        }
         val newState = state.copy(
             boardPlacements = newPlacements,
             currentPlayerId = nextPlayerId(state)
@@ -136,8 +141,10 @@ class TurnManager {
         if (neighbors.values.none { it != null }) return false
 
         // XOR rule: invalid if exactly one side connects (open tunnel). Both connect or both wall → valid.
+        // Unrevealed goal cards are exempt: they will be revealed and auto-rotated after placement.
         val adjacencyOk = neighbors.all { (dir, neighbor) ->
             if (neighbor == null) true
+            else if (neighbor.card.type == CardType.GOAL && !neighbor.card.isRevealed) true
             else {
                 val cardConnects = dir in card.connections
                 val neighborConnects = opposite(dir) in neighbor.card.connections
@@ -189,6 +196,29 @@ class TurnManager {
         Direction.BOTTOM -> BoardPosition(pos.row + 1, pos.column)
         Direction.LEFT   -> BoardPosition(pos.row, pos.column - 1)
         Direction.RIGHT  -> BoardPosition(pos.row, pos.column + 1)
+    }
+
+    private fun revealGoalCards(
+        placedPosition: BoardPosition,
+        placedCard: TunnelCard,
+        placements: List<PlacedTunnelCard>
+    ): List<PlacedTunnelCard> {
+        val grid = placements.associateBy { it.position }.toMutableMap()
+        for (dir in Direction.values()) {
+            val neighborPos = boardNeighbor(placedPosition, dir)
+            val neighborPlacement = grid[neighborPos] ?: continue
+            val neighborCard = neighborPlacement.card
+            if (neighborCard.type != CardType.GOAL || neighborCard.isRevealed) continue
+            if (dir !in placedCard.connections) continue
+            val goalConnects = opposite(dir) in neighborCard.connections
+            val revealedCard = if (!goalConnects) neighborCard.copy(
+                connections = neighborCard.connections.map { opposite(it) }.toSet(),
+                isRotated = true,
+                isRevealed = true
+            ) else neighborCard.copy(isRevealed = true)
+            grid[neighborPos] = neighborPlacement.copy(card = revealedCard)
+        }
+        return grid.values.toList()
     }
 
     private fun TunnelCard.flipConnections(): TunnelCard = copy(

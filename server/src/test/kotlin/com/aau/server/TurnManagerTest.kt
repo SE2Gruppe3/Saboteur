@@ -455,6 +455,142 @@ class TurnManagerTest {
 
     // --- nextPlayerId: currentPlayerId not found in players → fallback to first ---
 
+    // ── goal reveal ───────────────────────────────────────────────────────────
+
+    // Goal at (4,4) – one step to the right of the start-adjacent cell (4,3)
+    private val goalPos = BoardPosition(row = 4, column = 4)
+    private val placePos = BoardPosition(row = 4, column = 3)  // between start and goal
+
+    private fun goalStone(id: String, connections: Set<Direction>) = TunnelCard(
+        id = id, type = CardType.GOAL, connections = connections, isRevealed = false, isGoal = false
+    )
+
+    private fun goalGold() = TunnelCard(
+        id = "goal_gold", type = CardType.GOAL,
+        connections = setOf(Direction.TOP, Direction.RIGHT, Direction.BOTTOM, Direction.LEFT),
+        isRevealed = false, isGoal = true
+    )
+
+    private fun stateWithGoal(goal: TunnelCard, gPos: BoardPosition = goalPos, currentPlayer: String = p1) = GameState(
+        players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+        currentPlayerId = currentPlayer,
+        boardPlacements = listOf(
+            PlacedTunnelCard(startPosition, startCard),
+            PlacedTunnelCard(gPos, goal)
+        )
+    )
+
+    @Test
+    fun `playCard pathConnectsTowardGoalThatConnectsBack revealsWithoutRotation`() {
+        // goal has LEFT → goalConnects = true → reveal only
+        val goal = goalStone("g1", setOf(Direction.LEFT, Direction.BOTTOM))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(goal)
+        )
+        val result = turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        val updated = result.updatedGameState.boardPlacements.find { it.position == goalPos }!!
+        assertTrue(updated.card.isRevealed)
+        assertFalse(updated.card.isRotated)
+        assertEquals(setOf(Direction.LEFT, Direction.BOTTOM), updated.card.connections)
+    }
+
+    @Test
+    fun `playCard pathConnectsTowardGoalThatDoesNotConnectBack revealsAndRotates180`() {
+        // goal has {TOP, RIGHT} – no LEFT → goalConnects = false → reveal + rotate
+        val goal = goalStone("g1", setOf(Direction.TOP, Direction.RIGHT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(goal)
+        )
+        val result = turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        val updated = result.updatedGameState.boardPlacements.find { it.position == goalPos }!!
+        assertTrue(updated.card.isRevealed)
+        assertTrue(updated.card.isRotated)
+        assertEquals(setOf(Direction.BOTTOM, Direction.LEFT), updated.card.connections)
+    }
+
+    @Test
+    fun `playCard pathDoesNotConnectTowardGoal goalStaysHidden`() {
+        // leftOnlyCard has only LEFT – connects to start but not RIGHT toward goal
+        val goal = goalStone("g1", setOf(Direction.LEFT, Direction.BOTTOM))
+        val leftOnly = TunnelCard("lft", CardType.PATH, setOf(Direction.LEFT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(leftOnly), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(goal)
+        )
+        val result = turnManager.playCard(p1, "lft", placePos, isRotated = false)
+        val unchanged = result.updatedGameState.boardPlacements.find { it.position == goalPos }!!
+        assertFalse(unchanged.card.isRevealed)
+    }
+
+    @Test
+    fun `playCard pathAdjacentToGoalGold revealsWithoutRotation`() {
+        // goal_gold connects all four directions → goalConnects always true → never rotated
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(goalGold())
+        )
+        val result = turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        val updated = result.updatedGameState.boardPlacements.find { it.position == goalPos }!!
+        assertTrue(updated.card.isRevealed)
+        assertFalse(updated.card.isRotated)
+    }
+
+    @Test
+    fun `playCard pathAdjacentToAlreadyRevealedGoal doesNotReprocess`() {
+        val alreadyRevealed = TunnelCard(
+            "g1", CardType.GOAL, setOf(Direction.LEFT, Direction.BOTTOM), isRevealed = true, isGoal = false
+        )
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(alreadyRevealed)
+        )
+        val result = turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        val unchanged = result.updatedGameState.boardPlacements.find { it.position == goalPos }!!
+        assertTrue(unchanged.card.isRevealed)
+        assertFalse(unchanged.card.isRotated)
+        assertEquals(setOf(Direction.LEFT, Direction.BOTTOM), unchanged.card.connections)
+    }
+
+    @Test
+    fun `playCard pathAdjacentToMultipleGoals revealsAll`() {
+        // goal1 to the RIGHT of placePos, goal2 BELOW – placed card connects both directions
+        val pos1 = BoardPosition(row = 4, column = 4)
+        val pos2 = BoardPosition(row = 5, column = 3)
+        val goal1 = goalStone("g1", setOf(Direction.LEFT, Direction.TOP))   // LEFT → goalConnects RIGHT side
+        val goal2 = goalStone("g2", setOf(Direction.TOP, Direction.RIGHT))  // TOP → goalConnects BOTTOM side
+        val boardState = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(pos1, goal1),
+                PlacedTunnelCard(pos2, goal2)
+            )
+        )
+        val multiCard = TunnelCard("mc", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT, Direction.BOTTOM))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(multiCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            boardState
+        )
+        val result = turnManager.playCard(p1, "mc", placePos, isRotated = false)
+        assertTrue(result.updatedGameState.boardPlacements.find { it.position == pos1 }!!.card.isRevealed)
+        assertTrue(result.updatedGameState.boardPlacements.find { it.position == pos2 }!!.card.isRevealed)
+    }
+
+    @Test
+    fun `playCard deadEndAdjacentToGoal doesNotRevealGoal`() {
+        val goal = goalStone("g1", setOf(Direction.LEFT, Direction.BOTTOM))
+        val deadEnd = TunnelCard("de1", CardType.DEAD_END, setOf(Direction.LEFT, Direction.RIGHT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(deadEnd), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(goal)
+        )
+        val result = turnManager.playCard(p1, "de1", placePos, isRotated = false)
+        assertFalse(result.updatedGameState.boardPlacements.find { it.position == goalPos }!!.card.isRevealed)
+    }
+
     @Test
     fun `nextPlayerId unknownCurrentPlayer fallsBackToFirst`() {
         val ghost = "ghost"
