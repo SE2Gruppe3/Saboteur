@@ -248,6 +248,64 @@ class TurnManagerTest {
         }
     }
 
+    // --- canPlaceOnBoard: bidirectional connectivity ---
+
+    @Test
+    fun `playCard cardConnectsTowardNeighborButNeighborDoesNotConnectBack throwsException`() {
+        // Setup: a {TOP, BOTTOM} card at (4,3) – no RIGHT connection.
+        // Place hPathCard {LEFT,RIGHT} at (4,4): LEFT→neighbor connects=true, neighbor RIGHT=false → mismatch
+        val tbAtRight = TunnelCard("tb_right", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM))
+        val stateWithExtra = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), tbAtRight)
+            )
+        )
+        val lr = hPathCard("lr_test")
+        turnManager.initializeGame(
+            distribution(h1 = listOf(lr), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithExtra
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "lr_test", BoardPosition(row = 4, column = 4), isRotated = false)
+        }
+    }
+
+    @Test
+    fun `playCard noSharedConnectionOnEitherSide isAllowed`() {
+        // Setup: a {TOP, BOTTOM} card at (4,3) – no RIGHT connection.
+        // Place another {TOP,BOTTOM} card at (4,4): both have no connection toward the shared LEFT/RIGHT edge.
+        // Neither connects → both false → compatible (dead-end adjacency is valid by game rules).
+        val tbAtRight = TunnelCard("tb_right2", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM))
+        val stateWithExtra = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), tbAtRight)
+            )
+        )
+        val tbNew = pathCard("tb_new")
+        turnManager.initializeGame(
+            distribution(h1 = listOf(tbNew), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithExtra
+        )
+        val result = turnManager.playCard(p1, "tb_new", BoardPosition(row = 4, column = 4), isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 4) })
+    }
+
+    // --- action card placement guard ---
+
+    @Test
+    fun `playCard actionCardType throwsException`() {
+        val actionCard = TunnelCard("rock1", CardType.ROCKFALL, emptySet())
+        turnManager.initializeGame(
+            distribution(h1 = listOf(actionCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            baseState()
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "rock1", BoardPosition(row = 3, column = 2), isRotated = false)
+        }
+    }
+
     // --- flipConnections: TOP → BOTTOM branch ---
 
     @Test

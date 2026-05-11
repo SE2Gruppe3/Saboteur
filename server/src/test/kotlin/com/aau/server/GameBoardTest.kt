@@ -89,6 +89,17 @@ class GameBoardTest {
     }
 
     @Test
+    fun `cannot place card when it connects toward neighbor but neighbor does not connect back`() {
+        val b = board()
+        // Place a card at (1,0) with only LEFT connection (no RIGHT)
+        val noRight = TunnelCard("t13", CardType.PATH, setOf(Direction.LEFT))
+        b.placeCard(1, 0, noRight)
+        // Card at (2,0) has LEFT connection → cardConnects=true, neighborConnects(RIGHT in noRight)=false → mismatch
+        val withLeft = TunnelCard("t14", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertFalse(b.canPlaceCard(2, 0, withLeft))
+    }
+
+    @Test
     fun `cannot place card on occupied cell`() {
         // (0,0) is already occupied by the start card
         val card = TunnelCard("t7", CardType.PATH, setOf(Direction.TOP, Direction.LEFT, Direction.RIGHT, Direction.BOTTOM))
