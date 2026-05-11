@@ -156,7 +156,8 @@ class TurnManager {
         return isReachableFromStart(position, placements)
     }
 
-    // BFS from the START card through PATH and START cards only (dead-ends are not traversable).
+    // BFS from the START card. PATH, START, and revealed GOAL cards are traversable nodes;
+    // unrevealed goals and dead-ends are not.
     // Returns true if any directly adjacent reachable card connects toward the target position.
     private fun isReachableFromStart(
         position: BoardPosition,
@@ -177,7 +178,10 @@ class TurnManager {
                 val neighborPos = boardNeighbor(current, dir)
                 if (neighborPos in visited) continue
                 val neighborCard = grid[neighborPos]?.card ?: continue
-                if (neighborCard.type != CardType.PATH && neighborCard.type != CardType.START) continue
+                val traversable = neighborCard.type == CardType.PATH ||
+                    neighborCard.type == CardType.START ||
+                    (neighborCard.type == CardType.GOAL && neighborCard.isRevealed)
+                if (!traversable) continue
                 if (dir in currentCard.connections && opposite(dir) in neighborCard.connections) {
                     visited.add(neighborPos)
                     queue.add(neighborPos)

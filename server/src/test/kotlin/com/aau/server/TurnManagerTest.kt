@@ -591,6 +591,154 @@ class TurnManagerTest {
         assertFalse(result.updatedGameState.boardPlacements.find { it.position == goalPos }!!.card.isRevealed)
     }
 
+    // ── revealed goal as neighbour – effective-connections contract ───────────
+    //
+    // Connections are always stored as the effective (post-rotation) value.
+    // isRotated is a rendering hint only – the validator must NOT re-apply the
+    // rotation; it reads .connections directly and gets the right answer.
+
+    // Goal at (3,3) – placed card goes BELOW it at (4,3) so dir=TOP in the check
+    private val aboveGoalPos = BoardPosition(row = 3, column = 3)
+
+    // ── reachability through revealed goal ────────────────────────────────────
+
+    @Test
+    fun `isReachableFromStart revealedGoalIsTraversed placedBeyondGoalIsValid`() {
+        // PATH at (4,3) connects to revealed goal at (4,4) {LEFT,BOTTOM}.
+        // The ONLY path to (5,4) goes through the goal's BOTTOM connection.
+        // This test fails if goal cards are excluded from the BFS.
+        val pathBetween = TunnelCard("pb", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        val revealedGoal = TunnelCard("g1", CardType.GOAL, setOf(Direction.LEFT, Direction.BOTTOM), isRevealed = true)
+        val boardState = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathBetween),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 4), revealedGoal)
+            )
+        )
+        val topCard = TunnelCard("tc", CardType.PATH, setOf(Direction.TOP))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(topCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            boardState
+        )
+        val result = turnManager.playCard(p1, "tc", BoardPosition(row = 5, column = 4), isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(5, 4) })
+    }
+
+    @Test
+    fun `isReachableFromStart unrevealedGoalNotTraversed placedBeyondGoalIsInvalid`() {
+        // Same layout but the goal is unrevealed — BFS must not traverse it.
+        val pathBetween = TunnelCard("pb", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        val unrevealedGoal = TunnelCard("g1", CardType.GOAL, setOf(Direction.LEFT, Direction.BOTTOM), isRevealed = false)
+        val boardState = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathBetween),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 4), unrevealedGoal)
+            )
+        )
+        // {LEFT} has no RIGHT toward goal → wall/wall adjacency passes; (5,4) blocked by reachability
+        val leftOnly = TunnelCard("lo", CardType.PATH, setOf(Direction.LEFT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(leftOnly), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            boardState
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "lo", BoardPosition(row = 5, column = 4), isRotated = false)
+        }
+    }
+
+    @Test
+    fun `canPlaceOnBoard revealedGoalConnectsBack isValid`() {
+        // goal {LEFT, BOTTOM} revealed at (4,4). hPathCard RIGHT connects to goal LEFT → match → VALID
+        val revealed = TunnelCard("g1", CardType.GOAL, setOf(Direction.LEFT, Direction.BOTTOM), isRevealed = true)
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(revealed)
+        )
+        val result = turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == placePos })
+    }
+
+    @Test
+    fun `canPlaceOnBoard revealedRotatedGoalStoredConnectionsUsed throwsException`() {
+        // Stored (effective) connections after rotation: {RIGHT, TOP} – no LEFT.
+        // hPathCard RIGHT connects toward goal, goal has no LEFT → mismatch → INVALID.
+        // If the validator incorrectly re-applied rotation it would read {LEFT, BOTTOM} and
+        // incorrectly pass.
+        val rotated = TunnelCard("g1", CardType.GOAL, setOf(Direction.RIGHT, Direction.TOP),
+            isRevealed = true, isRotated = true)
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(rotated)
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        }
+    }
+
+    @Test
+    fun `canPlaceOnBoard revealedRotatedGoalWallFacesWall isValid`() {
+        // Rotated goal {RIGHT, TOP} at (4,4): no LEFT. Card {LEFT} has no RIGHT → wall/wall → VALID.
+        val rotated = TunnelCard("g1", CardType.GOAL, setOf(Direction.RIGHT, Direction.TOP),
+            isRevealed = true, isRotated = true)
+        val leftOnly = TunnelCard("lft2", CardType.PATH, setOf(Direction.LEFT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(leftOnly), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(rotated)
+        )
+        val result = turnManager.playCard(p1, "lft2", placePos, isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == placePos })
+    }
+
+    @Test
+    fun `canPlaceOnBoard revealedGoalGoldAllDirections isAlwaysValid`() {
+        // goal_gold connects all four directions → neighborConnects always true → VALID for any card connecting toward it
+        val gold = TunnelCard("goal_gold", CardType.GOAL,
+            setOf(Direction.TOP, Direction.RIGHT, Direction.BOTTOM, Direction.LEFT),
+            isRevealed = true, isGoal = true)
+        turnManager.initializeGame(
+            distribution(h1 = listOf(hPathCard("h1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(gold)
+        )
+        val result = turnManager.playCard(p1, "h1", placePos, isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == placePos })
+    }
+
+    @Test
+    fun `canPlaceOnBoard goalHasBottomConnection placedBelowIsValid`() {
+        // Goal {BOTTOM, RIGHT} at (3,3). Card {LEFT, TOP} placed at (4,3): TOP toward goal,
+        // goal BOTTOM connects back → match → VALID.
+        val goal = TunnelCard("g1", CardType.GOAL, setOf(Direction.BOTTOM, Direction.RIGHT), isRevealed = true)
+        val topCard = TunnelCard("tp1", CardType.PATH, setOf(Direction.LEFT, Direction.TOP))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(topCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(goal, aboveGoalPos)
+        )
+        val result = turnManager.playCard(p1, "tp1", placePos, isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == placePos })
+    }
+
+    @Test
+    fun `canPlaceOnBoard rotatedGoalBottomRemoved placedBelowThrowsException`() {
+        // Goal was {BOTTOM, RIGHT}; after 180° rotation stored as {TOP, LEFT} – no BOTTOM.
+        // Card {LEFT, TOP} at (4,3): TOP toward goal, goal has no BOTTOM → mismatch → INVALID.
+        val rotated = TunnelCard("g1", CardType.GOAL, setOf(Direction.TOP, Direction.LEFT),
+            isRevealed = true, isRotated = true)
+        val topCard = TunnelCard("tp2", CardType.PATH, setOf(Direction.LEFT, Direction.TOP))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(topCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithGoal(rotated, aboveGoalPos)
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "tp2", placePos, isRotated = false)
+        }
+    }
+
     @Test
     fun `nextPlayerId unknownCurrentPlayer fallsBackToFirst`() {
         val ghost = "ghost"
