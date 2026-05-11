@@ -49,8 +49,9 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
+import androidx.compose.ui.draw.rotate
+import com.aau.saboteur.ui.toCanonicalDrawableName
 import com.aau.saboteur.ui.toContentDescription
-import com.aau.saboteur.ui.toDrawableName
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -293,7 +294,7 @@ private fun BoardTile(
     onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val drawableName = card?.toDrawableName()
+    val drawableName = card?.toCanonicalDrawableName()
     @Suppress("DiscouragedApi")
     val imageRes = drawableName?.let {
         context.resources.getIdentifier(it, "drawable", context.packageName)
@@ -322,6 +323,7 @@ private fun BoardTile(
                         contentDescription = card.toContentDescription(),
                         contentScale = ContentScale.FillBounds,
                         modifier = Modifier.fillMaxSize()
+                            .then(if (card.isRotated) Modifier.rotate(180f) else Modifier)
                     )
                 }
                 else -> ConnectionPattern(card = card)
