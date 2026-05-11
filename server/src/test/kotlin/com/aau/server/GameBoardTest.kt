@@ -60,16 +60,15 @@ class GameBoardTest {
     }
 
     @Test
-    fun `can place card when both sides have no connection`() {
+    fun `cannot place card when neighbor has no connection toward it (reachability blocked)`() {
         val b = board()
-        // Create a card at (1,0) that has NO RIGHT connection
+        // first {LEFT} at (1,0): no RIGHT connection, so BFS cannot propagate reachability beyond it.
+        // XOR rule: (1,0) RIGHT=false, second LEFT=false → wall/wall, adjacency VALID.
+        // Fails only because (2,0) is not reachable from start (no PATH chain through (1,0)'s RIGHT).
         val first = TunnelCard("t11", CardType.PATH, setOf(Direction.LEFT))
         b.placeCard(1, 0, first)
-        
-        // Card at (2,0) has NO LEFT connection
-        // (1,0) RIGHT is NO, (2,0) LEFT is NO -> NO == NO is true
         val second = TunnelCard("t12", CardType.PATH, setOf(Direction.RIGHT))
-        assertTrue(b.canPlaceCard(2, 0, second))
+        assertFalse(b.canPlaceCard(2, 0, second))
     }
 
     // ── canPlaceCard – incompatible cases ─────────────────────────────────────
@@ -121,6 +120,72 @@ class GameBoardTest {
         b.placeCard(1, 0, first)
         // second card to the right of first; first has RIGHT, so second needs LEFT
         val second = TunnelCard("t10", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertTrue(b.canPlaceCard(2, 0, second))
+    }
+
+    // ── XOR adjacency rule: all four direction/connection combinations ────────
+
+    @Test
+    fun `xor rule placed has LEFT neighbor has RIGHT both connect valid`() {
+        // Both sides open → tunnel passes through → VALID
+        val card = TunnelCard("lr", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertTrue(board().canPlaceCard(1, 0, card))
+    }
+
+    @Test
+    fun `xor rule placed no LEFT neighbor has RIGHT open tunnel invalid`() {
+        // start RIGHT=true, card LEFT=false → XOR=true → INVALID
+        val card = TunnelCard("tb", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM))
+        assertFalse(board().canPlaceCard(1, 0, card))
+    }
+
+    @Test
+    fun `xor rule placed has LEFT neighbor no RIGHT open tunnel invalid`() {
+        val b = board()
+        // noRight {TOP,BOTTOM} at (1,0): no RIGHT. card {LEFT,RIGHT} at (2,0): card LEFT=true, noRight RIGHT=false → XOR=true → INVALID
+        b.placeCard(1, 0, TunnelCard("nr", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM)))
+        val card = TunnelCard("lr", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertFalse(b.canPlaceCard(2, 0, card))
+    }
+
+    @Test
+    fun `xor rule wall faces wall neither connects valid by adjacency reachable via other neighbor`() {
+        // Layout: start(0,0) → pathAll(1,0) → pathAll(2,0) [reachable]
+        //                        ↓
+        //                    pathTB(1,1) [has TOP+BOTTOM only, no RIGHT]
+        // Target (2,1):
+        //   TOP  neighbor (2,0) pathAll: BOTTOM=true,  card TOP=true   → both connect ✓ → reachable via (2,0) ✓
+        //   LEFT neighbor (1,1) pathTB:  RIGHT=false, card LEFT=false  → wall/wall XOR=false ✓
+        val b = board()
+        val allDirs = Direction.values().toSet()
+        b.placeCard(1, 0, TunnelCard("a", CardType.PATH, allDirs))
+        b.placeCard(2, 0, TunnelCard("b", CardType.PATH, allDirs))
+        b.placeCard(1, 1, TunnelCard("c", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM)))
+        val card = TunnelCard("target", CardType.PATH, setOf(Direction.TOP))
+        assertTrue(b.canPlaceCard(2, 1, card))
+    }
+
+    // ── Reachability via PATH cards only ─────────────────────────────────────
+
+    @Test
+    fun `cannot place card adjacent only to dead-end even though adjacency matches`() {
+        val b = board()
+        // dead_lr {LEFT,RIGHT} at (1,0): adjacency to start OK, but dead-end is not traversable
+        val deadEnd = TunnelCard("de1", CardType.DEAD_END, setOf(Direction.LEFT, Direction.RIGHT))
+        b.placeCard(1, 0, deadEnd)
+        // Card at (2,0) with {LEFT,RIGHT}: adjacency to dead-end passes, but reachability fails
+        val pathCard = TunnelCard("p_after_dead", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertFalse(b.canPlaceCard(2, 0, pathCard))
+    }
+
+    @Test
+    fun `can place card adjacent to reachable PATH card`() {
+        val b = board()
+        // path_lr {LEFT,RIGHT} at (1,0): reachable from start via PATH
+        val first = TunnelCard("p1", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        b.placeCard(1, 0, first)
+        // Card at (2,0) with {LEFT,RIGHT}: adjacent to reachable PATH card → valid
+        val second = TunnelCard("p2", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
         assertTrue(b.canPlaceCard(2, 0, second))
     }
 

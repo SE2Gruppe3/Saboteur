@@ -272,10 +272,11 @@ class TurnManagerTest {
     }
 
     @Test
-    fun `playCard noSharedConnectionOnEitherSide isAllowed`() {
-        // Setup: a {TOP, BOTTOM} card at (4,3) – no RIGHT connection.
-        // Place another {TOP,BOTTOM} card at (4,4): both have no connection toward the shared LEFT/RIGHT edge.
-        // Neither connects → both false → compatible (dead-end adjacency is valid by game rules).
+    fun `playCard noSharedConnectionOnEitherSide throwsException`() {
+        // XOR rule: wall/wall (neither side connects) is valid adjacency-wise.
+        // Setup: {TOP,BOTTOM} at (4,3) – no RIGHT. Another {TOP,BOTTOM} at (4,4): neither connects at shared edge.
+        // Adjacency: false == false → VALID. But (4,3) is unreachable from start (start RIGHT != (4,3) LEFT=false),
+        // so reachability fails → exception.
         val tbAtRight = TunnelCard("tb_right2", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM))
         val stateWithExtra = baseState().copy(
             boardPlacements = listOf(
@@ -288,8 +289,23 @@ class TurnManagerTest {
             distribution(h1 = listOf(tbNew), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
             stateWithExtra
         )
-        val result = turnManager.playCard(p1, "tb_new", BoardPosition(row = 4, column = 4), isRotated = false)
-        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 4) })
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "tb_new", BoardPosition(row = 4, column = 4), isRotated = false)
+        }
+    }
+
+    @Test
+    fun `playCard rotatedCardInvalidAfterFlip throwsException`() {
+        // bottomLeftCard {BOTTOM, LEFT} unrotated placed above start (3,2) would be VALID
+        // (BOTTOM connects to start's TOP). Rotated → {TOP, RIGHT}: BOTTOM is gone → INVALID.
+        val bottomLeftCard = TunnelCard("bl_rot", CardType.PATH, setOf(Direction.BOTTOM, Direction.LEFT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(bottomLeftCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            baseState()
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "bl_rot", BoardPosition(row = 3, column = 2), isRotated = true)
+        }
     }
 
     // --- action card placement guard ---
@@ -365,6 +381,76 @@ class TurnManagerTest {
         )
         val result = turnManager.playCard(p1, "lr1", BoardPosition(row = 4, column = 1), isRotated = false)
         assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 1) })
+    }
+
+    // --- XOR adjacency rule: wall/wall valid when reachable via another neighbor ---
+
+    @Test
+    fun `playCard wallFacesWall withReachabilityViaOtherNeighbor isAllowed`() {
+        // path_all at (4,3): reachable from start (start RIGHT / path_all LEFT both true)
+        // wall_above {LEFT,RIGHT} at (3,4): no BOTTOM → wall on TOP edge of (4,4)
+        // New card {LEFT} at (4,4):
+        //   LEFT  neighbor (4,3): path_all RIGHT=true, card LEFT=true  → both connect ✓ → reachable via (4,3) ✓
+        //   TOP   neighbor (3,4): wallAbove BOTTOM=false, card TOP=false → wall/wall XOR=false ✓
+        val pathAll  = TunnelCard("all", CardType.PATH, Direction.values().toSet())
+        val wallAbove = TunnelCard("wall_above", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        val stateWithSetup = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathAll),
+                PlacedTunnelCard(BoardPosition(row = 3, column = 4), wallAbove)
+            )
+        )
+        val card = TunnelCard("left_only", CardType.PATH, setOf(Direction.LEFT))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(card), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithSetup
+        )
+        val result = turnManager.playCard(p1, "left_only", BoardPosition(row = 4, column = 4), isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 4) })
+    }
+
+    // --- reachability: dead-end cards block the path graph ---
+
+    @Test
+    fun `playCard cellOnlyAdjacentToDeadEnd throwsException`() {
+        // dead_lr {LEFT,RIGHT} at (4,3): adjacency to start passes, but dead-end is not traversable.
+        // hPathCard {LEFT,RIGHT} at (4,4): adjacency to dead-end passes, but reachability from START fails.
+        val deadEnd = TunnelCard("dead_lr", CardType.DEAD_END, setOf(Direction.LEFT, Direction.RIGHT))
+        val stateWithDeadEnd = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), deadEnd)
+            )
+        )
+        val lr = hPathCard("lr_after_dead")
+        turnManager.initializeGame(
+            distribution(h1 = listOf(lr), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithDeadEnd
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "lr_after_dead", BoardPosition(row = 4, column = 4), isRotated = false)
+        }
+    }
+
+    @Test
+    fun `playCard cellReachableViaPathCards isAllowed`() {
+        // hPathCard {LEFT,RIGHT} at (4,3): reachable from start via PATH.
+        // Another hPathCard {LEFT,RIGHT} at (4,4): adjacent to reachable PATH card → valid placement.
+        val pathAtRight = hPathCard("path_at_right")
+        val stateWithPath = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathAtRight)
+            )
+        )
+        val lr = hPathCard("lr_after_path")
+        turnManager.initializeGame(
+            distribution(h1 = listOf(lr), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            stateWithPath
+        )
+        val result = turnManager.playCard(p1, "lr_after_path", BoardPosition(row = 4, column = 4), isRotated = false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 4) })
     }
 
     // --- nextPlayerId: currentPlayerId not found in players → fallback to first ---

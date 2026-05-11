@@ -135,15 +135,60 @@ class TurnManager {
 
         if (neighbors.values.none { it != null }) return false
 
-        return neighbors.all { (dir, neighbor) ->
+        // XOR rule: invalid if exactly one side connects (open tunnel). Both connect or both wall → valid.
+        val adjacencyOk = neighbors.all { (dir, neighbor) ->
             if (neighbor == null) true
             else {
-                val opposite = opposite(dir)
                 val cardConnects = dir in card.connections
-                val neighborConnects = opposite in neighbor.card.connections
+                val neighborConnects = opposite(dir) in neighbor.card.connections
                 cardConnects == neighborConnects
             }
         }
+        if (!adjacencyOk) return false
+
+        return isReachableFromStart(position, placements)
+    }
+
+    // BFS from the START card through PATH and START cards only (dead-ends are not traversable).
+    // Returns true if any directly adjacent reachable card connects toward the target position.
+    private fun isReachableFromStart(
+        position: BoardPosition,
+        placements: List<PlacedTunnelCard>
+    ): Boolean {
+        val grid = placements.associateBy { it.position }
+        val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return false
+
+        val visited = mutableSetOf<BoardPosition>()
+        val queue = ArrayDeque<BoardPosition>()
+        queue.add(startPos)
+        visited.add(startPos)
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val currentCard = grid[current]?.card ?: continue
+            for (dir in Direction.values()) {
+                val neighborPos = boardNeighbor(current, dir)
+                if (neighborPos in visited) continue
+                val neighborCard = grid[neighborPos]?.card ?: continue
+                if (neighborCard.type != CardType.PATH && neighborCard.type != CardType.START) continue
+                if (dir in currentCard.connections && opposite(dir) in neighborCard.connections) {
+                    visited.add(neighborPos)
+                    queue.add(neighborPos)
+                }
+            }
+        }
+
+        return Direction.values().any { dir ->
+            val neighborPos = boardNeighbor(position, dir)
+            neighborPos in visited && opposite(dir) in (grid[neighborPos]?.card?.connections ?: emptySet())
+        }
+    }
+
+    private fun boardNeighbor(pos: BoardPosition, dir: Direction): BoardPosition = when (dir) {
+        Direction.TOP    -> BoardPosition(pos.row - 1, pos.column)
+        Direction.BOTTOM -> BoardPosition(pos.row + 1, pos.column)
+        Direction.LEFT   -> BoardPosition(pos.row, pos.column - 1)
+        Direction.RIGHT  -> BoardPosition(pos.row, pos.column + 1)
     }
 
     private fun TunnelCard.flipConnections(): TunnelCard = copy(
