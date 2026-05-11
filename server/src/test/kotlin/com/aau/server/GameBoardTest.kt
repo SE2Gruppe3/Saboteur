@@ -189,4 +189,31 @@ class GameBoardTest {
         assertTrue(b.canPlaceCard(2, 0, second))
     }
 
+    // ── Reachability through GOAL cards ──────────────────────────────────────
+
+    @Test
+    fun `revealed GOAL card is traversable in BFS — card beyond goal is reachable`() {
+        // Layout: start(0,0) → path(1,0) → revealedGoal(2,0) → target(3,0)
+        // BFS must pass through the revealed GOAL card to reach (3,0).
+        val b = board()
+        b.placeCard(1, 0, TunnelCard("path1", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT)))
+        b.placeCard(2, 0, TunnelCard("goal1", CardType.GOAL,
+            setOf(Direction.LEFT, Direction.RIGHT), isRevealed = true))
+        val target = TunnelCard("p_beyond", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertTrue(b.canPlaceCard(3, 0, target))
+    }
+
+    @Test
+    fun `unrevealed GOAL card is NOT traversable in BFS — card beyond goal is unreachable`() {
+        // Same layout as above but goal is unrevealed.
+        // Adjacency at (3,0): card LEFT=true, goal RIGHT=true → both connect → XOR passes.
+        // Reachability fails because BFS cannot traverse through the unrevealed GOAL.
+        val b = board()
+        b.placeCard(1, 0, TunnelCard("path1", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT)))
+        b.placeCard(2, 0, TunnelCard("goal1", CardType.GOAL,
+            setOf(Direction.LEFT, Direction.RIGHT), isRevealed = false))
+        val target = TunnelCard("p_beyond", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        assertFalse(b.canPlaceCard(3, 0, target))
+    }
+
 }

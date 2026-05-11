@@ -60,7 +60,6 @@ fun TunnelCardView(
         modifier = modifier
             .width(60.dp)
             .height(90.dp)
-            .graphicsLayer { rotationZ = rotation }
             .border(
                 width = if (isSelected) 3.dp else 1.dp,
                 color = if (isSelected) SelectedBorderColor else MaterialTheme.colorScheme.outline,
@@ -81,12 +80,16 @@ fun TunnelCardView(
                 painter = painterResource(id = resId),
                 contentDescription = card.toContentDescription(),
                 contentScale = ContentScale.FillBounds,
-                modifier = Modifier.width(60.dp).height(90.dp)
+                modifier = Modifier
+                    .width(60.dp)
+                    .height(90.dp)
+                    .graphicsLayer { rotationZ = rotation }
             )
         } else {
             Text(
                 text = drawableName,
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.graphicsLayer { rotationZ = rotation }
             )
         }
     }

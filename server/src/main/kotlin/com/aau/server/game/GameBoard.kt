@@ -51,7 +51,7 @@ class GameBoard {
         return isReachableFromStart(x, y)
     }
 
-    // BFS from startPosition through START and PATH cards; returns true if (x,y) is
+    // BFS from startPosition through START, PATH, and revealed GOAL cards; returns true if (x,y) is
     // adjacent to at least one reachable card that connects toward it.
     private fun isReachableFromStart(x: Int, y: Int): Boolean {
         val visited = mutableSetOf<Pair<Int, Int>>()
@@ -66,7 +66,10 @@ class GameBoard {
                 val neighborPos = gridNeighbor(current, dir)
                 if (neighborPos in visited) continue
                 val neighborCard = grid[neighborPos] ?: continue
-                if (neighborCard.type != CardType.PATH && neighborCard.type != CardType.START) continue
+                val traversable = neighborCard.type == CardType.PATH ||
+                    neighborCard.type == CardType.START ||
+                    (neighborCard.type == CardType.GOAL && neighborCard.isRevealed)
+                if (!traversable) continue
                 if (dir in currentCard.connections && opposite(dir) in neighborCard.connections) {
                     visited.add(neighborPos)
                     queue.add(neighborPos)

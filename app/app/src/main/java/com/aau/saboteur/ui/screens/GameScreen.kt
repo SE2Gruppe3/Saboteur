@@ -19,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aau.saboteur.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.model.PlayerTurn
 import com.aau.saboteur.ui.components.BoardGrid
@@ -103,7 +105,7 @@ fun GameScreen(
             if (isMyTurn && sortedPlayers.isNotEmpty()) {
                 val hintText = when {
                     uiState.selectedCard != null -> "Tippe auf ein Feld zum Platzieren – oder verwirf die Karte unten."
-                    showTurnHint -> "Your turn! Tap a card to select"
+                    showTurnHint -> stringResource(R.string.your_turn_hint)
                     else -> null
                 }
                 hintText?.let {
@@ -134,7 +136,7 @@ fun GameScreen(
         ) {
             if (sortedPlayers.isEmpty()) {
                 Text(
-                    text = if (uiState.isStartingGame) "Starting game..." else "Waiting for game state...",
+                    text = if (uiState.isStartingGame) stringResource(R.string.starting_game) else stringResource(R.string.waiting_for_game_state),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )

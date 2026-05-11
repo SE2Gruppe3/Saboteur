@@ -6,6 +6,7 @@ import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
+import com.aau.server.game.*
 import com.aau.server.model.CardDistributionResult
 import com.aau.server.model.TurnResult
 import org.springframework.stereotype.Service
@@ -42,19 +43,19 @@ class TurnManager {
         val state = gameState.get()
 
         require(state.currentPlayerId == playerId) {
-            "It is not player $playerId's turn"
+            "Du bist nicht am Zug."
         }
 
         val playerHand = hands[playerId]
-            ?: throw IllegalArgumentException("Player $playerId not found")
+            ?: throw IllegalArgumentException("Spieler $playerId nicht gefunden.")
         val card = playerHand.find { it.id == cardId }
-            ?: throw IllegalArgumentException("Card $cardId not in hand of player $playerId")
+            ?: throw IllegalArgumentException("Karte $cardId nicht in der Hand von Spieler $playerId.")
 
         require(card.type == CardType.PATH || card.type == CardType.DEAD_END) {
             "Diese Karte kann hier nicht platziert werden."
         }
 
-        val effectiveCard = if (isRotated) card.flipConnections() else card
+        val effectiveCard = if (isRotated) card.rotated180() else card
 
         require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) {
             "Diese Karte kann hier nicht platziert werden."
@@ -85,14 +86,14 @@ class TurnManager {
         val state = gameState.get()
 
         require(state.currentPlayerId == playerId) {
-            "It is not player $playerId's turn"
+            "Du bist nicht am Zug."
         }
 
         val playerHand = hands[playerId]
-            ?: throw IllegalArgumentException("Player $playerId not found")
+            ?: throw IllegalArgumentException("Spieler $playerId nicht gefunden.")
 
         require(playerHand.any { it.id == cardId }) {
-            "Card $cardId not in hand of player $playerId"
+            "Karte $cardId nicht in der Hand von Spieler $playerId."
         }
 
         playerHand.removeIf { it.id == cardId }
@@ -123,6 +124,9 @@ class TurnManager {
         return sorted[(idx + 1) % sorted.size].playerId
     }
 
+    private fun buildGrid(placements: List<PlacedTunnelCard>): Map<BoardPosition, PlacedTunnelCard> =
+        placements.associateBy { it.position }
+
     private fun canPlaceOnBoard(
         position: BoardPosition,
         card: TunnelCard,
@@ -130,7 +134,7 @@ class TurnManager {
     ): Boolean {
         if (placements.any { it.position == position }) return false
 
-        val grid = placements.associateBy { it.position }
+        val grid = buildGrid(placements)
         val neighbors = mapOf(
             Direction.TOP    to grid[BoardPosition(position.row - 1, position.column)],
             Direction.BOTTOM to grid[BoardPosition(position.row + 1, position.column)],
@@ -141,9 +145,10 @@ class TurnManager {
         if (neighbors.values.none { it != null }) return false
 
         // XOR rule: invalid if exactly one side connects (open tunnel). Both connect or both wall → valid.
-        // Unrevealed goal cards are exempt: they will be revealed and auto-rotated after placement.
         val adjacencyOk = neighbors.all { (dir, neighbor) ->
             if (neighbor == null) true
+            // Unrevealed goal cards are exempt from adjacency matching here —
+            // their connections will be corrected by auto-rotation at reveal time.
             else if (neighbor.card.type == CardType.GOAL && !neighbor.card.isRevealed) true
             else {
                 val cardConnects = dir in card.connections
@@ -153,7 +158,7 @@ class TurnManager {
         }
         if (!adjacencyOk) return false
 
-        return isReachableFromStart(position, placements)
+        return isReachableFromStart(position, grid)
     }
 
     // BFS from the START card. PATH, START, and revealed GOAL cards are traversable nodes;
@@ -161,9 +166,8 @@ class TurnManager {
     // Returns true if any directly adjacent reachable card connects toward the target position.
     private fun isReachableFromStart(
         position: BoardPosition,
-        placements: List<PlacedTunnelCard>
+        grid: Map<BoardPosition, PlacedTunnelCard>
     ): Boolean {
-        val grid = placements.associateBy { it.position }
         val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return false
 
         val visited = mutableSetOf<BoardPosition>()
@@ -189,6 +193,9 @@ class TurnManager {
             }
         }
 
+        // The XOR adjacency rule (checked before this call) guarantees that if a visited neighbor
+        // connects toward `position` (neighborConnects=true), the card being placed also connects
+        // back toward that neighbor (cardConnects=true). No need to re-check the card's connections here.
         return Direction.values().any { dir ->
             val neighborPos = boardNeighbor(position, dir)
             neighborPos in visited && opposite(dir) in (grid[neighborPos]?.card?.connections ?: emptySet())
@@ -207,6 +214,13 @@ class TurnManager {
         placedCard: TunnelCard,
         placements: List<PlacedTunnelCard>
     ): List<PlacedTunnelCard> {
+        // Build a mutable lookup for O(1) updates during the reveal scan.
+        // Known design gap: if a goal card already has a PATH neighbor on side A (placed under the
+        // unrevealed-goal exemption) and is then auto-rotated 180° on reveal from side B, the
+        // previously-placed neighbor's connection on side A may no longer match the rotated goal.
+        // By game rules, goal cards are placed far from the start and reachable from only one
+        // direction at reveal time, so this conflict cannot occur in a normal game. The exemption
+        // is therefore intentional and any mismatch would indicate an invalid board state.
         val grid = placements.associateBy { it.position }.toMutableMap()
         for (dir in Direction.values()) {
             val neighborPos = boardNeighbor(placedPosition, dir)
@@ -222,20 +236,11 @@ class TurnManager {
             ) else neighborCard.copy(isRevealed = true)
             grid[neighborPos] = neighborPlacement.copy(card = revealedCard)
         }
-        return grid.values.toList()
+        // Preserve original list order by mapping through the updated grid rather than
+        // relying on LinkedHashMap insertion-order from grid.values.
+        // grid was built from placements via associateBy, so every position is guaranteed present.
+        return placements.map { grid.getValue(it.position) }
     }
-
-    private fun TunnelCard.flipConnections(): TunnelCard = copy(
-        connections = connections.map {
-            when (it) {
-                Direction.TOP    -> Direction.BOTTOM
-                Direction.BOTTOM -> Direction.TOP
-                Direction.LEFT   -> Direction.RIGHT
-                Direction.RIGHT  -> Direction.LEFT
-            }
-        }.toSet(),
-        isRotated = true
-    )
 
     private fun opposite(direction: Direction): Direction = when (direction) {
         Direction.TOP    -> Direction.BOTTOM
