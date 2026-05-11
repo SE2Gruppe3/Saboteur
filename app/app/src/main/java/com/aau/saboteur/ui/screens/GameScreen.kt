@@ -102,7 +102,7 @@ fun GameScreen(
 
             if (isMyTurn && sortedPlayers.isNotEmpty()) {
                 val hintText = when {
-                    uiState.selectedCard != null -> "Tap a board cell to place – or discard below"
+                    uiState.selectedCard != null -> "Tippe auf ein Feld zum Platzieren – oder verwirf die Karte unten."
                     showTurnHint -> "Your turn! Tap a card to select"
                     else -> null
                 }
@@ -190,7 +190,7 @@ fun GameScreen(
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
                         )
                     ) {
-                        Text("Discard \"${uiState.selectedCard!!.type.name}\"")
+                        Text("Karte verwerfen")
                     }
                 }
 
