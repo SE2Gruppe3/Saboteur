@@ -321,11 +321,7 @@ private fun BoardTile(
                         painter = painterResource(id = imageRes),
                         contentDescription = card.toContentDescription(),
                         contentScale = ContentScale.FillBounds,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                rotationZ = if (card.isRotated) 180f else 0f
-                            }
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
                 else -> ConnectionPattern(card = card)
