@@ -3,6 +3,7 @@ package com.aau.saboteur.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.model.BoardPosition
+import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
@@ -116,6 +117,11 @@ class GameViewModel : ViewModel() {
         val card = state.selectedCard ?: return
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
+
+        if (card.type != CardType.PATH && card.type != CardType.DEAD_END) {
+            showError("Diese Karte kann hier nicht platziert werden.")
+            return
+        }
 
         GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
     }
