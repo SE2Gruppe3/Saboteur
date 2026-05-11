@@ -739,6 +739,177 @@ class TurnManagerTest {
         }
     }
 
+    // --- player not in hands map ---
+
+    @Test
+    fun `playCard playerNotInHands throwsException`() {
+        // p1 is currentPlayer but missing from the hands map → null branch at L48
+        val dist = CardDistributionResult(
+            hands = mapOf(p2 to listOf(pathCard("c2")), p3 to listOf(pathCard("c3"))),
+            drawPile = emptyList(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(dist, baseState(currentPlayer = p1))
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "c1", BoardPosition(row = 3, column = 2), false)
+        }
+    }
+
+    @Test
+    fun `discardCard playerNotInHands throwsException`() {
+        // p1 is currentPlayer but missing from the hands map → null branch at L91
+        val dist = CardDistributionResult(
+            hands = mapOf(p2 to listOf(pathCard("c2")), p3 to listOf(pathCard("c3"))),
+            drawPile = emptyList(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(dist, baseState(currentPlayer = p1))
+        assertThrows<IllegalArgumentException> {
+            turnManager.discardCard(p1, "c1")
+        }
+    }
+
+    // --- nextPlayerId with empty players list → firstOrNull() is null ---
+
+    @Test
+    fun `nextPlayerId emptyPlayersList returnsNull`() {
+        // players=emptyList() → sorted.firstOrNull() returns null → ?.playerId = null
+        val emptyState = GameState(
+            players = emptyList(),
+            currentPlayerId = "ghost",
+            boardPlacements = listOf(PlacedTunnelCard(startPosition, startCard))
+        )
+        val dist = CardDistributionResult(
+            hands = mapOf("ghost" to listOf(pathCard("cg"))),
+            drawPile = emptyList(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(dist, emptyState)
+        val result = turnManager.discardCard("ghost", "cg")
+        assertNull(result.updatedGameState.currentPlayerId)
+    }
+
+    // --- isReachableFromStart: no START card → return false immediately ---
+
+    @Test
+    fun `isReachableFromStart noStartCard returnsFalse`() {
+        // Board has only a PATH card – no START → BFS returns false immediately (L167 ?: return false)
+        val pathOnly = hPathCard("p_only")
+        val stateNoStart = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathOnly))
+        )
+        val card = hPathCard("lr_t")
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to listOf(card), p2 to listOf(pathCard("c2")), p3 to listOf(pathCard("c3"))),
+            drawPile = emptyList(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(dist, stateNoStart)
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "lr_t", BoardPosition(row = 4, column = 4), false)
+        }
+    }
+
+    // --- isReachableFromStart: START card reached as unvisited neighbor (L182 START branch) ---
+
+    @Test
+    fun `isReachableFromStart startCardReachedAsNeighbor exercisesStartTypeBranch`() {
+        // Board: startCard@(4,2) → hPath@(4,3) → start2@(4,4)
+        // BFS starts at startCard. Processes hPath; its RIGHT neighbor is start2 whose type==START.
+        // That exercises the neighborCard.type==START true branch (L182).
+        val start2 = TunnelCard("start2", CardType.START, Direction.values().toSet())
+        val boardState = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), hPathCard("mp")),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 4), start2)
+            )
+        )
+        val card = TunnelCard("lft", CardType.PATH, setOf(Direction.LEFT))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to listOf(card), p2 to listOf(pathCard("c2")), p3 to listOf(pathCard("c3"))),
+            drawPile = emptyList(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(dist, boardState)
+        // (4,5): LEFT neighbor is start2@(4,4) which connects RIGHT back → valid placement
+        val result = turnManager.playCard(p1, "lft", BoardPosition(row = 4, column = 5), false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 5) })
+    }
+
+    // --- isReachableFromStart: A=true, B=false in connection check (L185) ---
+
+    @Test
+    fun `isReachableFromStart pathWithEmptyConnections exercisesL185ATrueBFalse`() {
+        // pathBridge{L,R} is reachable from start. pathEmpty{} is adjacent to its RIGHT.
+        // BFS at pathBridge: dir=RIGHT, A = RIGHT in {L,R} = true.
+        //                    B = opposite(RIGHT)=LEFT in {} = false → L185 A=true, B=false.
+        // pathEmpty never added to queue; (3,3) is unreachable → require throws.
+        val pathBridge = TunnelCard("pb_l185", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        val pathEmpty  = TunnelCard("pe_l185", CardType.PATH, emptySet())
+        val boardState = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathBridge),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 4), pathEmpty)
+            )
+        )
+        // card{T} at (3,3): BOTTOM neighbor=pathBridge{L,R}. card BOTTOM=false, neighbor TOP=false → wall/wall → adjacencyOk.
+        // isReachableFromStart called; (3,3) unreachable → throws.
+        val card = TunnelCard("tc_l185", CardType.PATH, setOf(Direction.TOP))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to listOf(card), p2 to listOf(pathCard("c2")), p3 to listOf(pathCard("c3"))),
+            drawPile = emptyList(), goalCards = CardDeck.createGoalCards(), startCard = startCard
+        )
+        turnManager.initializeGame(dist, boardState)
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "tc_l185", BoardPosition(row = 3, column = 3), false)
+        }
+    }
+
+    @Test
+    fun `isReachableFromStart traversableNeighborConnectsForwardButNotBack exercisesL185Branch`() {
+        // revGoal@(4,4){L,R,B} has BOTTOM toward pathMismatch@(5,4){L}.
+        // pathMismatch is ONLY reachable through revGoal, so it is NOT yet in visited when revGoal expands.
+        // dir=BOTTOM in revGoal=true (A=true); opposite(BOTTOM)=TOP in pathMismatch{L}=false (B=false) → L185.
+        val pathBridge   = TunnelCard("pbx", CardType.PATH, Direction.values().toSet())
+        val revGoal      = TunnelCard("rgx", CardType.GOAL,
+            setOf(Direction.LEFT, Direction.RIGHT, Direction.BOTTOM), isRevealed = true)
+        val pathMismatch = TunnelCard("pmx", CardType.PATH, setOf(Direction.LEFT))
+        val boardState = GameState(
+            players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathBridge),
+                PlacedTunnelCard(BoardPosition(row = 4, column = 4), revGoal),
+                PlacedTunnelCard(BoardPosition(row = 5, column = 4), pathMismatch)
+            )
+        )
+        // Target (4,5): LEFT neighbor revGoal{L,R,B}. card LEFT=true, revGoal RIGHT=true → valid.
+        val card = TunnelCard("lcx", CardType.PATH, setOf(Direction.LEFT))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to listOf(card), p2 to listOf(pathCard("c2")), p3 to listOf(pathCard("c3"))),
+            drawPile = emptyList(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(dist, boardState)
+        val result = turnManager.playCard(p1, "lcx", BoardPosition(row = 4, column = 5), false)
+        assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 5) })
+    }
+
     @Test
     fun `nextPlayerId unknownCurrentPlayer fallsBackToFirst`() {
         val ghost = "ghost"
