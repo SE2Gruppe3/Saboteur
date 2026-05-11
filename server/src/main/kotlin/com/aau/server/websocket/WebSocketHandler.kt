@@ -76,6 +76,7 @@ class WebSocketHandler(
                         val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
                             ?: throw IllegalArgumentException("Session is not linked to a player")
 
+                        // Guard against a client sending another player's ID in the payload.
                         require(sessionPlayerId == request.playerId) {
                             "Player ID mismatch: session belongs to $sessionPlayerId"
                         }
@@ -99,6 +100,7 @@ class WebSocketHandler(
                         val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
                             ?: throw IllegalArgumentException("Session is not linked to a player")
 
+                        // Guard against a client sending another player's ID in the payload.
                         require(sessionPlayerId == request.playerId) {
                             "Player ID mismatch: session belongs to $sessionPlayerId"
                         }

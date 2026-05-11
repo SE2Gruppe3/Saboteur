@@ -23,7 +23,7 @@ class GameBoard {
     // cell must be empty, at least one neighbour must exist,
     // XOR rule: invalid only if exactly one shared edge side connects (open tunnel);
     // both-connect and both-wall are valid,
-    // and the cell must be reachable from the start card via PATH cards.
+    // and the cell must be reachable from the start card via PATH, START, and revealed GOAL cards.
     fun canPlaceCard(x: Int, y: Int, card: TunnelCard): Boolean {
         val pos = Pair(x, y)
         if (grid.containsKey(pos)) return false
