@@ -1,6 +1,7 @@
 package com.aau.server.service
 
 import com.aau.saboteur.model.BoardPosition
+import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.PlacedTunnelCard
@@ -49,10 +50,14 @@ class TurnManager {
         val card = playerHand.find { it.id == cardId }
             ?: throw IllegalArgumentException("Card $cardId not in hand of player $playerId")
 
+        require(card.type == CardType.PATH || card.type == CardType.DEAD_END) {
+            "Diese Karte kann hier nicht platziert werden."
+        }
+
         val effectiveCard = if (isRotated) card.flipConnections() else card
 
         require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) {
-            "Card $cardId cannot be placed at position $position"
+            "Diese Karte kann hier nicht platziert werden."
         }
 
         playerHand.remove(card)
