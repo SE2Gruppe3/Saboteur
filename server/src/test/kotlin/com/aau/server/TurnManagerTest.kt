@@ -910,6 +910,129 @@ class TurnManagerTest {
         assertNotNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(4, 5) })
     }
 
+    // ── isGoalReached ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `isGoalReached returns false when no gold goal card on board`() {
+        // Default setUp has no goal cards at all
+        val result = turnManager.playCard(p1, "c1", BoardPosition(row = 3, column = 2), isRotated = false)
+        assertNull(result.winner)
+    }
+
+    @Test
+    fun `isGoalReached returns false when gold goal revealed but not connected to start`() {
+        // Gold goal at (4,4) – two cells away from start (4,2), no bridging path card
+        val goldGoal = TunnelCard(
+            "gg_far", CardType.GOAL,
+            setOf(Direction.LEFT, Direction.RIGHT, Direction.TOP, Direction.BOTTOM),
+            isRevealed = true, isGoal = true
+        )
+        val state = baseState().copy(boardPlacements = listOf(
+            PlacedTunnelCard(startPosition, startCard),
+            PlacedTunnelCard(BoardPosition(row = 4, column = 4), goldGoal)
+        ))
+        turnManager.initializeGame(
+            distribution(h1 = listOf(pathCard("c1")), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            state
+        )
+        val result = turnManager.playCard(p1, "c1", BoardPosition(row = 3, column = 2), isRotated = false)
+        assertNull(result.winner)
+    }
+
+    @Test
+    fun `isGoalReached returns true when gold goal is connected to start via tunnel`() {
+        // start(4,2) → hPath(4,3) → goldGoal(4,4): complete connected path
+        val goldGoal = TunnelCard(
+            "gg_conn", CardType.GOAL,
+            setOf(Direction.LEFT, Direction.RIGHT, Direction.TOP, Direction.BOTTOM),
+            isRevealed = true, isGoal = true
+        )
+        val hPathBridge = hPathCard("hp_bridge")
+        val state = baseState().copy(boardPlacements = listOf(
+            PlacedTunnelCard(startPosition, startCard),
+            PlacedTunnelCard(BoardPosition(row = 4, column = 3), hPathBridge),
+            PlacedTunnelCard(BoardPosition(row = 4, column = 4), goldGoal)
+        ))
+        val anyCard = pathCard("any_card")
+        turnManager.initializeGame(
+            distribution(h1 = listOf(anyCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            state
+        )
+        val result = turnManager.playCard(p1, "any_card", BoardPosition(row = 3, column = 2), isRotated = false)
+        assertEquals("DWARVES", result.winner)
+    }
+
+    @Test
+    fun `isGoalReached returns false when only stone goal reachable not gold goal`() {
+        // isGoal=false → stone goal, should not trigger win even if reachable
+        val stoneGoal = TunnelCard(
+            "sg_conn", CardType.GOAL,
+            setOf(Direction.LEFT, Direction.RIGHT, Direction.TOP, Direction.BOTTOM),
+            isRevealed = true, isGoal = false
+        )
+        val hPathBridge = hPathCard("hp_stone")
+        val state = baseState().copy(boardPlacements = listOf(
+            PlacedTunnelCard(startPosition, startCard),
+            PlacedTunnelCard(BoardPosition(row = 4, column = 3), hPathBridge),
+            PlacedTunnelCard(BoardPosition(row = 4, column = 4), stoneGoal)
+        ))
+        val anyCard = pathCard("any_stone")
+        turnManager.initializeGame(
+            distribution(h1 = listOf(anyCard), h2 = listOf(pathCard("c2")), h3 = listOf(pathCard("c3"))),
+            state
+        )
+        val result = turnManager.playCard(p1, "any_stone", BoardPosition(row = 3, column = 2), isRotated = false)
+        assertNull(result.winner)
+    }
+
+    // ── Saboteur win condition ────────────────────────────────────────────────
+
+    @Test
+    fun `saboteurs win when deck empty and all players discard for one full round`() {
+        // setUp has empty draw pile → deckWasEmptied triggers on first draw
+        // After 3 consecutive discards (one per player) the counter reaches players.size
+        turnManager.discardCard(p1, "c1")
+        turnManager.discardCard(p2, "c2")
+        val result = turnManager.discardCard(p3, "c3")
+        assertEquals("SABOTEURS", result.winner)
+    }
+
+    @Test
+    fun `saboteurs no win when deck empty but a tunnel card is placed resetting counter`() {
+        // p1 discards (passedSinceEmpty=1), p2 places tunnel card (reset to 0), p3 discards (passedSinceEmpty=1) → no win
+        val hPathForP2 = hPathCard("hp2")
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("c1")),
+                h2 = listOf(hPathForP2),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+        turnManager.discardCard(p1, "c1")
+        turnManager.playCard(p2, "hp2", BoardPosition(row = 4, column = 3), isRotated = false)
+        val result = turnManager.discardCard(p3, "c3")
+        assertNull(result.winner)
+    }
+
+    @Test
+    fun `saboteurs no premature win when deck not empty and all players discard`() {
+        // Draw pile large enough that it never runs dry across 3 discards
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("c1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3")),
+                pile = listOf(pathCard("d1"), pathCard("d2"), pathCard("d3"), pathCard("d4"))
+            ),
+            baseState()
+        )
+        turnManager.discardCard(p1, "c1")
+        turnManager.discardCard(p2, "c2")
+        val result = turnManager.discardCard(p3, "c3")
+        assertNull(result.winner)
+    }
+
     @Test
     fun `nextPlayerId unknownCurrentPlayer fallsBackToFirst`() {
         val ghost = "ghost"
