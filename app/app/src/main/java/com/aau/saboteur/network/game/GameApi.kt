@@ -40,6 +40,10 @@ object GameApi {
     private val _gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
     val gameOverEvents: SharedFlow<String> = _gameOverEvents.asSharedFlow()
 
+    // SharedFlow(replay=1): new subscribers immediately receive the current valid positions set
+    private val _validPositionsUpdates = MutableSharedFlow<List<BoardPosition>>(replay = 1, extraBufferCapacity = 1)
+    val validPositionsUpdates: SharedFlow<List<BoardPosition>> = _validPositionsUpdates.asSharedFlow()
+
     init {
         observeWebSocketMessages()
         observeConnectionErrors()
@@ -69,6 +73,11 @@ object GameApi {
                             .onSuccess { _gameOverEvents.tryEmit(it) }
                             .onFailure { it.printStackTrace() }
                     }
+                    type == "VALID_POSITIONS" -> {
+                        runCatching { data.toValidPositions() }
+                            .onSuccess { _validPositionsUpdates.tryEmit(it) }
+                            .onFailure { it.printStackTrace() }
+                    }
                     type == "ERROR" -> _errorMessages.tryEmit(data)
                 }
             }
@@ -96,5 +105,17 @@ object GameApi {
     fun discardCard(playerId: String, cardId: String) {
         val request = DiscardCardRequest(playerId, cardId)
         WebSocketManager.sendMessage("DISCARD_CARD", JSONObject(request.toJson()))
+    }
+
+    fun requestValidPositions(cardId: String, isRotated: Boolean) {
+        val payload = JSONObject().apply {
+            put("cardId", cardId)
+            put("isRotated", isRotated)
+        }
+        WebSocketManager.sendMessage("GET_VALID_POSITIONS", payload)
+    }
+
+    fun clearValidPositions() {
+        _validPositionsUpdates.tryEmit(emptyList())
     }
 }

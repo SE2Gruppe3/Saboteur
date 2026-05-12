@@ -37,6 +37,9 @@ class GameViewModel : ViewModel() {
     private val _gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
     val gameOverEvents: SharedFlow<String> = _gameOverEvents.asSharedFlow()
 
+    private val _validPositions = MutableStateFlow<List<BoardPosition>>(emptyList())
+    val validPositions: StateFlow<List<BoardPosition>> = _validPositions.asStateFlow()
+
     private var errorClearJob: Job? = null
 
     init {
@@ -45,6 +48,7 @@ class GameViewModel : ViewModel() {
         observeCardsDealt()
         observeErrors()
         observeGameOverEvents()
+        observeValidPositions()
     }
 
     private fun observeGameStateUpdates() {
@@ -57,6 +61,7 @@ class GameViewModel : ViewModel() {
                     selectedCard = null,
                     selectedCardRotated = false
                 )
+                _validPositions.value = emptyList()
             }
         }
     }
@@ -93,6 +98,14 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    private fun observeValidPositions() {
+        viewModelScope.launch {
+            GameApi.validPositionsUpdates.collect { positions ->
+                _validPositions.value = positions
+            }
+        }
+    }
+
     private fun showError(message: String) {
         errorClearJob?.cancel()
         _uiState.value = _uiState.value.copy(isStartingGame = false, errorMessage = message)
@@ -110,10 +123,18 @@ class GameViewModel : ViewModel() {
         val current = _uiState.value.selectedCard
         if (current?.id == card.id) {
             _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
+            if (card.type == CardType.PATH || card.type == CardType.DEAD_END) {
+                GameApi.clearValidPositions()
+            }
         } else {
             // Preserve any rotation the user already applied before selecting
             val isRotated = _uiState.value.cardRotations[card.id] ?: card.isRotated
             _uiState.value = _uiState.value.copy(selectedCard = card, selectedCardRotated = isRotated)
+            if (card.type == CardType.PATH || card.type == CardType.DEAD_END) {
+                GameApi.requestValidPositions(card.id, isRotated)
+            } else {
+                GameApi.clearValidPositions()
+            }
         }
     }
 
@@ -125,6 +146,10 @@ class GameViewModel : ViewModel() {
             cardRotations = newRotations,
             selectedCardRotated = newSelectedCardRotated
         )
+        if (_uiState.value.selectedCard?.id == card.id &&
+            (card.type == CardType.PATH || card.type == CardType.DEAD_END)) {
+            GameApi.requestValidPositions(card.id, isRotated)
+        }
     }
 
     fun onBoardCellClicked(position: BoardPosition) {
@@ -149,5 +174,6 @@ class GameViewModel : ViewModel() {
 
         GameApi.discardCard(playerId, card.id)
         _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
+        GameApi.clearValidPositions()
     }
 }

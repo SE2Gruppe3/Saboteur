@@ -40,6 +40,7 @@ fun GameScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val localPlayerId by lobbyViewModel.playerId.collectAsState()
+    val validPositions by viewModel.validPositions.collectAsState()
 
     var gameOverWinner by remember { mutableStateOf<String?>(null) }
 
@@ -75,6 +76,7 @@ fun GameScreen(
         BoardGrid(
             placements = uiState.gameState.boardPlacements,
             modifier = Modifier.fillMaxSize(),
+            validPositions = validPositions,
             onCellClick = { position ->
                 if (isMyTurn && uiState.selectedCard != null) {
                     viewModel.onBoardCellClicked(position)

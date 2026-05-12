@@ -84,11 +84,13 @@ private val TileContentPadding = 6.dp
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
     modifier: Modifier = Modifier,
+    validPositions: List<BoardPosition> = emptyList(),
     onCellClick: (BoardPosition) -> Unit = {},
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
+    val validPositionSet = validPositions.toHashSet()
     val gridColor = Color(0xFF000000).copy(alpha = BoardGridLineAlpha)
     var scale by remember { mutableFloatStateOf(0.8f) }
 
@@ -186,12 +188,21 @@ fun BoardGrid(
                                 repeat(BoardColumns) { column ->
                                     val position = BoardPosition(row = row, column = column)
                                     val placement = placementMap[position]
-                                    BoardTile(
-                                        card = placement?.card,
-                                        cardWidth = scaledCardWidth,
-                                        cardHeight = scaledCardHeight,
-                                        onClick = { onCellClick(position) }
-                                    )
+                                    Box(modifier = Modifier.size(width = scaledCardWidth, height = scaledCardHeight)) {
+                                        BoardTile(
+                                            card = placement?.card,
+                                            cardWidth = scaledCardWidth,
+                                            cardHeight = scaledCardHeight,
+                                            onClick = { onCellClick(position) }
+                                        )
+                                        if (position in validPositionSet) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(Color.Green.copy(alpha = 0.15f))
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
