@@ -36,6 +36,10 @@ object GameApi {
     private val _errorMessages = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 10)
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
+    // SharedFlow(replay=0): navigation is one-shot, no subscriber should receive a stale winner
+    private val _gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    val gameOverEvents: SharedFlow<String> = _gameOverEvents.asSharedFlow()
+
     init {
         observeWebSocketMessages()
         observeConnectionErrors()
@@ -58,6 +62,11 @@ object GameApi {
                     type == "CARDS_DEALT" -> {
                         runCatching { data.toHands() }
                             .onSuccess { _cardsDealtUpdates.value = it }
+                            .onFailure { it.printStackTrace() }
+                    }
+                    type == "GAME_OVER" -> {
+                        runCatching { org.json.JSONObject(data).getString("winner") }
+                            .onSuccess { _gameOverEvents.tryEmit(it) }
                             .onFailure { it.printStackTrace() }
                     }
                     type == "ERROR" -> _errorMessages.tryEmit(data)
