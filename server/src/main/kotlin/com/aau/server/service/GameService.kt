@@ -230,6 +230,7 @@ class GameService {
 
         removeCardFromHand(playerId, cardId)
         removeBoardCard(targetPosition)
+        discard(targetPlacement.card)
         discard(card)
 
         val drawnCard = drawCard()
