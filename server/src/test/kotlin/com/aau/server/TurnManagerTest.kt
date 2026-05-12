@@ -1033,6 +1033,82 @@ class TurnManagerTest {
         assertNull(result.winner)
     }
 
+    // ── getValidPositions ─────────────────────────────────────────────────────
+
+    @Test
+    fun `getValidPositions onlyStartCard pathCard returnsTopAndBottomNeighbors`() {
+        // pathCard {TOP,BOTTOM}: matches start's TOP and BOTTOM connections → valid above and below.
+        // LEFT and RIGHT neighbors require the card to connect LEFT/RIGHT respectively → mismatch.
+        val placements = listOf(PlacedTunnelCard(startPosition, startCard))
+        val card = pathCard("vp_tb")
+        val valid = turnManager.getValidPositions(card, isRotated = false, placements)
+
+        assertEquals(2, valid.size)
+        assertTrue(valid.contains(BoardPosition(row = 3, column = 2)), "Should be valid above start")
+        assertTrue(valid.contains(BoardPosition(row = 5, column = 2)), "Should be valid below start")
+        assertFalse(valid.contains(BoardPosition(row = 4, column = 1)), "No LEFT connection → invalid")
+        assertFalse(valid.contains(BoardPosition(row = 4, column = 3)), "No RIGHT connection → invalid")
+    }
+
+    @Test
+    fun `getValidPositions allConnectionsCard returnsAllFourStartNeighbors`() {
+        // A card connecting in all four directions matches every side of the start card.
+        val placements = listOf(PlacedTunnelCard(startPosition, startCard))
+        val allConnCard = TunnelCard("vp_all", CardType.PATH, Direction.values().toSet())
+        val valid = turnManager.getValidPositions(allConnCard, isRotated = false, placements)
+
+        assertEquals(4, valid.size)
+        assertTrue(valid.containsAll(listOf(
+            BoardPosition(3, 2), BoardPosition(5, 2),
+            BoardPosition(4, 1), BoardPosition(4, 3)
+        )))
+    }
+
+    @Test
+    fun `getValidPositions noConnectionCard returnsEmptyList`() {
+        // A card with no connections always mismatches any neighbor that connects toward it.
+        // Start has all four connections → mismatch on every adjacent position → no valid placements.
+        val placements = listOf(PlacedTunnelCard(startPosition, startCard))
+        val emptyCard = TunnelCard("vp_empty", CardType.PATH, emptySet())
+        val valid = turnManager.getValidPositions(emptyCard, isRotated = false, placements)
+
+        assertTrue(valid.isEmpty())
+    }
+
+    @Test
+    fun `getValidPositions edgePosition outOfBoundsCandidatesNotReturned`() {
+        // Start card at row 0: its TOP neighbor would be row -1 (out of bounds) and must be excluded.
+        val edgePos = BoardPosition(row = 0, column = 2)
+        val placements = listOf(PlacedTunnelCard(edgePos, startCard))
+        val card = pathCard("vp_edge")
+        val valid = turnManager.getValidPositions(card, isRotated = false, placements)
+
+        assertFalse(valid.any { it.row < 0 || it.column < 0 ||
+                it.row >= TurnManager.BOARD_ROWS || it.column >= TurnManager.BOARD_COLUMNS },
+            "No out-of-bounds positions must be returned")
+        assertTrue(valid.contains(BoardPosition(row = 1, column = 2)),
+            "In-bounds BOTTOM neighbor should still be valid")
+    }
+
+    @Test
+    fun `getValidPositions rotatedCard returnsDifferentPositionsThanUnrotated`() {
+        // Card {TOP, RIGHT} unrotated: connects toward LEFT neighbor (RIGHT→start.LEFT) and
+        // toward BOTTOM neighbor (TOP→start.BOTTOM) → valid at (4,1) and (5,2).
+        // After 180° rotation → {BOTTOM, LEFT}: valid at (3,2) and (4,3) instead.
+        val placements = listOf(PlacedTunnelCard(startPosition, startCard))
+        val card = TunnelCard("vp_rot", CardType.PATH, setOf(Direction.TOP, Direction.RIGHT))
+
+        val validNormal  = turnManager.getValidPositions(card, isRotated = false, placements).toSet()
+        val validRotated = turnManager.getValidPositions(card, isRotated = true,  placements).toSet()
+
+        assertTrue(validNormal.isNotEmpty())
+        assertTrue(validRotated.isNotEmpty())
+        assertTrue((validNormal intersect validRotated).isEmpty(),
+            "Rotated and unrotated valid sets must not overlap for this card")
+        assertTrue(validNormal.containsAll(setOf(BoardPosition(4, 1), BoardPosition(5, 2))))
+        assertTrue(validRotated.containsAll(setOf(BoardPosition(3, 2), BoardPosition(4, 3))))
+    }
+
     @Test
     fun `nextPlayerId unknownCurrentPlayer fallsBackToFirst`() {
         val ghost = "ghost"
