@@ -21,12 +21,19 @@ class TurnManager {
     private var hands: Map<String, MutableList<TunnelCard>> = emptyMap()
     private var drawPile: MutableList<TunnelCard> = mutableListOf()
 
+    // Guarded by lock: set permanently once the draw pile runs dry
+    private var deckWasEmptied = false
+    // Guarded by lock: consecutive player turns without a tunnel card placed, counted only after deck emptied
+    private var passedSinceEmpty = 0
+
     private val gameState = AtomicReference(GameState())
 
     fun initializeGame(distribution: CardDistributionResult, initialGameState: GameState) {
         synchronized(lock) {
             hands = distribution.hands.mapValues { (_, cards) -> cards.toMutableList() }
             drawPile = distribution.drawPile.toMutableList()
+            deckWasEmptied = false
+            passedSinceEmpty = 0
         }
         gameState.set(initialGameState)
     }
@@ -63,6 +70,8 @@ class TurnManager {
 
         playerHand.remove(card)
         drawCardForPlayer(playerId)
+        // A tunnel card was placed — reset the saboteur pass-counter regardless of deck state.
+        passedSinceEmpty = 0
 
         val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
         val newPlacements = if (effectiveCard.type == CardType.PATH) {
@@ -76,7 +85,8 @@ class TurnManager {
         )
         gameState.set(newState)
 
-        TurnResult(newState, hands.mapValues { it.value.toList() })
+        val winner = if (isGoalReached(buildGrid(newPlacements))) "DWARVES" else null
+        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
     /**
@@ -98,11 +108,14 @@ class TurnManager {
 
         playerHand.removeIf { it.id == cardId }
         drawCardForPlayer(playerId)
+        // Count this turn as a "no tunnel placed" turn if the deck is (or has become) empty.
+        if (deckWasEmptied) passedSinceEmpty++
 
         val newState = state.copy(currentPlayerId = nextPlayerId(state))
         gameState.set(newState)
 
-        TurnResult(newState, hands.mapValues { it.value.toList() })
+        val winner = if (deckWasEmptied && passedSinceEmpty >= state.players.size) "SABOTEURS" else null
+        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
     fun getGameState(): GameState = gameState.get()
@@ -113,8 +126,12 @@ class TurnManager {
 
     // Must be called while holding lock
     private fun drawCardForPlayer(playerId: String) {
-        if (drawPile.isEmpty()) return
+        if (drawPile.isEmpty()) {
+            deckWasEmptied = true
+            return
+        }
         hands[playerId]?.add(drawPile.removeFirst())
+        if (drawPile.isEmpty()) deckWasEmptied = true
     }
 
     private fun nextPlayerId(state: GameState): String? {
@@ -200,6 +217,49 @@ class TurnManager {
             val neighborPos = boardNeighbor(position, dir)
             neighborPos in visited && opposite(dir) in (grid[neighborPos]?.card?.connections ?: emptySet())
         }
+    }
+
+    /**
+     * Checks whether the gold goal card is reachable from the start card via a connected tunnel path.
+     * A goal card counts as reached if it is revealed, has subtype goal_gold (isGoal == true),
+     * and is connected to the start position through valid tunnel connections.
+     *
+     * @param grid the current board state
+     * @return true if the gold goal is reachable from start, false otherwise
+     */
+    private fun isGoalReached(grid: Map<BoardPosition, PlacedTunnelCard>): Boolean {
+        val goldGoalPositions = grid.values
+            .filter { it.card.type == CardType.GOAL && it.card.isRevealed && it.card.isGoal }
+            .map { it.position }
+
+        if (goldGoalPositions.isEmpty()) return false
+
+        val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return false
+
+        val visited = mutableSetOf<BoardPosition>()
+        val queue = ArrayDeque<BoardPosition>()
+        queue.add(startPos)
+        visited.add(startPos)
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val currentCard = grid[current]?.card ?: continue
+            for (dir in Direction.values()) {
+                val neighborPos = boardNeighbor(current, dir)
+                if (neighborPos in visited) continue
+                val neighborCard = grid[neighborPos]?.card ?: continue
+                val traversable = neighborCard.type == CardType.PATH ||
+                    neighborCard.type == CardType.START ||
+                    (neighborCard.type == CardType.GOAL && neighborCard.isRevealed)
+                if (!traversable) continue
+                if (dir in currentCard.connections && opposite(dir) in neighborCard.connections) {
+                    visited.add(neighborPos)
+                    queue.add(neighborPos)
+                }
+            }
+        }
+
+        return goldGoalPositions.any { it in visited }
     }
 
     private fun boardNeighbor(pos: BoardPosition, dir: Direction): BoardPosition = when (dir) {

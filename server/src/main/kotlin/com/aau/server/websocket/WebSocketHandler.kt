@@ -90,6 +90,9 @@ class WebSocketHandler(
 
                         messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
                         messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
+                        if (result.winner != null) {
+                            messagingService.broadcastToLobby(lobbyCode, "GAME_OVER", mapOf("winner" to result.winner))
+                        }
                     }
                 }
                 "DISCARD_CARD" -> {
@@ -112,6 +115,9 @@ class WebSocketHandler(
 
                         messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
                         messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
+                        if (result.winner != null) {
+                            messagingService.broadcastToLobby(lobbyCode, "GAME_OVER", mapOf("winner" to result.winner))
+                        }
                     }
                 }
                 "LOBBY_CREATE" -> {
