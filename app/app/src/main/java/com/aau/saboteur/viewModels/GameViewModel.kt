@@ -119,6 +119,11 @@ class GameViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(localPlayerId = playerId)
     }
 
+    /**
+     * Toggles selection of [card]. If [card] is already selected, deselects it and clears the
+     * valid-positions highlight. Otherwise selects it and, for PATH/DEAD_END cards, requests a
+     * fresh set of valid positions from the server.
+     */
     fun selectCard(card: TunnelCard) {
         val current = _uiState.value.selectedCard
         if (current?.id == card.id) {
@@ -138,6 +143,10 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Updates the rotation state for [card] and, if it is the currently selected PATH or
+     * DEAD_END card, re-requests valid positions for the new orientation.
+     */
     fun onCardRotated(card: TunnelCard, isRotated: Boolean) {
         val newRotations = _uiState.value.cardRotations + (card.id to isRotated)
         val newSelectedCardRotated = if (_uiState.value.selectedCard?.id == card.id) isRotated
@@ -152,6 +161,10 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Handles a tap on a board cell. Places the currently selected card at [position] if it is
+     * the local player's turn and a PATH or DEAD_END card is selected.
+     */
     fun onBoardCellClicked(position: BoardPosition) {
         val state = _uiState.value
         val card = state.selectedCard ?: return
@@ -166,6 +179,10 @@ class GameViewModel : ViewModel() {
         GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
     }
 
+    /**
+     * Discards the currently selected card for the local player and clears valid positions.
+     * No-op if no card is selected, no player ID is set, or it is not the local player's turn.
+     */
     fun discardSelectedCard() {
         val state = _uiState.value
         val card = state.selectedCard ?: return

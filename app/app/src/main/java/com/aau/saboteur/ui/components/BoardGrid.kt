@@ -79,6 +79,8 @@ private val TileContentPadding = 6.dp
  * Scrollbares, zoombares Spielfeld für Saboteur.
  *
  * Zeigt ein [BoardColumns]×[BoardRows]-Raster aus [BoardTile]-Kacheln.
+ *
+ * @param validPositions cells highlighted as legal placement targets for the selected card
  */
 @Composable
 fun BoardGrid(
@@ -90,7 +92,7 @@ fun BoardGrid(
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
-    val validPositionSet = validPositions.toHashSet()
+    val validPositionSet = remember(validPositions) { validPositions.toHashSet() }
     val gridColor = Color(0xFF000000).copy(alpha = BoardGridLineAlpha)
     var scale by remember { mutableFloatStateOf(0.8f) }
 

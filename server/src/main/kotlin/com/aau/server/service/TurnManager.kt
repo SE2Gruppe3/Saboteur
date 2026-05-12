@@ -222,31 +222,7 @@ class TurnManager {
         position: BoardPosition,
         grid: Map<BoardPosition, PlacedTunnelCard>
     ): Boolean {
-        val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return false
-
-        val visited = mutableSetOf<BoardPosition>()
-        val queue = ArrayDeque<BoardPosition>()
-        queue.add(startPos)
-        visited.add(startPos)
-
-        while (queue.isNotEmpty()) {
-            val current = queue.removeFirst()
-            val currentCard = grid[current]?.card ?: continue
-            for (dir in Direction.values()) {
-                val neighborPos = boardNeighbor(current, dir)
-                if (neighborPos in visited) continue
-                val neighborCard = grid[neighborPos]?.card ?: continue
-                val traversable = neighborCard.type == CardType.PATH ||
-                    neighborCard.type == CardType.START ||
-                    (neighborCard.type == CardType.GOAL && neighborCard.isRevealed)
-                if (!traversable) continue
-                if (dir in currentCard.connections && opposite(dir) in neighborCard.connections) {
-                    visited.add(neighborPos)
-                    queue.add(neighborPos)
-                }
-            }
-        }
-
+        val visited = bfsVisited(grid)
         // The XOR adjacency rule (checked before this call) guarantees that if a visited neighbor
         // connects toward `position` (neighborConnects=true), the card being placed also connects
         // back toward that neighbor (cardConnects=true). No need to re-check the card's connections here.
@@ -271,13 +247,16 @@ class TurnManager {
 
         if (goldGoalPositions.isEmpty()) return false
 
-        val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return false
+        val visited = bfsVisited(grid)
+        return goldGoalPositions.any { it in visited }
+    }
 
+    private fun bfsVisited(grid: Map<BoardPosition, PlacedTunnelCard>): Set<BoardPosition> {
+        val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return emptySet()
         val visited = mutableSetOf<BoardPosition>()
         val queue = ArrayDeque<BoardPosition>()
         queue.add(startPos)
         visited.add(startPos)
-
         while (queue.isNotEmpty()) {
             val current = queue.removeFirst()
             val currentCard = grid[current]?.card ?: continue
@@ -295,8 +274,7 @@ class TurnManager {
                 }
             }
         }
-
-        return goldGoalPositions.any { it in visited }
+        return visited
     }
 
     private fun boardNeighbor(pos: BoardPosition, dir: Direction): BoardPosition = when (dir) {

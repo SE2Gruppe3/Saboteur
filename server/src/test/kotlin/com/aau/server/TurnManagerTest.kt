@@ -1110,6 +1110,36 @@ class TurnManagerTest {
     }
 
     @Test
+    fun `getValidPositions deadEndCard returnsValidPositions`() {
+        // DEAD_END cards use the same placement logic as PATH for getValidPositions.
+        // start at (4,2) connects LEFT+RIGHT: dead-end {L,R} matches at (4,1) and (4,3).
+        val placements = listOf(PlacedTunnelCard(startPosition, startCard))
+        val deadEnd = TunnelCard("de_vp", CardType.DEAD_END, setOf(Direction.LEFT, Direction.RIGHT))
+        val valid = turnManager.getValidPositions(deadEnd, isRotated = false, placements)
+
+        assertTrue(valid.contains(BoardPosition(row = 4, column = 1)))
+        assertTrue(valid.contains(BoardPosition(row = 4, column = 3)))
+    }
+
+    @Test
+    fun `getValidPositions multipleOccupiedCells includesCandidatesFromBothCells`() {
+        // Board: start@(4,2) and hPathCard@(4,3). Candidates are generated from neighbors of both.
+        // An all-connection card is valid at (4,4) (neighbor of hPathCard) and at start's neighbors.
+        val pathAtRight = TunnelCard("ph_multi", CardType.PATH, setOf(Direction.LEFT, Direction.RIGHT))
+        val placements = listOf(
+            PlacedTunnelCard(startPosition, startCard),
+            PlacedTunnelCard(BoardPosition(row = 4, column = 3), pathAtRight)
+        )
+        val allConnCard = TunnelCard("vp_all_m", CardType.PATH, Direction.values().toSet())
+        val valid = turnManager.getValidPositions(allConnCard, isRotated = false, placements)
+
+        // Candidate from pathAtRight: (4,4) is valid (matches pathAtRight.RIGHT)
+        assertTrue(valid.contains(BoardPosition(row = 4, column = 4)))
+        // Candidates from start: (3,2) and (5,2) are also valid (match start TOP/BOTTOM)
+        assertTrue(valid.containsAll(listOf(BoardPosition(3, 2), BoardPosition(5, 2))))
+    }
+
+    @Test
     fun `nextPlayerId unknownCurrentPlayer fallsBackToFirst`() {
         val ghost = "ghost"
         val specialState = GameState(

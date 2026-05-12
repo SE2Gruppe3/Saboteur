@@ -31,3 +31,9 @@ private data class ValidPositionsResponse(val positions: List<BoardPosition>)
 
 fun String.toValidPositions(): List<BoardPosition> =
     json.decodeFromString<ValidPositionsResponse>(this).positions
+
+@Serializable
+private data class GameOverResponse(val winner: String)
+
+fun String.toGameOverWinner(): String =
+    json.decodeFromString<GameOverResponse>(this).winner

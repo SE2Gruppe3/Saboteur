@@ -510,6 +510,90 @@ class WebSocketHandlerTests {
         verify(messagingService).sendToPlayer(eqK("3"), eqK("PLAYER_DATA"), eqK(charlie))
     }
 
+    // ── GET_VALID_POSITIONS handling ─────────────────────────────────────────
+
+    @Test
+    fun `handleTextMessage GET_VALID_POSITIONS sends VALID_POSITIONS to session`() {
+        val message = TextMessage(
+            objectMapper.writeValueAsString(
+                mapOf("type" to "GET_VALID_POSITIONS", "data" to mapOf("cardId" to "card1", "isRotated" to false))
+            )
+        )
+
+        val card = TunnelCard("card1", CardType.PATH, emptySet())
+        val validPositions = listOf(BoardPosition(3, 2), BoardPosition(5, 2))
+        val gameState = GameState(emptyList(), null)
+
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+        `when`(turnManager.getHands()).thenReturn(mapOf("1" to listOf(card)))
+        `when`(turnManager.getGameState()).thenReturn(gameState)
+        `when`(turnManager.getValidPositions(anyK(), anyBoolean(), anyList())).thenReturn(validPositions)
+
+        handler.handleTextMessage(session, message)
+
+        verify(messagingService).sendToSession(
+            eqK("test-session"),
+            eqK("VALID_POSITIONS"),
+            eqK(mapOf("positions" to validPositions))
+        )
+    }
+
+    @Test
+    fun `handleTextMessage GET_VALID_POSITIONS card not found sends ERROR`() {
+        val message = TextMessage(
+            objectMapper.writeValueAsString(
+                mapOf("type" to "GET_VALID_POSITIONS", "data" to mapOf("cardId" to "missing", "isRotated" to false))
+            )
+        )
+
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+        `when`(turnManager.getHands()).thenReturn(mapOf("1" to emptyList()))
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("\"type\":\"ERROR\""))
+    }
+
+    // ── PLAY_CARD / DISCARD_CARD with winner ─────────────────────────────────
+
+    @Test
+    fun `handleTextMessage PLAY_CARD with winner broadcasts GAME_OVER`() {
+        val request = PlayCardRequest("1", "card1", BoardPosition(3, 2), false)
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+
+        val newState = GameState(listOf(PlayerTurn("1", "Alice", 1), PlayerTurn("2", "Bob", 2)), "2")
+        val newHands = mapOf<String, List<TunnelCard>>("1" to emptyList(), "2" to listOf(createDummyCard()))
+        `when`(turnManager.playCard(anyString(), anyString(), anyK(), anyBoolean()))
+            .thenReturn(TurnResult(newState, newHands, "DWARVES"))
+
+        handler.handleTextMessage(session, message)
+
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_OVER"), eqK(mapOf("winner" to "DWARVES")))
+    }
+
+    @Test
+    fun `handleTextMessage DISCARD_CARD with winner broadcasts GAME_OVER`() {
+        val request = DiscardCardRequest("1", "card1")
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "DISCARD_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+
+        val newState = GameState(listOf(PlayerTurn("1", "Alice", 1), PlayerTurn("2", "Bob", 2)), "2")
+        val newHands = mapOf<String, List<TunnelCard>>("1" to emptyList(), "2" to listOf(createDummyCard()))
+        `when`(turnManager.discardCard(anyString(), anyString()))
+            .thenReturn(TurnResult(newState, newHands, "SABOTEURS"))
+
+        handler.handleTextMessage(session, message)
+
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_OVER"), eqK(mapOf("winner" to "SABOTEURS")))
+    }
+
     // ── LOBBY_LEAVE: last player (null response) ─────────────────────────────
 
     @Test

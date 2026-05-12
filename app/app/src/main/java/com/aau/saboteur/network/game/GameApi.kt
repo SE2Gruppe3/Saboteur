@@ -69,7 +69,7 @@ object GameApi {
                             .onFailure { it.printStackTrace() }
                     }
                     type == "GAME_OVER" -> {
-                        runCatching { org.json.JSONObject(data).getString("winner") }
+                        runCatching { data.toGameOverWinner() }
                             .onSuccess { _gameOverEvents.tryEmit(it) }
                             .onFailure { it.printStackTrace() }
                     }
@@ -107,6 +107,13 @@ object GameApi {
         WebSocketManager.sendMessage("DISCARD_CARD", JSONObject(request.toJson()))
     }
 
+    /**
+     * Asks the server to compute all valid board positions for [cardId].
+     * Results are emitted via [validPositionsUpdates].
+     *
+     * @param cardId the ID of the card in the local player's hand
+     * @param isRotated whether the card should be evaluated in its rotated (180°) orientation
+     */
     fun requestValidPositions(cardId: String, isRotated: Boolean) {
         val payload = JSONObject().apply {
             put("cardId", cardId)
@@ -115,7 +122,11 @@ object GameApi {
         WebSocketManager.sendMessage("GET_VALID_POSITIONS", payload)
     }
 
-    fun clearValidPositions() {
+    /**
+     * Clears the current set of highlighted valid positions by emitting an empty list
+     * to [validPositionsUpdates].
+     */
+    internal fun clearValidPositions() {
         _validPositionsUpdates.tryEmit(emptyList())
     }
 }
