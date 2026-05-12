@@ -5,5 +5,6 @@ import com.aau.saboteur.model.TunnelCard
 
 data class TurnResult(
     val updatedGameState: GameState,
-    val updatedHands: Map<String, List<TunnelCard>>
+    val updatedHands: Map<String, List<TunnelCard>>,
+    val winner: String? = null
 )
