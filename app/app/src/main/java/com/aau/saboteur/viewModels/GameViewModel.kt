@@ -10,8 +10,11 @@ import com.aau.saboteur.model.TunnelCard
 import com.aau.saboteur.network.game.GameApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -31,6 +34,9 @@ class GameViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
+    private val _gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    val gameOverEvents: SharedFlow<String> = _gameOverEvents.asSharedFlow()
+
     private var errorClearJob: Job? = null
 
     init {
@@ -38,6 +44,7 @@ class GameViewModel : ViewModel() {
         observePlayerUpdates()
         observeCardsDealt()
         observeErrors()
+        observeGameOverEvents()
     }
 
     private fun observeGameStateUpdates() {
@@ -74,6 +81,14 @@ class GameViewModel : ViewModel() {
         viewModelScope.launch {
             GameApi.errorMessages.collect { message ->
                 showError(message)
+            }
+        }
+    }
+
+    private fun observeGameOverEvents() {
+        viewModelScope.launch {
+            GameApi.gameOverEvents.collect { winner ->
+                _gameOverEvents.tryEmit(winner)
             }
         }
     }

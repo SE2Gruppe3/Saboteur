@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.aau.saboteur.R
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,10 +35,17 @@ import com.aau.saboteur.viewModels.LobbyViewModel
 @Composable
 fun GameScreen(
     lobbyViewModel: LobbyViewModel,
+    onBackToLobby: () -> Unit = {},
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val localPlayerId by lobbyViewModel.playerId.collectAsState()
+
+    var gameOverWinner by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.gameOverEvents.collect { winner -> gameOverWinner = winner }
+    }
     val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
     val currentHand = uiState.localPlayerId?.let { uiState.hands?.get(it) }
     val isMyTurn = uiState.localPlayerId != null &&
@@ -204,6 +212,36 @@ fun GameScreen(
                     },
                     onCardRotated = { card, rotated -> viewModel.onCardRotated(card, rotated) }
                 )
+            }
+        }
+
+        gameOverWinner?.let { winner ->
+            val resultText = when (winner) {
+                "DWARVES" -> "Zwerge gewinnen! ⛏️"
+                "SABOTEURS" -> "Saboteure gewinnen! 🪓"
+                else -> "Spiel beendet"
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.75f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(48.dp),
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Text(
+                        text = resultText,
+                        style = MaterialTheme.typography.displayMedium,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                    Button(onClick = onBackToLobby) {
+                        Text("Zurück zur Lobby")
+                    }
+                }
             }
         }
     }
