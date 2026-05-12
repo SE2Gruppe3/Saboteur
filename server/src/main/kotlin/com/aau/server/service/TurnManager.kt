@@ -15,6 +15,11 @@ import java.util.concurrent.atomic.AtomicReference
 @Service
 class TurnManager {
 
+    companion object {
+        const val BOARD_ROWS = 9
+        const val BOARD_COLUMNS = 13
+    }
+
     private val lock = Any()
 
     // Guarded by lock
@@ -122,6 +127,38 @@ class TurnManager {
 
     fun getHands(): Map<String, List<TunnelCard>> = synchronized(lock) {
         hands.mapValues { it.value.toList() }
+    }
+
+    /**
+     * Returns all board positions where the given card can legally be placed.
+     * Checks both placement validity and reachability from start.
+     *
+     * @param card the tunnel card to place
+     * @param isRotated whether the card is rotated 180°
+     * @param placements the current board state
+     * @return list of valid positions
+     */
+    fun getValidPositions(
+        card: TunnelCard,
+        isRotated: Boolean,
+        placements: List<PlacedTunnelCard>
+    ): List<BoardPosition> {
+        val effectiveCard = if (isRotated) card.rotated180() else card
+        val occupiedPositions = placements.map { it.position }.toSet()
+
+        val candidates = mutableSetOf<BoardPosition>()
+        for (pos in occupiedPositions) {
+            for (dir in Direction.values()) {
+                val neighbor = boardNeighbor(pos, dir)
+                if (neighbor !in occupiedPositions &&
+                    neighbor.row in 0 until BOARD_ROWS &&
+                    neighbor.column in 0 until BOARD_COLUMNS) {
+                    candidates.add(neighbor)
+                }
+            }
+        }
+
+        return candidates.filter { pos -> canPlaceOnBoard(pos, effectiveCard, placements) }
     }
 
     // Must be called while holding lock

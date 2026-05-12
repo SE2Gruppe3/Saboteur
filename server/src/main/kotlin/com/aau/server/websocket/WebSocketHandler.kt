@@ -155,6 +155,27 @@ class WebSocketHandler(
                         messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                     }
                 }
+                "GET_VALID_POSITIONS" -> {
+                    if (data != null) {
+                        val cardId = data["cardId"]?.asText()
+                            ?: throw IllegalArgumentException("Missing cardId")
+                        val isRotated = data["isRotated"]?.asBoolean() ?: false
+                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
+                            ?: throw IllegalArgumentException("Session is not linked to a player")
+
+                        val card = turnManager.getHands()[sessionPlayerId]?.find { it.id == cardId }
+                            ?: throw IllegalArgumentException("Card $cardId not found in player's hand")
+
+                        val placements = turnManager.getGameState().boardPlacements
+                        val validPositions = turnManager.getValidPositions(card, isRotated, placements)
+
+                        messagingService.sendToSession(
+                            session.id,
+                            "VALID_POSITIONS",
+                            mapOf("positions" to validPositions)
+                        )
+                    }
+                }
                 "LOBBY_LIST_FETCH" -> {
                     messagingService.sendToSession(session.id, "LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
                 }
