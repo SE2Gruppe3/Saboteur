@@ -1,14 +1,17 @@
 services:
   server:
     image: ghcr.io/se2gruppe3/saboteur:latest
+
     restart: unless-stopped
+
     ports:
       - "53207:8080"
+
+    env_file:
+      - /home/grp-3/.env
+
     volumes:
-      - ./db-data:/data
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:h2:file:/data/saboteur_db;DB_CLOSE_DELAY=-1
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
-      SPRING_DATASOURCE_USERNAME: sa
-      SPRING_DATASOURCE_PASSWORD: password
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      - saboteur_data:/data
+
+volumes:
+  saboteur_data:
