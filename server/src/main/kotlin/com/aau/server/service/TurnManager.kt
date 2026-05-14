@@ -6,139 +6,186 @@ import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.model.Player
+import com.aau.saboteur.model.PlayerTurn
 import com.aau.server.game.*
 import com.aau.server.model.CardDistributionResult
 import com.aau.server.model.TurnResult
+import com.aau.server.model.GameEntity
+import com.aau.server.repository.GameRepository
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import jakarta.annotation.PostConstruct
 import org.springframework.stereotype.Service
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 @Service
-class TurnManager {
+class TurnManager(
+    private val gameRepository: GameRepository,
+    private val objectMapper: ObjectMapper,
+    private val gameService: GameService
+) {
 
     companion object {
         const val BOARD_ROWS = 9
         const val BOARD_COLUMNS = 13
     }
 
-    private val lock = Any()
+    private data class GameInternalState(
+        var hands: Map<String, MutableList<TunnelCard>>,
+        var drawPile: MutableList<TunnelCard>,
+        var discardPile: MutableList<TunnelCard> = mutableListOf(),
+        var deckWasEmptied: Boolean = false,
+        var passedSinceEmpty: Int = 0,
+        var gameState: GameState
+    )
 
-    // Guarded by lock
-    private var hands: Map<String, MutableList<TunnelCard>> = emptyMap()
-    private var drawPile: MutableList<TunnelCard> = mutableListOf()
+    private val games = ConcurrentHashMap<String, GameInternalState>()
 
-    // Guarded by lock: set permanently once the draw pile runs dry
-    private var deckWasEmptied = false
-    // Guarded by lock: consecutive player turns without a tunnel card placed, counted only after deck emptied
-    private var passedSinceEmpty = 0
+    @PostConstruct
+    fun loadFromDb() {
+        gameRepository.findAll().forEach { entity ->
+            try {
+                val hands: Map<String, List<TunnelCard>> = objectMapper.readValue(entity.handsJson)
+                val mutableHands = hands.mapValues { it.value.toMutableList() }
+                val drawPile: List<TunnelCard> = objectMapper.readValue(entity.drawPileJson)
+                val discardPile: List<TunnelCard> = if (entity.discardPileJson.isNotEmpty()) objectMapper.readValue(entity.discardPileJson) else mutableListOf()
+                val playersTurn: List<PlayerTurn> = objectMapper.readValue(entity.playersTurnJson)
+                val board: List<PlacedTunnelCard> = objectMapper.readValue(entity.boardJson)
+                val playerRoles: Map<String, Player> = objectMapper.readValue(entity.playerRolesJson)
 
-    private val gameState = AtomicReference(GameState())
+                val gameState = GameState(
+                    players = playersTurn,
+                    currentPlayerId = entity.currentPlayerId,
+                    boardPlacements = board
+                )
 
-    fun initializeGame(distribution: CardDistributionResult, initialGameState: GameState) {
-        synchronized(lock) {
-            hands = distribution.hands.mapValues { (_, cards) -> cards.toMutableList() }
-            drawPile = distribution.drawPile.toMutableList()
-            deckWasEmptied = false
-            passedSinceEmpty = 0
+                games[entity.lobbyCode] = GameInternalState(
+                    hands = mutableHands,
+                    drawPile = drawPile.toMutableList(),
+                    discardPile = discardPile.toMutableList(),
+                    deckWasEmptied = entity.deckWasEmptied,
+                    passedSinceEmpty = entity.passedSinceEmpty,
+                    gameState = gameState
+                )
+                
+                gameService.setPlayerData(entity.lobbyCode, playerRoles)
+            } catch (e: Exception) {
+                // Log error but continue with other games
+            }
         }
-        gameState.set(initialGameState)
     }
 
-    /**
-     * Places a card from the player's hand onto the board, then draws a replacement and advances the turn.
-     */
+    private fun persist(lobbyCode: String) {
+        val internal = games[lobbyCode] ?: return
+        val playerRoles = gameService.getAllPlayerData(lobbyCode)
+        
+        val entity = GameEntity(
+            lobbyCode = lobbyCode,
+            currentPlayerId = internal.gameState.currentPlayerId,
+            boardJson = objectMapper.writeValueAsString(internal.gameState.boardPlacements),
+            drawPileJson = objectMapper.writeValueAsString(internal.drawPile),
+            discardPileJson = objectMapper.writeValueAsString(internal.discardPile),
+            handsJson = objectMapper.writeValueAsString(internal.hands),
+            playersTurnJson = objectMapper.writeValueAsString(internal.gameState.players),
+            playerRolesJson = objectMapper.writeValueAsString(playerRoles),
+            deckWasEmptied = internal.deckWasEmptied,
+            passedSinceEmpty = internal.passedSinceEmpty
+        )
+        gameRepository.save(entity)
+    }
+
+    fun initializeGame(lobbyCode: String, distribution: CardDistributionResult, initialGameState: GameState) {
+        val internal = GameInternalState(
+            hands = distribution.hands.mapValues { (_, cards) -> cards.toMutableList() },
+            drawPile = distribution.drawPile.toMutableList(),
+            gameState = initialGameState
+        )
+        games[lobbyCode] = internal
+        persist(lobbyCode)
+    }
+
     fun playCard(
+        lobbyCode: String,
         playerId: String,
         cardId: String,
         position: BoardPosition,
         isRotated: Boolean
-    ): TurnResult = synchronized(lock) {
-        val state = gameState.get()
+    ): TurnResult {
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found for lobby $lobbyCode")
+        
+        synchronized(internal) {
+            val state = internal.gameState
 
-        require(state.currentPlayerId == playerId) {
-            "Du bist nicht am Zug."
+            require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
+
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden.")
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht in Hand.")
+
+            require(card.type == CardType.PATH || card.type == CardType.DEAD_END) { "Ungültiger Kartentyp." }
+
+            val effectiveCard = if (isRotated) card.rotated180() else card
+            require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) { "Platzierung nicht möglich." }
+
+            playerHand.remove(card)
+            drawCardForPlayer(internal, playerId)
+            
+            internal.passedSinceEmpty = 0
+
+            val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
+            val newPlacements = if (effectiveCard.type == CardType.PATH) {
+                revealGoalCards(position, effectiveCard, placementsWithCard)
+            } else {
+                placementsWithCard
+            }
+            val newState = state.copy(
+                boardPlacements = newPlacements,
+                currentPlayerId = nextPlayerId(state)
+            )
+            internal.gameState = newState
+            persist(lobbyCode)
+
+            val winner = if (isGoalReached(buildGrid(newPlacements))) "DWARVES" else null
+            return TurnResult(newState, internal.hands.mapValues { it.value.toList() }, winner)
         }
-
-        val playerHand = hands[playerId]
-            ?: throw IllegalArgumentException("Spieler $playerId nicht gefunden.")
-        val card = playerHand.find { it.id == cardId }
-            ?: throw IllegalArgumentException("Karte $cardId nicht in der Hand von Spieler $playerId.")
-
-        require(card.type == CardType.PATH || card.type == CardType.DEAD_END) {
-            "Diese Karte kann hier nicht platziert werden."
-        }
-
-        val effectiveCard = if (isRotated) card.rotated180() else card
-
-        require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) {
-            "Diese Karte kann hier nicht platziert werden."
-        }
-
-        playerHand.remove(card)
-        drawCardForPlayer(playerId)
-        // A tunnel card was placed — reset the saboteur pass-counter regardless of deck state.
-        passedSinceEmpty = 0
-
-        val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
-        val newPlacements = if (effectiveCard.type == CardType.PATH) {
-            revealGoalCards(position, effectiveCard, placementsWithCard)
-        } else {
-            placementsWithCard
-        }
-        val newState = state.copy(
-            boardPlacements = newPlacements,
-            currentPlayerId = nextPlayerId(state)
-        )
-        gameState.set(newState)
-
-        val winner = if (isGoalReached(buildGrid(newPlacements))) "DWARVES" else null
-        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
-    /**
-     * Discards a card without placing it, draws a replacement and advances the turn.
-     */
-    fun discardCard(playerId: String, cardId: String): TurnResult = synchronized(lock) {
-        val state = gameState.get()
+    fun discardCard(lobbyCode: String, playerId: String, cardId: String): TurnResult {
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
 
-        require(state.currentPlayerId == playerId) {
-            "Du bist nicht am Zug."
+        synchronized(internal) {
+            val state = internal.gameState
+            require(state.currentPlayerId == playerId) { "Nicht am Zug." }
+
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden.")
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden.")
+
+            playerHand.remove(card)
+            internal.discardPile.add(card)
+            drawCardForPlayer(internal, playerId)
+            
+            if (internal.deckWasEmptied) internal.passedSinceEmpty++
+
+            val newState = state.copy(currentPlayerId = nextPlayerId(state))
+            internal.gameState = newState
+            persist(lobbyCode)
+
+            val winner = if (internal.deckWasEmptied && internal.passedSinceEmpty >= state.players.size) "SABOTEURS" else null
+            return TurnResult(newState, internal.hands.mapValues { it.value.toList() }, winner)
         }
-
-        val playerHand = hands[playerId]
-            ?: throw IllegalArgumentException("Spieler $playerId nicht gefunden.")
-
-        require(playerHand.any { it.id == cardId }) {
-            "Karte $cardId nicht in der Hand von Spieler $playerId."
-        }
-
-        playerHand.removeIf { it.id == cardId }
-        drawCardForPlayer(playerId)
-        // Count this turn as a "no tunnel placed" turn if the deck is (or has become) empty.
-        if (deckWasEmptied) passedSinceEmpty++
-
-        val newState = state.copy(currentPlayerId = nextPlayerId(state))
-        gameState.set(newState)
-
-        val winner = if (deckWasEmptied && passedSinceEmpty >= state.players.size) "SABOTEURS" else null
-        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
-    fun getGameState(): GameState = gameState.get()
+    fun getGameState(lobbyCode: String): GameState = games[lobbyCode]?.gameState ?: GameState()
 
-    fun getHands(): Map<String, List<TunnelCard>> = synchronized(lock) {
-        hands.mapValues { it.value.toList() }
+    fun getHands(lobbyCode: String): Map<String, List<TunnelCard>> {
+        val internal = games[lobbyCode] ?: return emptyMap()
+        return synchronized(internal) {
+            internal.hands.mapValues { it.value.toList() }
+        }
     }
 
-    /**
-     * Returns all board positions where the given card can legally be placed.
-     * Checks both placement validity and reachability from start.
-     *
-     * @param card the tunnel card to place
-     * @param isRotated whether the card is rotated 180°
-     * @param placements the current board state
-     * @return list of valid positions
-     */
     fun getValidPositions(
+        lobbyCode: String,
         card: TunnelCard,
         isRotated: Boolean,
         placements: List<PlacedTunnelCard>
@@ -161,14 +208,13 @@ class TurnManager {
         return candidates.filter { pos -> canPlaceOnBoard(pos, effectiveCard, placements) }
     }
 
-    // Must be called while holding lock
-    private fun drawCardForPlayer(playerId: String) {
-        if (drawPile.isEmpty()) {
-            deckWasEmptied = true
+    private fun drawCardForPlayer(internal: GameInternalState, playerId: String) {
+        if (internal.drawPile.isEmpty()) {
+            internal.deckWasEmptied = true
             return
         }
-        hands[playerId]?.add(drawPile.removeFirst())
-        if (drawPile.isEmpty()) deckWasEmptied = true
+        internal.hands[playerId]?.add(internal.drawPile.removeFirst())
+        if (internal.drawPile.isEmpty()) internal.deckWasEmptied = true
     }
 
     private fun nextPlayerId(state: GameState): String? {
@@ -187,7 +233,6 @@ class TurnManager {
         placements: List<PlacedTunnelCard>
     ): Boolean {
         if (placements.any { it.position == position }) return false
-
         val grid = buildGrid(placements)
         val neighbors = mapOf(
             Direction.TOP    to grid[BoardPosition(position.row - 1, position.column)],
@@ -195,14 +240,9 @@ class TurnManager {
             Direction.LEFT   to grid[BoardPosition(position.row, position.column - 1)],
             Direction.RIGHT  to grid[BoardPosition(position.row, position.column + 1)]
         )
-
         if (neighbors.values.none { it != null }) return false
-
-        // XOR rule: invalid if exactly one side connects (open tunnel). Both connect or both wall → valid.
         val adjacencyOk = neighbors.all { (dir, neighbor) ->
             if (neighbor == null) true
-            // Unrevealed goal cards are exempt from adjacency matching here —
-            // their connections will be corrected by auto-rotation at reveal time.
             else if (neighbor.card.type == CardType.GOAL && !neighbor.card.isRevealed) true
             else {
                 val cardConnects = dir in card.connections
@@ -211,42 +251,22 @@ class TurnManager {
             }
         }
         if (!adjacencyOk) return false
-
         return isReachableFromStart(position, grid)
     }
 
-    // BFS from the START card. PATH, START, and revealed GOAL cards are traversable nodes;
-    // unrevealed goals and dead-ends are not.
-    // Returns true if any directly adjacent reachable card connects toward the target position.
-    private fun isReachableFromStart(
-        position: BoardPosition,
-        grid: Map<BoardPosition, PlacedTunnelCard>
-    ): Boolean {
+    private fun isReachableFromStart(position: BoardPosition, grid: Map<BoardPosition, PlacedTunnelCard>): Boolean {
         val visited = bfsVisited(grid)
-        // The XOR adjacency rule (checked before this call) guarantees that if a visited neighbor
-        // connects toward `position` (neighborConnects=true), the card being placed also connects
-        // back toward that neighbor (cardConnects=true). No need to re-check the card's connections here.
         return Direction.values().any { dir ->
             val neighborPos = boardNeighbor(position, dir)
             neighborPos in visited && opposite(dir) in (grid[neighborPos]?.card?.connections ?: emptySet())
         }
     }
 
-    /**
-     * Checks whether the gold goal card is reachable from the start card via a connected tunnel path.
-     * A goal card counts as reached if it is revealed, has subtype goal_gold (isGoal == true),
-     * and is connected to the start position through valid tunnel connections.
-     *
-     * @param grid the current board state
-     * @return true if the gold goal is reachable from start, false otherwise
-     */
     private fun isGoalReached(grid: Map<BoardPosition, PlacedTunnelCard>): Boolean {
         val goldGoalPositions = grid.values
             .filter { it.card.type == CardType.GOAL && it.card.isRevealed && it.card.isGoal }
             .map { it.position }
-
         if (goldGoalPositions.isEmpty()) return false
-
         val visited = bfsVisited(grid)
         return goldGoalPositions.any { it in visited }
     }
@@ -255,8 +275,7 @@ class TurnManager {
         val startPos = grid.entries.find { it.value.card.type == CardType.START }?.key ?: return emptySet()
         val visited = mutableSetOf<BoardPosition>()
         val queue = ArrayDeque<BoardPosition>()
-        queue.add(startPos)
-        visited.add(startPos)
+        queue.add(startPos); visited.add(startPos)
         while (queue.isNotEmpty()) {
             val current = queue.removeFirst()
             val currentCard = grid[current]?.card ?: continue
@@ -284,18 +303,7 @@ class TurnManager {
         Direction.RIGHT  -> BoardPosition(pos.row, pos.column + 1)
     }
 
-    private fun revealGoalCards(
-        placedPosition: BoardPosition,
-        placedCard: TunnelCard,
-        placements: List<PlacedTunnelCard>
-    ): List<PlacedTunnelCard> {
-        // Build a mutable lookup for O(1) updates during the reveal scan.
-        // Known design gap: if a goal card already has a PATH neighbor on side A (placed under the
-        // unrevealed-goal exemption) and is then auto-rotated 180° on reveal from side B, the
-        // previously-placed neighbor's connection on side A may no longer match the rotated goal.
-        // By game rules, goal cards are placed far from the start and reachable from only one
-        // direction at reveal time, so this conflict cannot occur in a normal game. The exemption
-        // is therefore intentional and any mismatch would indicate an invalid board state.
+    private fun revealGoalCards(placedPosition: BoardPosition, placedCard: TunnelCard, placements: List<PlacedTunnelCard>): List<PlacedTunnelCard> {
         val grid = placements.associateBy { it.position }.toMutableMap()
         for (dir in Direction.values()) {
             val neighborPos = boardNeighbor(placedPosition, dir)
@@ -311,9 +319,6 @@ class TurnManager {
             ) else neighborCard.copy(isRevealed = true)
             grid[neighborPos] = neighborPlacement.copy(card = revealedCard)
         }
-        // Preserve original list order by mapping through the updated grid rather than
-        // relying on LinkedHashMap insertion-order from grid.values.
-        // grid was built from placements via associateBy, so every position is guaranteed present.
         return placements.map { grid.getValue(it.position) }
     }
 

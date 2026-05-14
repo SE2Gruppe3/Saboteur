@@ -2,6 +2,11 @@ package com.aau.server.service
 
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
+import com.aau.server.model.LobbyEntity
+import com.aau.server.repository.LobbyRepository
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import jakarta.annotation.PostConstruct
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -10,9 +15,35 @@ import kotlin.random.Random
 private const val LOBBY_NOT_FOUND = "Lobby not found"
 
 @Service
-class LobbyService {
+class LobbyService(
+    private val lobbyRepository: LobbyRepository,
+    private val objectMapper: ObjectMapper
+) {
 
     private val lobbies = ConcurrentHashMap<String, LobbyState>()
+
+    @PostConstruct
+    fun loadFromDb() {
+        lobbyRepository.findAll().forEach { entity ->
+            val players: List<Player> = objectMapper.readValue(entity.playersJson)
+            lobbies[entity.lobbyCode] = LobbyState(
+                lobbyCode = entity.lobbyCode,
+                hostId = entity.hostId,
+                players = players,
+                gameStarted = entity.gameStarted
+            )
+        }
+    }
+
+    private fun persist(lobby: LobbyState) {
+        val entity = LobbyEntity(
+            lobbyCode = lobby.lobbyCode,
+            hostId = lobby.hostId,
+            gameStarted = lobby.gameStarted,
+            playersJson = objectMapper.writeValueAsString(lobby.players)
+        )
+        lobbyRepository.save(entity)
+    }
 
     fun createLobby(playerName: String): LobbyState {
         val code = generateUniqueCode()
@@ -30,22 +61,24 @@ class LobbyService {
         )
 
         lobbies[code] = lobby
+        persist(lobby)
         return lobby
     }
 
     fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
-        return lobbies.compute(lobbyCode) { _, lobby ->
-            requireNotNull(lobby) { LOBBY_NOT_FOUND }
-            require(lobby.players.size < 10) { "Lobby is full" }
-            require(!lobby.gameStarted) { "Game has already started" }
+        val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        require(lobby.players.size < 10) { "Lobby is full" }
+        require(!lobby.gameStarted) { "Game has already started" }
 
-            val newPlayer = Player(
-                id = UUID.randomUUID().toString(),
-                name = playerName
-            )
+        val newPlayer = Player(
+            id = UUID.randomUUID().toString(),
+            name = playerName
+        )
 
-            lobby.copy(players = lobby.players + newPlayer)
-        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        val updatedLobby = lobby.copy(players = lobby.players + newPlayer)
+        lobbies[lobbyCode] = updatedLobby
+        persist(updatedLobby)
+        return updatedLobby
     }
 
     fun leaveLobby(lobbyCode: String, playerId: String): LobbyState? {
@@ -55,6 +88,7 @@ class LobbyService {
         
         if (updatedPlayers.isEmpty()) {
             lobbies.remove(lobbyCode)
+            lobbyRepository.deleteById(lobbyCode)
             return null
         }
 
@@ -69,14 +103,16 @@ class LobbyService {
         )
         
         lobbies[lobbyCode] = updatedLobby
+        persist(updatedLobby)
         return updatedLobby
     }
 
     fun markGameStarted(lobbyCode: String): LobbyState {
-        return lobbies.compute(lobbyCode) { _, lobby ->
-            requireNotNull(lobby) { LOBBY_NOT_FOUND }
-            lobby.copy(gameStarted = true)
-        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        val updatedLobby = lobby.copy(gameStarted = true)
+        lobbies[lobbyCode] = updatedLobby
+        persist(updatedLobby)
+        return updatedLobby
     }
 
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()

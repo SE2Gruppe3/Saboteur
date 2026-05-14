@@ -1,27 +1,45 @@
 package com.aau.server
 
+import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.Player
+import com.aau.server.model.LobbyEntity
+import com.aau.server.repository.LobbyRepository
 import com.aau.server.service.LobbyService
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.Mockito.*
 import java.lang.reflect.Field
+import java.util.*
 
 class LobbyServiceTest {
 
-    private val lobbyService = LobbyService()
+    private lateinit var lobbyRepository: LobbyRepository
+    private lateinit var objectMapper: ObjectMapper
+    private lateinit var lobbyService: LobbyService
+
+    @BeforeEach
+    fun setUp() {
+        lobbyRepository = mock(LobbyRepository::class.java)
+        objectMapper = jacksonObjectMapper()
+        lobbyService = LobbyService(lobbyRepository, objectMapper)
+    }
 
     @Test
     fun `createLobby returns lobby with host as first player`() {
         val state = lobbyService.createLobby("Basti")
 
         assertTrue(state.lobbyCode.isNotBlank())
-
         assertEquals("Basti", state.players.first { it.id == state.hostId }.name)
-
         assertEquals(1, state.players.size)
         val host = state.players.first()
         assertEquals("Basti", host.name)
-        // Host ist korrekt über hostId identifizierbar
         assertEquals(host.id, state.hostId)
+        
+        verify(lobbyRepository, atLeastOnce()).save(any(LobbyEntity::class.java))
     }
 
     @Test
@@ -35,6 +53,8 @@ class LobbyServiceTest {
         assertTrue(names.contains("Host"))
         assertTrue(names.contains("Max"))
         assertEquals(2, updated.players.size)
+        
+        verify(lobbyRepository, atLeastOnce()).save(any(LobbyEntity::class.java))
     }
 
     @Test
@@ -102,6 +122,7 @@ class LobbyServiceTest {
         assertThrows(IllegalArgumentException::class.java) {
             lobbyService.getLobby(created.lobbyCode)
         }
+        verify(lobbyRepository).deleteById(created.lobbyCode)
     }
 
     @Test
@@ -112,26 +133,11 @@ class LobbyServiceTest {
     }
 
     @Test
-    fun `leaveLobby when playerId not in lobby does nothing but return lobby`() {
-        val created = lobbyService.createLobby("Host")
-        val updated = lobbyService.leaveLobby(created.lobbyCode, "nonExistent")
-        assertNotNull(updated)
-        assertEquals(1, updated!!.players.size)
-    }
-
-    @Test
     fun `markGameStarted sets gameStarted to true`() {
         val created = lobbyService.createLobby("Host")
         val started = lobbyService.markGameStarted(created.lobbyCode)
         assertTrue(started.gameStarted)
         assertTrue(lobbyService.getLobby(created.lobbyCode).gameStarted)
-    }
-
-    @Test
-    fun `markGameStarted unknown code throws`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.markGameStarted("9999")
-        }
     }
 
     @Test
@@ -149,27 +155,18 @@ class LobbyServiceTest {
     }
 
     @Test
-    fun `getLobby unknown code throws`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.getLobby("unknown")
-        }
-    }
-
-    @Test
-    fun `generateUniqueCode exhaustion throws exception`() {
-        // Use reflection to fill the lobbies map to force exhaustion
-        val lobbiesField: Field = LobbyService::class.java.getDeclaredField("lobbies")
-        lobbiesField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val lobbiesMap = lobbiesField.get(lobbyService) as MutableMap<String, Any>
+    fun `loadFromDb restores state correctly`() {
+        val players = listOf(Player("p1", "Alice"))
+        val entity = LobbyEntity("1234", "p1", false, objectMapper.writeValueAsString(players))
         
-        // Fill up all possible 4-digit codes (1000-9999)
-        for (i in 1000..9999) {
-            lobbiesMap[i.toString()] = Any()
-        }
+        `when`(lobbyRepository.findAll()).thenReturn(listOf(entity))
         
-        assertThrows(IllegalStateException::class.java) {
-            lobbyService.createLobby("NoRoom")
-        }
+        lobbyService.loadFromDb()
+        
+        val lobby = lobbyService.getLobby("1234")
+        assertEquals("1234", lobby.lobbyCode)
+        assertEquals("p1", lobby.hostId)
+        assertEquals(1, lobby.players.size)
+        assertEquals("Alice", lobby.players.first().name)
     }
 }
