@@ -4,7 +4,7 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.TunnelCard
 
-internal fun TunnelCard.toDrawableName(): String = when (type) {
+fun TunnelCard.toDrawableName(): String = when (type) {
 
     CardType.CART_RED -> "cart_red"
     CardType.CART_GREEN -> "cart_green"
@@ -41,7 +41,24 @@ internal fun TunnelCard.toDrawableName(): String = when (type) {
     }
 }
 
-internal fun TunnelCard.toContentDescription(): String = when (type) {
+// Returns the drawable name for the card's pre-rotation orientation so the
+// same asset is always used. The caller must apply Modifier.rotate(180f) when
+// card.isRotated is true to provide the visual transform.
+fun TunnelCard.toCanonicalDrawableName(): String =
+    if (!isRotated) toDrawableName()
+    else copy(
+        connections = connections.map { dir ->
+            when (dir) {
+                Direction.TOP    -> Direction.BOTTOM
+                Direction.BOTTOM -> Direction.TOP
+                Direction.LEFT   -> Direction.RIGHT
+                Direction.RIGHT  -> Direction.LEFT
+            }
+        }.toSet(),
+        isRotated = false
+    ).toDrawableName()
+
+fun TunnelCard.toContentDescription(): String = when (type) {
     CardType.START -> "Start card"
     CardType.GOAL -> if (isRevealed) "Revealed goal card" else "Hidden goal card"
     CardType.PATH -> "Path card"
