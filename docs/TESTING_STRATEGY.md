@@ -1,35 +1,27 @@
-# Testing Strategy - Phase 2.2
+# Teststrategie Saboteur
 
-## Übersicht
-Die Robustheit des Reconnects und der Synchronisation wird durch eine Kombination aus Unit-Tests, Integration-Tests und manuellen Szenarien abgesichert.
+## 1. Test-Frameworks
+- **JUnit 5**: Standard für alle Tests.
+- **Mockito-Kotlin**: Zwingend erforderlich für Mocking in Kotlin, um NPEs bei Non-Nullable Typen zu vermeiden.
+- **MockMvc**: Für Controller-Tests.
+- **H2**: In-Memory DB für Repository-Tests.
 
-## Test-Kategorien
+## 2. Unit-Tests
+Fokus auf reine Geschäftslogik ohne Spring-Kontext:
+- **TurnManagerTest**: Validierung von Spielzügen, Karten-Anschlussregeln und Siegbedingungen.
+- **LobbyServiceTest**: Testen von Spieler-Management und Cleanup-Logik.
 
-### 1. Reconnect & Snapshot Tests
-- **Szenario**: App-Kill während eines Spielzugs.
-- **Erwartung**: Nach Neustart muss `/reconnect` (REST) die Identität liefern und `REGISTER` (WS) den vollständigen Board-State via `ReconnectSnapshot` wiederherstellen.
-- **Validierung**: `RegisterHandlerTest` prüft die Snapshot-Generierung.
+## 3. WebSocket-Handler Tests
+Jeder `CommandHandler` besitzt einen dedizierten Test, der:
+- Die korrekte Interaktion mit den Services prüft.
+- Den Versand der richtigen `GameEvent`s via `MessagingService` verifiziert.
+- Exception-Handling bei ungültigen Zügen oder falscher PlayerId testet.
 
-### 2. Lobby & Cleanup Tests
-- **Szenario**: Spieler verlässt die App ohne "Leave Lobby" zu drücken.
-- **Erwartung**: Nach 3 Minuten Inaktivität (kein Heartbeat + keine Session) wird die Lobby automatisch gelöscht.
-- **Validierung**: `LobbyServiceCleanupTest` (Mocking von System.currentTimeMillis).
+## 4. Integration-Tests
+- **LobbyControllerTest**: Testet die REST-API und die Initialisierung der Session.
+- **PersistenceRecoveryIntegrationTest**: Stellt sicher, dass das Laden von Spielständen aus der DB nach einem Server-Neustart funktioniert.
 
-### 3. Concurrency & Locking Tests
-- **Szenario**: Zwei Spieler versuchen gleichzeitig Karten zu legen oder zu beitreten.
-- **Erwartung**: Der `LobbyLock` (ReentrantLock) im `MessagingService` erzwingt die sequentielle Abarbeitung.
-- **Validierung**: Multi-threaded Tests im `TurnManager` oder `MessagingService`.
-
-### 4. Guest Identity Persistence
-- **Szenario**: Erster Start der App -> Gast-Login -> App schließen -> Zweiter Start.
-- **Erwartung**: Die `playerId` in den `SharedPreferences` muss identisch bleiben.
-- **Validierung**: `SessionRepositoryTest`.
-
-## Test Matrix (Abdeckung)
-| Feature | Test Klasse | Status |
-| :--- | :--- | :--- |
-| Snapshot Protocol | `RegisterHandlerTest` | ✅ |
-| Lobby Cleanup | `LobbyServiceCleanupTest` | ✅ |
-| Event Buffering | `MessagingServiceBufferTest` | ✅ |
-| Guest Auth | `AuthControllerTest` | ✅ |
-| H2 Persistence | `TurnManagerDbTest` | ✅ |
+## 5. Coverage-Ziele
+- **Core Business Logic**: > 90%
+- **Websocket Handlers**: > 85%
+- **Gesamtprojekt**: > 80%
