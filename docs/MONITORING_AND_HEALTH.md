@@ -2,72 +2,43 @@
 
 Dieses Dokument beschreibt die Implementierung von Spring Boot Actuator zur Überwachung des Saboteur-Backends.
 
-## 1. Übersicht
+## 1. Installation
 
-Der Server nutzt **Spring Boot Actuator**, um Vitalwerte der Anwendung bereitzustellen. Diese Endpoints werden für das Monitoring in Produktion sowie für Health-Checks in Container-Umgebungen (Docker, Kubernetes) verwendet.
+Um die Health-Checks zu nutzen, muss folgende Dependency in der `server/build.gradle.kts` vorhanden sein:
 
-Basispfad: `/actuator/health`
+```kotlin
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+}
+```
 
 ## 2. Verfügbare Endpoints
 
 | Pfad | Beschreibung |
 | :--- | :--- |
 | `/actuator/health` | Gesamtstatus der Anwendung inkl. aller Komponenten. |
-| `/actuator/health/liveness` | Liveness-Probe: Läuft der Prozess noch? |
-| `/actuator/health/readiness` | Readiness-Probe: Ist die App bereit, Traffic zu empfangen? |
-| `/actuator/health/db` | Detailstatus der H2-Datenbankverbindung. |
+| `/actuator/health/liveness` | Liveness-Probe: Läuft der Prozess noch? (Für Docker/K8s restarts) |
+| `/actuator/health/readiness` | Readiness-Probe: Ist die App bereit für Traffic? (DB-Check, etc.) |
+| `/actuator/health/db` | Detailstatus der Datenbankverbindung (H2). |
 | `/actuator/health/gameSystem` | Status des Multiplayer-Systems (Lobbies, Sessions). |
 
 ## 3. GameSystem Health Indicator
 
-Eine maßgeschneiderte Komponente (`GameSystemHealthIndicator`) liefert Echtzeit-Metriken über den aktuellen Spielbetrieb:
+Die Komponente `GameSystemHealthIndicator` liefert Echtzeit-Metriken über den Spielbetrieb:
 
 - **activeLobbies:** Anzahl der aktuell im Speicher/DB befindlichen Lobbies.
 - **connectedWebSockets:** Anzahl der aktuell aktiven WebSocket-Verbindungen.
-- **registeredPlayersInSessions:** Anzahl der Spieler, die einer Session zugeordnet sind.
 
 ### Schwellenwerte
-Falls die Anzahl der aktiven Lobbies einen kritischen Wert überschreitet (aktuell auf > 1000 konfiguriert), wechselt der Status der Komponente auf `Slightly Overloaded`. Dies kann genutzt werden, um Loadbalancer anzuweisen, keine neuen Nutzer auf diesen Server-Knoten zu schicken.
+- **UP:** Normalbetrieb.
+- **Slightly Overloaded:** Wird ausgelöst, wenn mehr als 1000 Lobbies aktiv sind. Dies signalisiert dem Monitoring, dass Ressourcen knapp werden könnten.
 
-## 4. Beispiel-Response (`GET /actuator/health`)
+## 4. Konfiguration (application.properties)
 
-```json
-{
-  "status": "UP",
-  "components": {
-    "db": {
-      "status": "UP",
-      "details": {
-        "database": "H2",
-        "validationQuery": "isValid()"
-      }
-    },
-    "gameSystem": {
-      "status": "UP",
-      "details": {
-        "activeLobbies": 5,
-        "connectedWebSockets": 12,
-        "registeredPlayersInSessions": 12
-      }
-    },
-    "diskSpace": {
-      "status": "UP",
-      "details": {
-        "total": 512123543552,
-        "free": 320512409600,
-        "threshold": 10485760
-      }
-    },
-    "livenessState": { "status": "UP" },
-    "readinessState": { "status": "UP" }
-  }
-}
-```
-
-## 5. Konfiguration (application.properties)
+Die aktuelle Konfiguration ist für Transparenz im Debugging und Stabilität in Clustern optimiert:
 
 ```properties
-# Sichtbarkeit der Details (always, when-authorized, never)
+# Sichtbarkeit der Details (always zeigt volle JSON-Struktur)
 management.endpoint.health.show-details=always
 management.endpoint.health.show-components=always
 
@@ -75,17 +46,18 @@ management.endpoint.health.show-components=always
 management.endpoint.health.probes.enabled=true
 ```
 
-## 6. Verwendung mit Docker / Kubernetes
+## 5. Erweiterung auf PostgreSQL
 
-In der Deployment-Konfiguration können die Probes wie folgt eingebunden werden:
+Sobald das Projekt auf PostgreSQL umgestellt wird, erkennt Actuator dies automatisch über den JDBC-Treiber. Es sind keine Code-Änderungen am Health-System nötig; der `/actuator/health/db` Pfad wird automatisch die PostgreSQL-Konnektivität prüfen.
+
+## 6. Docker Healthcheck Beispiel
+
+In einer `docker-compose.yaml` kann der Status wie folgt abgefragt werden:
 
 ```yaml
-livenessProbe:
-  httpGet:
-    path: /actuator/health/liveness
-    port: 8080
-readinessProbe:
-  httpGet:
-    path: /actuator/health/readiness
-    port: 8080
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
 ```
