@@ -13,18 +13,12 @@ import java.security.MessageDigest
 @CrossOrigin(origins = ["*"])
 class AuthController(private val userRepository: UserRepository) {
 
-    /**
-     * Hilfsfunktion: Hasht einen String mit SHA-256
-     */
     private fun hashPassword(password: String): String {
         return MessageDigest.getInstance("SHA-256")
             .digest(password.toByteArray())
             .joinToString("") { "%02x".format(it) }
     }
 
-    /**
-     * Lazy Login: Loggt den User ein oder registriert ihn automatisch.
-     */
     @PostMapping("/login")
     fun login(@RequestBody loginData: Map<String, String>): ResponseEntity<Any> {
         val username = loginData["username"] ?: ""
@@ -37,15 +31,13 @@ class AuthController(private val userRepository: UserRepository) {
         val hashedPassword = hashPassword(rawPassword)
         var entity = userRepository.findByUsername(username)
 
-        // 1. Fall: User existiert noch gar nicht -> Registrieren (Lazy)
         if (entity == null) {
             val newEntity = userRepository.save(UserEntity(username = username, passwordHash = hashedPassword))
-            return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash))
+            return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash, newEntity.playerId))
         }
 
-        // 2. Fall: User existiert -> Passwort prüfen
         return if (entity.passwordHash == hashedPassword) {
-            ResponseEntity.ok(User(entity.id, entity.username, entity.passwordHash))
+            ResponseEntity.ok(User(entity.id, entity.username, entity.passwordHash, entity.playerId))
         } else {
             ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body("Dieser Nutzername ist bereits vergeben oder das Passwort ist falsch.")
@@ -63,6 +55,6 @@ class AuthController(private val userRepository: UserRepository) {
             passwordHash = hashPassword(sharedUser.passwordHash)
         ))
 
-        return ResponseEntity.ok(User(entity.id, entity.username, entity.passwordHash))
+        return ResponseEntity.ok(User(entity.id, entity.username, entity.passwordHash, entity.playerId))
     }
 }

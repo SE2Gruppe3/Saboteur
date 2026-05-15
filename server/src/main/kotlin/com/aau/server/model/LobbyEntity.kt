@@ -12,7 +12,9 @@ class LobbyEntity(
     @Column(nullable = false)
     var gameStarted: Boolean = false,
     @Column(columnDefinition = "CLOB")
-    var playersJson: String = "" // Serialized List<Player>
+    var playersJson: String = "", // Serialized List<Player>
+    @Column(nullable = false)
+    var lastActivity: Long = System.currentTimeMillis()
 ) {
-    constructor() : this("", "", false, "")
+    constructor() : this("", "", false, "", System.currentTimeMillis())
 }

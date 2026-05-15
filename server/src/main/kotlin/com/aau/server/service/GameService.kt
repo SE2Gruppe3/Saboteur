@@ -26,6 +26,10 @@ class GameService {
     fun getAllPlayerData(lobbyCode: String): Map<String, Player> = 
         lobbyPlayerData[lobbyCode] ?: emptyMap()
 
+    fun removePlayerData(lobbyCode: String) {
+        lobbyPlayerData.remove(lobbyCode)
+    }
+
     fun startGame(players: List<Player>): GameStartResult {
         validatePlayerCount(players.size)
 

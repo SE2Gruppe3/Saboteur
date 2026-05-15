@@ -2,19 +2,9 @@ package com.aau.saboteur.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +21,7 @@ import com.aau.saboteur.ui.components.PlayerTurnOrderRow
 import com.aau.saboteur.ui.components.RoleCardView
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun GameScreen(
@@ -47,10 +38,12 @@ fun GameScreen(
     LaunchedEffect(Unit) {
         viewModel.gameOverEvents.collect { winner -> gameOverWinner = winner }
     }
+    
     val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
     val currentHand = uiState.localPlayerId?.let { uiState.hands?.get(it) }
     val isMyTurn = uiState.localPlayerId != null &&
-            uiState.gameState.currentPlayerId == uiState.localPlayerId
+            uiState.gameState.currentPlayerId == uiState.localPlayerId &&
+            !uiState.isSyncing
 
     var showTurnHint by remember { mutableStateOf(false) }
 
@@ -84,7 +77,7 @@ fun GameScreen(
             }
         )
 
-        // Top: turn order + placement hint
+        // Top Header
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,32 +104,9 @@ fun GameScreen(
                     )
                 }
             }
-
-            if (isMyTurn && sortedPlayers.isNotEmpty()) {
-                val hintText = when {
-                    uiState.selectedCard != null -> "Tippe auf ein Feld zum Platzieren – oder verwirf die Karte unten."
-                    showTurnHint -> stringResource(R.string.your_turn_hint)
-                    else -> null
-                }
-                hintText?.let {
-                    Surface(
-                        color = Color(0xFF6E5524).copy(alpha = 0.9f),
-                        shape = MaterialTheme.shapes.medium,
-                        tonalElevation = 4.dp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-            }
         }
 
-        // Center: waiting text + errors
+        // Error & Hint Overlays
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -144,14 +114,6 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (sortedPlayers.isEmpty()) {
-                Text(
-                    text = if (uiState.isStartingGame) stringResource(R.string.starting_game) else stringResource(R.string.waiting_for_game_state),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
             uiState.errorMessage?.let {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f),
@@ -168,7 +130,7 @@ fun GameScreen(
             }
         }
 
-        // Bottom: role card + optional discard + hand
+        // Bottom Controls
         if (currentHand != null) {
             Column(
                 modifier = Modifier
@@ -187,64 +149,79 @@ fun GameScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 uiState.player?.role?.let { role ->
-                    RoleCardView(
-                        role = role,
-                        compact = true,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
+                    RoleCardView(role = role, compact = true)
                 }
 
                 if (isMyTurn && uiState.selectedCard != null) {
                     Button(
                         onClick = { viewModel.discardSelectedCard() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
-                        Text("Karte verwerfen")
+                        Text("Karte verwerfen", color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
 
                 PlayerHandRow(
                     hand = currentHand,
                     selectedCardId = uiState.selectedCard?.id,
-                    onCardSelected = { card ->
-                        if (isMyTurn) viewModel.selectCard(card)
-                    },
+                    onCardSelected = { if (isMyTurn) viewModel.selectCard(it) },
                     onCardRotated = { card, rotated -> viewModel.onCardRotated(card, rotated) }
                 )
             }
         }
 
+        // GAME OVER OVERLAY
         gameOverWinner?.let { winner ->
-            val resultText = when (winner) {
-                "DWARVES" -> "Zwerge gewinnen! ⛏️"
-                "SABOTEURS" -> "Saboteure gewinnen! 🪓"
-                else -> "Spiel beendet"
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.75f)),
-                contentAlignment = Alignment.Center
+            GameOverDialog(winner = winner, onBackToLobby = onBackToLobby)
+        }
+
+        // SYNC OVERLAY (Reconnect Stabilität)
+        if (uiState.isSyncing) {
+            GameSyncOverlay()
+        }
+    }
+}
+
+@Composable
+private fun GameSyncOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(48.dp),
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    Text(
-                        text = resultText,
-                        style = MaterialTheme.typography.displayMedium,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
-                    Button(onClick = onBackToLobby) {
-                        Text("Zurück zur Lobby")
-                    }
-                }
+                CircularProgressIndicator()
+                Text("Reconnecting...", style = MaterialTheme.typography.headlineSmall)
+                Text("Synchronizing game state with server", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
             }
+        }
+    }
+}
+
+@Composable
+private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
+    val resultText = when (winner) {
+        "DWARVES" -> "Zwerge gewinnen! ⛏️"
+        "SABOTEURS" -> "Saboteure gewinnen! 🪓"
+        else -> "Spiel beendet"
+    }
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = resultText, style = MaterialTheme.typography.displayMedium, color = Color.White)
+            Spacer(modifier = Modifier.height(48.dp))
+            Button(onClick = onBackToLobby) { Text("Zurück zur Lobby") }
         }
     }
 }

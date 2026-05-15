@@ -18,22 +18,21 @@ class LobbyController(
 
     @PostMapping("/create")
     fun createSession(@RequestBody request: LobbyCreateRequest): ResponseEntity<ReconnectResponse> {
-        val lobby = lobbyService.createLobby(request.playerName)
-        val hostId = lobby.hostId
+        val lobby = lobbyService.createLobby(request.playerName, request.playerId)
         return ResponseEntity.ok(ReconnectResponse(
-            myPlayerId = hostId,
+            myPlayerId = lobby.hostId,
             lobbyState = lobby
         ))
     }
 
     @PostMapping("/join")
     fun joinSession(@RequestBody request: LobbyJoinRequest): ResponseEntity<ReconnectResponse> {
-        val lobby = lobbyService.joinLobby(request.lobbyCode, request.playerName)
-        val newPlayerId = lobby.players.last().id
-        return ResponseEntity.ok(ReconnectResponse(
-            myPlayerId = newPlayerId,
-            lobbyState = lobby
-        ))
+        val lobby = lobbyService.joinLobby(request.lobbyCode, request.playerName, request.playerId)
+        
+        // Find the player in the lobby to return their actual ID
+        val finalPlayerId = request.playerId ?: lobby.players.last().id
+        
+        return buildReconnectResponse(finalPlayerId, lobby)
     }
 
     @PostMapping("/reconnect")
@@ -44,21 +43,27 @@ class LobbyController(
             return ResponseEntity.notFound().build()
         }
         
-        val playerInLobby = lobby.players.find { it.id == request.playerId }
-            ?: return ResponseEntity.status(403).build()
+        // Validate player membership
+        if (lobby.players.none { it.id == request.playerId }) {
+            return ResponseEntity.status(403).build()
+        }
 
+        return buildReconnectResponse(request.playerId, lobby)
+    }
+
+    private fun buildReconnectResponse(playerId: String, lobby: LobbyState): ResponseEntity<ReconnectResponse> {
         var gameState: GameState? = null
         var hand: List<TunnelCard> = emptyList()
         var role: Role? = null
 
         if (lobby.gameStarted) {
-            gameState = turnManager.getGameState(request.lobbyCode)
-            hand = turnManager.getHands(request.lobbyCode)[request.playerId] ?: emptyList()
-            role = gameService.getPlayer(request.lobbyCode, request.playerId)?.role
+            gameState = try { turnManager.getGameState(lobby.lobbyCode) } catch (e: Exception) { null }
+            hand = turnManager.getHands(lobby.lobbyCode)[playerId] ?: emptyList()
+            role = gameService.getPlayer(lobby.lobbyCode, playerId)?.role
         }
 
         return ResponseEntity.ok(ReconnectResponse(
-            myPlayerId = request.playerId,
+            myPlayerId = playerId,
             lobbyState = lobby,
             gameState = gameState,
             playerHand = hand,

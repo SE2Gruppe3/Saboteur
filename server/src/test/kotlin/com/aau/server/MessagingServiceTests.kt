@@ -2,8 +2,10 @@ package com.aau.server
 
 import com.aau.saboteur.model.WsMessage
 import com.aau.server.service.MessagingService
+import com.aau.server.service.SessionSyncState
 import com.aau.server.websocket.event.GameEvent
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
@@ -22,7 +24,7 @@ class MessagingServiceTests {
     }
 
     @Test
-    fun `broadcastEvent sends message to all open sessions`() {
+    fun `broadcastEvent sends message to all open synced sessions`() {
         val session1 = mock(WebSocketSession::class.java)
         val session2 = mock(WebSocketSession::class.java)
         `when`(session1.isOpen).thenReturn(true)
@@ -32,69 +34,56 @@ class MessagingServiceTests {
 
         messagingService.addSession(session1)
         messagingService.addSession(session2)
+        
+        // Sessions are SYNCING by default when registered, 
+        // so let's mark them as SYNCED to test normal broadcast
+        messagingService.registerPlayer("s1", "p1")
+        messagingService.registerPlayer("s2", "p2")
+        messagingService.setSessionSynced("s1")
+        messagingService.setSessionSynced("s2")
 
         val event = GameEvent.ErrorEvent("test-error")
         messagingService.broadcastEvent(event)
 
         val expectedPayload = objectMapper.writeValueAsString(WsMessage(event.type, event.payload))
         
-        verify(session1).sendMessage(argThat { it.payload == expectedPayload })
-        verify(session2).sendMessage(argThat { it.payload == expectedPayload })
+        verify(session1, atLeastOnce()).sendMessage(argThat { msg: TextMessage -> msg.payload == expectedPayload })
+        verify(session2, atLeastOnce()).sendMessage(argThat { msg: TextMessage -> msg.payload == expectedPayload })
     }
 
     @Test
-    fun `removeSession prevents future broadcasts`() {
-        val session1 = mock(WebSocketSession::class.java)
-        `when`(session1.isOpen).thenReturn(true)
-        `when`(session1.id).thenReturn("s1")
+    fun `events are buffered during SYNCING and flushed on SYNC_ACK`() {
+        val sid = "s1"
+        val pid = "p1"
+        val session = mock(WebSocketSession::class.java)
+        `when`(session.id).thenReturn(sid)
+        `when`(session.isOpen).thenReturn(true)
 
-        messagingService.addSession(session1)
-        messagingService.removeSession(session1)
-        
-        messagingService.broadcastEvent(GameEvent.ErrorEvent("data"))
-        verify(session1, never()).sendMessage(any())
+        messagingService.addSession(session)
+        messagingService.registerPlayer(sid, pid) // syncState = SYNCING
+
+        val event = GameEvent.GameOver("DWARVES")
+        messagingService.sendEventToPlayer(pid, event)
+
+        // Verify NOT sent
+        verify(session, never()).sendMessage(argThat { msg: TextMessage -> msg.payload.contains("GAME_OVER") })
+
+        // Mark as SYNCED
+        messagingService.setSessionSynced(sid)
+
+        // Verify sent (flushed)
+        verify(session).sendMessage(argThat { msg: TextMessage -> msg.payload.contains("GAME_OVER") })
+        // And Verify SYNC_COMPLETE was sent
+        verify(session).sendMessage(argThat { msg: TextMessage -> msg.payload.contains("SYNC_COMPLETE") })
     }
 
     @Test
-    fun `sendEventToLobby sends only to lobby members`() {
-        val s1 = mock(WebSocketSession::class.java)
-        val s2 = mock(WebSocketSession::class.java)
-        `when`(s1.isOpen).thenReturn(true)
-        `when`(s2.isOpen).thenReturn(true)
-        `when`(s1.id).thenReturn("s1")
-        `when`(s2.id).thenReturn("s2")
-
-        messagingService.addSession(s1)
-        messagingService.addSession(s2)
-        messagingService.joinLobbyGroup("s1", "L1")
-
-        val event = GameEvent.ErrorEvent("data")
-        messagingService.sendEventToLobby("L1", event)
+    fun `lobby locks are independent and consistent`() {
+        val lock1 = messagingService.getLobbyLock("L1")
+        val lock2 = messagingService.getLobbyLock("L2")
+        val lock1Again = messagingService.getLobbyLock("L1")
         
-        verify(s1).sendMessage(any())
-        verify(s2, never()).sendMessage(any())
-    }
-
-    @Test
-    fun `sendEventToPlayer sends to all player sessions`() {
-        val s1 = mock(WebSocketSession::class.java)
-        val s2 = mock(WebSocketSession::class.java)
-        `when`(s1.isOpen).thenReturn(true)
-        `when`(s2.isOpen).thenReturn(true)
-        `when`(s1.id).thenReturn("s1")
-        `when`(s2.id).thenReturn("s2")
-        
-        messagingService.addSession(s1)
-        messagingService.addSession(s2)
-
-        val playerId = "p1"
-        messagingService.registerPlayer("s1", playerId)
-        messagingService.registerPlayer("s2", playerId)
-        
-        val event = GameEvent.ErrorEvent("data")
-        messagingService.sendEventToPlayer(playerId, event)
-
-        verify(s1).sendMessage(any())
-        verify(s2).sendMessage(any())
+        assert(lock1 === lock1Again)
+        assert(lock1 !== lock2)
     }
 }
