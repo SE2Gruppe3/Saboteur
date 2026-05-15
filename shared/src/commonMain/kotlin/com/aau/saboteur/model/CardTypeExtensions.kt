@@ -44,7 +44,8 @@ fun CardType.repairableTools(): Set<ToolType> = when (this) {
     else -> emptySet()
 }
 
-// Returns true if the card type is a playable tunnel/path card.
+// Returns true if the card type is a playable tunnel card.
+// Includes DEAD_END intentionally, because dead-end cards are still valid tunnel placements/removals in game logic.
 fun CardType.isPathCardType(): Boolean = when (this) {
     CardType.PATH,
     CardType.DEAD_END -> true

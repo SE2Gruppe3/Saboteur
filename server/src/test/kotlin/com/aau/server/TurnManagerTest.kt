@@ -1235,6 +1235,59 @@ class TurnManagerTest {
     }
 
     @Test
+    fun `playBlockCard self block throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(blockCard("b1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playBlockCard(p1, "b1", p1)
+        }
+    }
+
+    @Test
+    fun `saboteurs win when deck empty and players play action cards instead of discarding`() {
+        val blockedState = baseState().copy(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1),
+                PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.LANTERN)),
+                PlayerTurn(p3, "Charlie", 3)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(blockCard("b1")),
+                h2 = listOf(repairCard("r1")),
+                h3 = listOf(mapCard("m1")),
+                pile = emptyList()
+            ),
+            blockedState.copy(
+                boardPlacements = listOf(
+                    PlacedTunnelCard(startPosition, startCard),
+                    PlacedTunnelCard(BoardPosition(2, 10), CardDeck.createGoalCards().first())
+                )
+            )
+        )
+
+        val result1 = turnManager.playBlockCard(p1, "b1", p3)
+        assertNull(result1.winner)
+
+        val result2 = turnManager.playRepairCard(p2, "r1", p2, ToolType.LANTERN)
+        assertNull(result2.winner)
+
+        val (result3, _) = turnManager.playMapCard(p3, "m1", BoardPosition(2, 10))
+        assertEquals("SABOTEURS", result3.winner)
+    }
+
+
+
+    @Test
     fun `playRepairCard removes blocked tool and advances turn`() {
         val blockedState = baseState().copy(
             players = listOf(

@@ -36,7 +36,9 @@ class TurnManager {
     private var hands: Map<String, MutableList<TunnelCard>> = emptyMap()
     private var drawPile: MutableList<TunnelCard> = mutableListOf()
 
-    // Guarded by lock
+    // Guarded by lock.
+    // Currently only tracked for observability/tests and possible future features.
+    // In standard Saboteur it is not reshuffled back into the draw pile.
     private var discardPile: MutableList<TunnelCard> = mutableListOf()
 
     // Guarded by lock
@@ -103,6 +105,7 @@ class TurnManager {
 
         playerHand.remove(card)
         drawCardForPlayer(playerId)
+
         // A tunnel card was placed — reset the saboteur pass-counter regardless of deck state.
         passedSinceEmpty = 0
 
@@ -149,7 +152,7 @@ class TurnManager {
         val newState = state.copy(currentPlayerId = nextPlayerId(state))
         gameState.set(newState)
 
-        val winner = if (deckWasEmptied && passedSinceEmpty >= state.players.size) "SABOTEURS" else null
+        val winner = determineWinner(newState)
         TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
@@ -165,6 +168,10 @@ class TurnManager {
 
         require(state.currentPlayerId == playerId) {
             "Du bist nicht am Zug."
+        }
+
+        require(playerId != targetPlayerId) {
+            "Spieler kann sich nicht selbst blockieren."
         }
 
         val playerHand = hands[playerId]
@@ -195,7 +202,10 @@ class TurnManager {
         val newState = updatedState.copy(currentPlayerId = nextPlayerId(updatedState))
         gameState.set(newState)
 
-        TurnResult(newState, hands.mapValues { it.value.toList() })
+        if (deckWasEmptied) passedSinceEmpty++
+        val winner = determineWinner(newState)
+
+        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
     /**
@@ -242,7 +252,10 @@ class TurnManager {
         val newState = updatedState.copy(currentPlayerId = nextPlayerId(updatedState))
         gameState.set(newState)
 
-        TurnResult(newState, hands.mapValues { it.value.toList() })
+        if (deckWasEmptied) passedSinceEmpty++
+        val winner = determineWinner(newState)
+
+        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
     /**
@@ -283,7 +296,14 @@ class TurnManager {
         val newState = state.copy(currentPlayerId = nextPlayerId(state))
         gameState.set(newState)
 
-        val turnResult = TurnResult(newState, hands.mapValues { it.value.toList() })
+        if (deckWasEmptied) passedSinceEmpty++
+        val winner = determineWinner(newState)
+
+        val turnResult = TurnResult(
+            newState,
+            hands.mapValues { it.value.toList() },
+            winner
+        )
         val mapResult = MapResult(
             position = targetPosition,
             card = targetPlacement.card
@@ -332,7 +352,10 @@ class TurnManager {
         val newState = updatedState.copy(currentPlayerId = nextPlayerId(updatedState))
         gameState.set(newState)
 
-        TurnResult(newState, hands.mapValues { it.value.toList() })
+        if (deckWasEmptied) passedSinceEmpty++
+        val winner = determineWinner(newState)
+
+        TurnResult(newState, hands.mapValues { it.value.toList() }, winner)
     }
 
     fun getGameState(): GameState = gameState.get()
@@ -415,6 +438,14 @@ class TurnManager {
         val state = gameState.get()
         val updatedPlacements = state.boardPlacements.filterNot { it.position == targetPosition }
         gameState.set(state.copy(boardPlacements = updatedPlacements))
+    }
+
+    private fun determineWinner(state: GameState): String? {
+        return if (deckWasEmptied && passedSinceEmpty >= state.players.size) {
+            "SABOTEURS"
+        } else {
+            null
+        }
     }
 
     private fun nextPlayerId(state: GameState): String? {
