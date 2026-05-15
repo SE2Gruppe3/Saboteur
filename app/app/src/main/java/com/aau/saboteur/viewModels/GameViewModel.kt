@@ -7,6 +7,7 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.game.GameApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,9 +17,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class GameUiState(
+    val isSyncing: Boolean = false,
     val isStartingGame: Boolean = false,
     val gameState: GameState = GameState(players = emptyList(), currentPlayerId = null),
     val localPlayerId: String? = null,
@@ -43,24 +46,45 @@ class GameViewModel : ViewModel() {
     private var errorClearJob: Job? = null
 
     init {
+        observeSyncStatus()
         observeGameStateUpdates()
         observePlayerUpdates()
         observeCardsDealt()
         observeErrors()
         observeGameOverEvents()
         observeValidPositions()
+        
+        // Initialer Sync-Status
+        if (_uiState.value.gameState.players.isEmpty()) {
+            _uiState.update { it.copy(isSyncing = true) }
+        }
+    }
+
+    private fun observeSyncStatus() {
+        WebSocketManager.onEvent("SYNC_COMPLETE") {
+            _uiState.update { it.copy(isSyncing = false) }
+        }
+        
+        viewModelScope.launch {
+            WebSocketManager.connectionStatus.collect { isConnected ->
+                if (!isConnected) {
+                    _uiState.update { it.copy(isSyncing = true) }
+                }
+            }
+        }
     }
 
     private fun observeGameStateUpdates() {
         viewModelScope.launch {
             GameApi.gameStateUpdates.collect { newState ->
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     gameState = newState,
                     isStartingGame = false,
+                    isSyncing = false, 
                     errorMessage = null,
                     selectedCard = null,
                     selectedCardRotated = false
-                )
+                ) }
                 _validPositions.value = emptyList()
             }
         }
@@ -69,7 +93,7 @@ class GameViewModel : ViewModel() {
     private fun observePlayerUpdates() {
         viewModelScope.launch {
             GameApi.playerUpdates.collect { updatedPlayer ->
-                _uiState.value = _uiState.value.copy(player = updatedPlayer)
+                _uiState.update { it.copy(player = updatedPlayer) }
             }
         }
     }
@@ -77,7 +101,7 @@ class GameViewModel : ViewModel() {
     private fun observeCardsDealt() {
         viewModelScope.launch {
             GameApi.cardsDealtUpdates.collect { hands ->
-                _uiState.value = _uiState.value.copy(hands = hands, cardRotations = emptyMap())
+                _uiState.update { it.copy(hands = hands, cardRotations = emptyMap()) }
             }
         }
     }
@@ -108,33 +132,28 @@ class GameViewModel : ViewModel() {
 
     private fun showError(message: String) {
         errorClearJob?.cancel()
-        _uiState.value = _uiState.value.copy(isStartingGame = false, errorMessage = message)
+        _uiState.update { it.copy(isStartingGame = false, errorMessage = message) }
         errorClearJob = viewModelScope.launch {
             delay(2000)
-            _uiState.value = _uiState.value.copy(errorMessage = null)
+            _uiState.update { it.copy(errorMessage = null) }
         }
     }
 
     fun setLocalPlayerId(playerId: String?) {
-        _uiState.value = _uiState.value.copy(localPlayerId = playerId)
+        _uiState.update { it.copy(localPlayerId = playerId) }
     }
 
-    /**
-     * Toggles selection of [card]. If [card] is already selected, deselects it and clears the
-     * valid-positions highlight. Otherwise selects it and, for PATH/DEAD_END cards, requests a
-     * fresh set of valid positions from the server.
-     */
     fun selectCard(card: TunnelCard) {
+        if (_uiState.value.isSyncing) return
         val current = _uiState.value.selectedCard
         if (current?.id == card.id) {
-            _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
+            _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false) }
             if (card.type == CardType.PATH || card.type == CardType.DEAD_END) {
                 GameApi.clearValidPositions()
             }
         } else {
-            // Preserve any rotation the user already applied before selecting
             val isRotated = _uiState.value.cardRotations[card.id] ?: card.isRotated
-            _uiState.value = _uiState.value.copy(selectedCard = card, selectedCardRotated = isRotated)
+            _uiState.update { it.copy(selectedCard = card, selectedCardRotated = isRotated) }
             if (card.type == CardType.PATH || card.type == CardType.DEAD_END) {
                 GameApi.requestValidPositions(card.id, isRotated)
             } else {
@@ -143,30 +162,24 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Updates the rotation state for [card] and, if it is the currently selected PATH or
-     * DEAD_END card, re-requests valid positions for the new orientation.
-     */
     fun onCardRotated(card: TunnelCard, isRotated: Boolean) {
+        if (_uiState.value.isSyncing) return
         val newRotations = _uiState.value.cardRotations + (card.id to isRotated)
         val newSelectedCardRotated = if (_uiState.value.selectedCard?.id == card.id) isRotated
                                      else _uiState.value.selectedCardRotated
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             cardRotations = newRotations,
             selectedCardRotated = newSelectedCardRotated
-        )
+        ) }
         if (_uiState.value.selectedCard?.id == card.id &&
             (card.type == CardType.PATH || card.type == CardType.DEAD_END)) {
             GameApi.requestValidPositions(card.id, isRotated)
         }
     }
 
-    /**
-     * Handles a tap on a board cell. Places the currently selected card at [position] if it is
-     * the local player's turn and a PATH or DEAD_END card is selected.
-     */
     fun onBoardCellClicked(position: BoardPosition) {
         val state = _uiState.value
+        if (state.isSyncing) return
         val card = state.selectedCard ?: return
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
@@ -179,18 +192,15 @@ class GameViewModel : ViewModel() {
         GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
     }
 
-    /**
-     * Discards the currently selected card for the local player and clears valid positions.
-     * No-op if no card is selected, no player ID is set, or it is not the local player's turn.
-     */
     fun discardSelectedCard() {
         val state = _uiState.value
+        if (state.isSyncing) return
         val card = state.selectedCard ?: return
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
 
         GameApi.discardCard(playerId, card.id)
-        _uiState.value = _uiState.value.copy(selectedCard = null, selectedCardRotated = false)
+        _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false) }
         GameApi.clearValidPositions()
     }
 }

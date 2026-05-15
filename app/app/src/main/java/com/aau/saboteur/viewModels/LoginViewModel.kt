@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.data.repository.AuthRepository
+import com.aau.saboteur.model.User
 import kotlinx.coroutines.launch
 
 class LoginViewModel(private val repository: AuthRepository = AuthRepository()) : ViewModel() {
@@ -14,7 +15,7 @@ class LoginViewModel(private val repository: AuthRepository = AuthRepository()) 
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
-    fun login(username: String, password: String?, onSuccess: () -> Unit) {
+    fun login(username: String, password: String?, onSuccess: (User) -> Unit) {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
@@ -23,10 +24,9 @@ class LoginViewModel(private val repository: AuthRepository = AuthRepository()) 
 
             isLoading = false
 
-            result.onSuccess {
-                onSuccess()
+            result.onSuccess { user ->
+                onSuccess(user)
             }.onFailure {
-                // Hier werden Netzwerkfehler oder falsche Daten abgefangen
                 errorMessage = it.message ?: "Login fehlgeschlagen"
             }
         }
