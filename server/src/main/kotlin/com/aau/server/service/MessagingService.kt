@@ -146,4 +146,7 @@ class MessagingService(private val objectMapper: ObjectMapper) {
     fun getPlayerIdForSession(sid: String) = sessionToPlayer[sid]
     fun getActiveSessionForPlayer(pid: String) = playerToSession[pid]
     fun clearLobbyMappings(code: String) { lobbyToSessions.remove(code); lobbyLocks.remove(code) }
+
+    fun getActiveSessionsCount(): Int = sessionsById.size
+    fun getRegisteredPlayersCount(): Int = playerToSession.size
 }

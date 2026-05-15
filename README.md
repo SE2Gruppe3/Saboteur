@@ -28,5 +28,13 @@ Events sind typisiert und folgen der `GameEvent` Struktur:
 - **Auto-Recovery**: Bei Server-Neustart werden alle Lobbies und Spiele aus der DB rekonstruiert.
 - **Reconnect**: Über den `/api/lobby/reconnect` REST-Endpunkt können Clients ihren vollständigen Zustand (inkl. Handkarten) wiederherstellen.
 
+## Monitoring & Health (Actuator)
+Der Server stellt umfassende Health-Checks bereit:
+- **Basis Health**: `GET /actuator/health` (Gesamtstatus UP/DOWN)
+- **Liveness & Readiness**: `/actuator/health/liveness` und `/actuator/health/readiness` (für Docker/K8s)
+- **Game System Metrics**: `/actuator/health/gameSystem` liefert Details zu aktiven Lobbies und WebSocket-Verbindungen.
+
+Detaillierte Dokumentation dazu findest du in [MONITORING_AND_HEALTH.md](docs/MONITORING_AND_HEALTH.md).
+
 ## Skalierbarkeit
 Die Architektur ist "Stateless-Ready". Durch den Austausch der In-Memory Repositories gegen Redis und die Nutzung von Redis Pub/Sub im `MessagingService` kann das System horizontal skaliert werden.

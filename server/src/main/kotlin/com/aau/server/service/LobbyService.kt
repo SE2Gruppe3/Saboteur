@@ -163,6 +163,8 @@ class LobbyService(
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
     fun getLobby(lobbyCode: String): LobbyState = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
 
+    fun getActiveLobbiesCount(): Int = lobbies.size
+
     private fun generateUniqueCode(): String {
         repeat(50) {
             val code = Random.nextInt(1000, 10000).toString()
