@@ -36,7 +36,6 @@ class WebSocketHandlerTests {
         `when`(session.id).thenReturn("test-session")
     }
 
-    // Helpers for Mockito with Kotlin non-nullable types
     private fun <T> anyK(): T = any() ?: null as T
     private fun <T> eqK(value: T): T = eq(value) ?: value
 
@@ -53,28 +52,47 @@ class WebSocketHandlerTests {
     }
 
     @Test
-    fun `handleTextMessage dispatches command via dispatcher`() {
+    fun `handleTextMessage dispatches command`() {
         val type = "REGISTER"
         val data = mapOf("playerId" to "p1", "lobbyCode" to "1234")
         val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to type, "data" to data)))
 
         handler.handleTextMessage(session, message)
-
         verify(commandDispatcher).dispatch(anyK(), eqK(type), anyK())
     }
 
     @Test
-    fun `handleTextMessage handles dispatcher exception by sending ERROR`() {
+    fun `handleTextMessage returns early if type missing`() {
+        val message = TextMessage("{\"data\": {}}")
+        handler.handleTextMessage(session, message)
+        verify(commandDispatcher, never()).dispatch(anyK(), anyString(), anyK())
+    }
+
+    @Test
+    fun `handleTextMessage uses empty node if data missing`() {
+        val message = TextMessage("{\"type\": \"PING\"}")
+        handler.handleTextMessage(session, message)
+        verify(commandDispatcher).dispatch(anyK(), eqK("PING"), anyK())
+    }
+
+    @Test
+    fun `handleTextMessage sends error on dispatcher failure`() {
         val type = "REGISTER"
         val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to type, "data" to emptyMap<String, String>())))
-
         `when`(commandDispatcher.dispatch(anyK(), anyString(), anyK())).thenThrow(RuntimeException("Dispatch failed"))
 
         handler.handleTextMessage(session, message)
+        verify(session).sendMessage(argThat { it?.payload.toString().contains("ERROR") && it?.payload.toString().contains("Dispatch failed") })
+    }
 
-        verify(session).sendMessage(argThat { msg -> 
-            val payload = msg?.payload?.toString() ?: ""
-            payload.contains("ERROR") && payload.contains("Dispatch failed") 
-        })
+    @Test
+    fun `handleTextMessage handles sending error failures gracefully`() {
+        val message = TextMessage("{\"type\": \"FAIL\"}")
+        `when`(commandDispatcher.dispatch(anyK(), anyString(), anyK())).thenThrow(RuntimeException("Fail"))
+        `when`(session.isOpen).thenReturn(true)
+        `when`(session.sendMessage(anyK())).thenThrow(RuntimeException("Socket Error"))
+
+        // Should not throw
+        handler.handleTextMessage(session, message)
     }
 }
