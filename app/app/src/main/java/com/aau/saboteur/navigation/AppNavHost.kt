@@ -101,7 +101,15 @@ fun AppNavHost(
             }
 
             composable("game") {
-                GameScreen(lobbyViewModel = lobbyViewModel)
+                GameScreen(
+                    lobbyViewModel = lobbyViewModel,
+                    onBackToLobby = {
+                        val username = lobbyViewModel.username.value
+                        navController.navigate("lobby/$username") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }

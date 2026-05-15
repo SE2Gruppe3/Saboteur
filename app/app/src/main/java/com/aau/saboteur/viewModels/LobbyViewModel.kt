@@ -24,6 +24,9 @@ class LobbyViewModel : ViewModel() {
     private val _playerId = MutableStateFlow<String?>(null)
     val playerId: StateFlow<String?> = _playerId.asStateFlow()
 
+    private val _username = MutableStateFlow<String>("Gast")
+    val username: StateFlow<String> = _username.asStateFlow()
+
     init {
         viewModelScope.launch {
             LobbyApi.lobbyStateUpdates.collect { state ->
@@ -62,6 +65,7 @@ class LobbyViewModel : ViewModel() {
     }
 
     fun setCurrentPlayerId(username: String) {
+        _username.value = username
         val currentPlayer = _lobbyState.value?.players?.firstOrNull { it.name == username }
         _playerId.value = currentPlayer?.id
     }
