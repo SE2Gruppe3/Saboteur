@@ -1165,4 +1165,498 @@ class TurnManagerTest {
         val result = turnManager.discardCard(ghost, "cg")
         assertEquals(p1, result.updatedGameState.currentPlayerId)
     }
+    // ── action card handling ───────────────────────────────────────────────────
+
+    private fun blockCard(id: String) = TunnelCard(
+        id = id,
+        type = CardType.LANTERN_RED,
+        connections = emptySet()
+    )
+
+    private fun repairCard(id: String) = TunnelCard(
+        id = id,
+        type = CardType.LANTERN_GREEN,
+        connections = emptySet()
+    )
+
+    private fun mapCard(id: String) = TunnelCard(
+        id = id,
+        type = CardType.MAPCARD,
+        connections = emptySet()
+    )
+
+    private fun rockfallCard(id: String) = TunnelCard(
+        id = id,
+        type = CardType.ROCKFALL,
+        connections = emptySet()
+    )
+
+    @Test
+    fun `playBlockCard blocks target tool and advances turn`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(blockCard("b1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        val result = turnManager.playBlockCard(p1, "b1", p2)
+
+        val updatedPlayer = result.updatedGameState.players.find { it.playerId == p2 }!!
+        assertTrue(ToolType.LANTERN in updatedPlayer.blockedTools)
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+        assertTrue(result.updatedHands[p1]!!.none { it.id == "b1" })
+    }
+
+    @Test
+    fun `playBlockCard already blocked tool throws exception`() {
+        val blockedState = baseState().copy(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1),
+                PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.LANTERN)),
+                PlayerTurn(p3, "Charlie", 3)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(blockCard("b1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            blockedState
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playBlockCard(p1, "b1", p2)
+        }
+    }
+
+    @Test
+    fun `playRepairCard removes blocked tool and advances turn`() {
+        val blockedState = baseState().copy(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1),
+                PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.LANTERN)),
+                PlayerTurn(p3, "Charlie", 3)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(repairCard("r1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            blockedState
+        )
+
+        val result = turnManager.playRepairCard(p1, "r1", p2, ToolType.LANTERN)
+
+        val updatedPlayer = result.updatedGameState.players.find { it.playerId == p2 }!!
+        assertFalse(ToolType.LANTERN in updatedPlayer.blockedTools)
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+        assertTrue(result.updatedHands[p1]!!.none { it.id == "r1" })
+    }
+
+    @Test
+    fun `playRepairCard tool not blocked throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(repairCard("r1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard(p1, "r1", p2, ToolType.LANTERN)
+        }
+    }
+
+    @Test
+    fun `playMapCard stores known goal and returns private result`() {
+        val targetPosition = BoardPosition(2, 10)
+        val targetGoal = CardDeck.createGoalCards().first()
+
+        val stateWithGoal = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(targetPosition, targetGoal)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(mapCard("m1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            stateWithGoal
+        )
+
+        val (turnResult, mapResult) = turnManager.playMapCard(p1, "m1", targetPosition)
+
+        assertEquals(targetPosition, mapResult.position)
+        assertEquals(targetGoal.id, mapResult.card.id)
+        assertEquals(targetGoal.id, turnManager.getKnownGoalsForPlayer(p1)[targetPosition]?.id)
+        assertEquals(p2, turnResult.updatedGameState.currentPlayerId)
+        assertTrue(turnResult.updatedHands[p1]!!.none { it.id == "m1" })
+    }
+
+    @Test
+    fun `playMapCard on non goal card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(mapCard("m1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playMapCard(p1, "m1", startPosition)
+        }
+    }
+
+    @Test
+    fun `playRockfallCard removes path card from board`() {
+        val removablePath = hPathCard("path_remove")
+        val targetPosition = BoardPosition(4, 3)
+        val stateWithPath = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(targetPosition, removablePath)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(rockfallCard("rf1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            stateWithPath
+        )
+
+        val result = turnManager.playRockfallCard(p1, "rf1", targetPosition)
+
+        assertNull(result.updatedGameState.boardPlacements.find { it.position == targetPosition })
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+        assertTrue(result.updatedHands[p1]!!.none { it.id == "rf1" })
+    }
+
+    @Test
+    fun `playRockfallCard on start card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(rockfallCard("rf1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard(p1, "rf1", startPosition)
+        }
+    }
+
+    @Test
+    fun `playCard blocked player throws exception`() {
+        val blockedState = baseState().copy(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1, blockedTools = setOf(ToolType.LANTERN)),
+                PlayerTurn(p2, "Bob", 2),
+                PlayerTurn(p3, "Charlie", 3)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("c1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            blockedState
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(p1, "c1", BoardPosition(3, 2), false)
+        }
+    }
+
+    @Test
+    fun `playBlockCard with non block card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("p1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playBlockCard(p1, "p1", p2)
+        }
+    }
+
+    @Test
+    fun `playBlockCard with unknown target player throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(blockCard("b1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playBlockCard(p1, "b1", "unknown-player")
+        }
+    }
+
+    @Test
+    fun `playRepairCard with non repair card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("p1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard(p1, "p1", p2, ToolType.LANTERN)
+        }
+    }
+
+    @Test
+    fun `playRepairCard with wrong tool for single repair card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(repairCard("r1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState().copy(
+                players = listOf(
+                    PlayerTurn(p1, "Alice", 1),
+                    PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.PICKAXE)),
+                    PlayerTurn(p3, "Charlie", 3)
+                )
+            )
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard(p1, "r1", p2, ToolType.PICKAXE)
+        }
+    }
+
+    @Test
+    fun `playRepairCard with unknown target player throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(repairCard("r1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard(p1, "r1", "unknown-player", ToolType.LANTERN)
+        }
+    }
+
+    @Test
+    fun `playRepairCard double repair card repairs selected valid tool`() {
+        val doubleRepair = TunnelCard(
+            id = "dr1",
+            type = CardType.DOUBLE_LANTERN_CART,
+            connections = emptySet()
+        )
+
+        val blockedState = baseState().copy(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1),
+                PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.LANTERN, ToolType.CART)),
+                PlayerTurn(p3, "Charlie", 3)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(doubleRepair),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            blockedState
+        )
+
+        val result = turnManager.playRepairCard(p1, "dr1", p2, ToolType.CART)
+        val updatedPlayer = result.updatedGameState.players.find { it.playerId == p2 }!!
+
+        assertFalse(ToolType.CART in updatedPlayer.blockedTools)
+        assertTrue(ToolType.LANTERN in updatedPlayer.blockedTools)
+    }
+
+    @Test
+    fun `playRepairCard double repair card rejects invalid selected tool`() {
+        val doubleRepair = TunnelCard(
+            id = "dr1",
+            type = CardType.DOUBLE_LANTERN_CART,
+            connections = emptySet()
+        )
+
+        val blockedState = baseState().copy(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1),
+                PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.PICKAXE)),
+                PlayerTurn(p3, "Charlie", 3)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(doubleRepair),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            blockedState
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard(p1, "dr1", p2, ToolType.PICKAXE)
+        }
+    }
+
+    @Test
+    fun `playMapCard on empty field throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(mapCard("m1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playMapCard(p1, "m1", BoardPosition(0, 0))
+        }
+    }
+
+    @Test
+    fun `playMapCard with non map card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("p1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playMapCard(p1, "p1", startPosition)
+        }
+    }
+
+    @Test
+    fun `playRockfallCard on empty field throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(rockfallCard("rf1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard(p1, "rf1", BoardPosition(0, 0))
+        }
+    }
+
+    @Test
+    fun `playRockfallCard on goal card throws exception`() {
+        val goalPosition = BoardPosition(2, 10)
+        val goalCard = CardDeck.createGoalCards().first()
+
+        val stateWithGoal = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(goalPosition, goalCard)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(rockfallCard("rf1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            stateWithGoal
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard(p1, "rf1", goalPosition)
+        }
+    }
+
+    @Test
+    fun `playRockfallCard with non rockfall card throws exception`() {
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(pathCard("p1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            baseState()
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard(p1, "p1", startPosition)
+        }
+    }
+
+    @Test
+    fun `playMapCard on already revealed goal card still returns consistent result`() {
+        val targetPosition = BoardPosition(2, 10)
+        val revealedGoal = CardDeck.createGoalCards().first().copy(isRevealed = true)
+
+        val stateWithRevealedGoal = baseState().copy(
+            boardPlacements = listOf(
+                PlacedTunnelCard(startPosition, startCard),
+                PlacedTunnelCard(targetPosition, revealedGoal)
+            )
+        )
+
+        turnManager.initializeGame(
+            distribution(
+                h1 = listOf(mapCard("m1")),
+                h2 = listOf(pathCard("c2")),
+                h3 = listOf(pathCard("c3"))
+            ),
+            stateWithRevealedGoal
+        )
+
+        val (turnResult, mapResult) = turnManager.playMapCard(p1, "m1", targetPosition)
+
+        assertEquals(targetPosition, mapResult.position)
+        assertEquals(revealedGoal.id, mapResult.card.id)
+        assertEquals(revealedGoal.id, turnManager.getKnownGoalsForPlayer(p1)[targetPosition]?.id)
+        assertEquals(p2, turnResult.updatedGameState.currentPlayerId)
+        assertTrue(turnResult.updatedHands[p1]!!.none { it.id == "m1" })
+    }
+
+
 }

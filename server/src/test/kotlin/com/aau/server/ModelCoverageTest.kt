@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import com.aau.saboteur.model.BoardPosition
+import com.aau.saboteur.model.MapResult
+import com.aau.saboteur.model.ToolType
 
 class ModelCoverageTest {
 
@@ -62,4 +65,33 @@ class ModelCoverageTest {
         assertEquals("test", u2.username)
         assertEquals("hash", u2.passwordHash)
     }
+
+    @Test
+    fun `exercise ToolType enum`() {
+        assertEquals(ToolType.LANTERN, ToolType.valueOf("LANTERN"))
+        assertEquals(ToolType.PICKAXE, ToolType.valueOf("PICKAXE"))
+        assertEquals(ToolType.CART, ToolType.valueOf("CART"))
+    }
+
+    @Test
+    fun `exercise MapResult data class`() {
+        val card = TunnelCard(
+            id = "goal1",
+            type = CardType.GOAL,
+            connections = emptySet(),
+            isGoal = true,
+            isRevealed = false
+        )
+        val result1 = MapResult(BoardPosition(2, 10), card)
+        val result2 = MapResult(BoardPosition(2, 10), card)
+
+        assertEquals(result1, result2)
+        assertEquals(result1.hashCode(), result2.hashCode())
+        assertNotEquals(result1, Any())
+        assertNotNull(result1.toString())
+
+        assertEquals(BoardPosition(2, 10), result1.position)
+        assertEquals(card, result1.card)
+    }
+
 }

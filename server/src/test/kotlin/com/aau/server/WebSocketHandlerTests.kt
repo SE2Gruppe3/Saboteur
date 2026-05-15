@@ -594,6 +594,156 @@ class WebSocketHandlerTests {
         verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_OVER"), eqK(mapOf("winner" to "SABOTEURS")))
     }
 
+    // ── PLAY_BLOCK_CARD / PLAY_REPAIR_CARD / PLAY_MAP_CARD / PLAY_ROCKFALL_CARD ─────────────
+
+    @Test
+    fun `handleTextMessage PLAY_BLOCK_CARD broadcasts GAME_STATE_UPDATE and CARDS_DEALT`() {
+        val request = PlayBlockCardRequest("1", "card1", "2")
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_BLOCK_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+
+        val newState = GameState(listOf(PlayerTurn("1", "Alice", 1), PlayerTurn("2", "Bob", 2)), "2")
+        val newHands = mapOf<String, List<TunnelCard>>("1" to emptyList(), "2" to listOf(createDummyCard()))
+        val turnResult = TurnResult(newState, newHands)
+
+        `when`(turnManager.playBlockCard(anyString(), anyString(), anyString())).thenReturn(turnResult)
+
+        handler.handleTextMessage(session, message)
+
+        verify(turnManager).playBlockCard(eqK("1"), eqK("card1"), eqK("2"))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_STATE_UPDATE"), eqK(newState))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("CARDS_DEALT"), eqK(newHands))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_REPAIR_CARD broadcasts GAME_STATE_UPDATE and CARDS_DEALT`() {
+        val request = PlayRepairCardRequest("1", "card1", "2", ToolType.LANTERN)
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_REPAIR_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+
+        val newState = GameState(listOf(PlayerTurn("1", "Alice", 1), PlayerTurn("2", "Bob", 2)), "2")
+        val newHands = mapOf<String, List<TunnelCard>>("1" to emptyList(), "2" to listOf(createDummyCard()))
+        val turnResult = TurnResult(newState, newHands)
+
+        `when`(turnManager.playRepairCard(anyString(), anyString(), anyString(), anyK())).thenReturn(turnResult)
+
+        handler.handleTextMessage(session, message)
+
+        verify(turnManager).playRepairCard(eqK("1"), eqK("card1"), eqK("2"), eqK(ToolType.LANTERN))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_STATE_UPDATE"), eqK(newState))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("CARDS_DEALT"), eqK(newHands))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_MAP_CARD broadcasts updates and sends MAP_RESULT privately`() {
+        val request = PlayMapCardRequest("1", "card1", BoardPosition(2, 10))
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_MAP_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+
+        val newState = GameState(listOf(PlayerTurn("1", "Alice", 1), PlayerTurn("2", "Bob", 2)), "2")
+        val newHands = mapOf<String, List<TunnelCard>>("1" to emptyList(), "2" to listOf(createDummyCard()))
+        val turnResult = TurnResult(newState, newHands)
+        val mapResult = MapResult(
+            position = BoardPosition(2, 10),
+            card = TunnelCard("goal1", CardType.GOAL, emptySet(), isGoal = true)
+        )
+
+        `when`(turnManager.playMapCard(anyString(), anyString(), anyK())).thenReturn(Pair(turnResult, mapResult))
+
+        handler.handleTextMessage(session, message)
+
+        verify(turnManager).playMapCard(eqK("1"), eqK("card1"), eqK(BoardPosition(2, 10)))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_STATE_UPDATE"), eqK(newState))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("CARDS_DEALT"), eqK(newHands))
+        verify(messagingService).sendToPlayer(eqK("1"), eqK("MAP_RESULT"), eqK(mapResult))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_ROCKFALL_CARD broadcasts GAME_STATE_UPDATE and CARDS_DEALT`() {
+        val request = PlayRockfallCardRequest("1", "card1", BoardPosition(4, 3))
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_ROCKFALL_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("1")
+
+        val newState = GameState(listOf(PlayerTurn("1", "Alice", 1), PlayerTurn("2", "Bob", 2)), "2")
+        val newHands = mapOf<String, List<TunnelCard>>("1" to emptyList(), "2" to listOf(createDummyCard()))
+        val turnResult = TurnResult(newState, newHands)
+
+        `when`(turnManager.playRockfallCard(anyString(), anyString(), anyK())).thenReturn(turnResult)
+
+        handler.handleTextMessage(session, message)
+
+        verify(turnManager).playRockfallCard(eqK("1"), eqK("card1"), eqK(BoardPosition(4, 3)))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("GAME_STATE_UPDATE"), eqK(newState))
+        verify(messagingService).broadcastToLobby(eqK("1234"), eqK("CARDS_DEALT"), eqK(newHands))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_BLOCK_CARD throws when player ID mismatch`() {
+        val request = PlayBlockCardRequest("1", "card1", "2")
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_BLOCK_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("2")
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Player ID mismatch"))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_REPAIR_CARD throws when session not in lobby`() {
+        val request = PlayRepairCardRequest("1", "card1", "2", ToolType.LANTERN)
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_REPAIR_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn(null)
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Session is not connected to a lobby"))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_MAP_CARD throws when player not registered`() {
+        val request = PlayMapCardRequest("1", "card1", BoardPosition(2, 10))
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_MAP_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn(null)
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Session is not linked to a player"))
+    }
+
+    @Test
+    fun `handleTextMessage PLAY_ROCKFALL_CARD throws when player ID mismatch`() {
+        val request = PlayRockfallCardRequest("1", "card1", BoardPosition(4, 3))
+        val message = TextMessage(objectMapper.writeValueAsString(mapOf("type" to "PLAY_ROCKFALL_CARD", "data" to request)))
+
+        `when`(messagingService.getLobbyCodeForSession(anyString())).thenReturn("1234")
+        `when`(messagingService.getPlayerIdForSession(anyString())).thenReturn("2")
+
+        handler.handleTextMessage(session, message)
+
+        val captor = ArgumentCaptor.forClass(TextMessage::class.java)
+        verify(session).sendMessage(captor.capture())
+        assertTrue(captor.value.payload.contains("Player ID mismatch"))
+    }
+
     // ── LOBBY_LEAVE: last player (null response) ─────────────────────────────
 
     @Test
