@@ -27,9 +27,10 @@ class TurnManagerTest {
     private val p1 = "p1"
     private val p2 = "p2"
     private val p3 = "p3"
-
     private val startPos = BoardPosition(4, 2)
     private val startCard = CardDeck.createStartCard()
+    private val goalPos = BoardPosition(2, 10)
+    private val goalCard = CardDeck.createGoalCards().first().copy(isRevealed = false)
 
     @BeforeEach
     fun setUp() {
@@ -59,12 +60,13 @@ class TurnManagerTest {
     }
 
     private fun pathCard(id: String, conns: Set<Direction> = emptySet()) = TunnelCard(id, CardType.PATH, conns)
-    private fun blockCard(id: String) = TunnelCard(id, CardType.LANTERN_RED, emptySet())
-    private fun repairCard(id: String) = TunnelCard(id, CardType.LANTERN_GREEN, emptySet())
+    private fun blockCard(id: String, type: CardType = CardType.LANTERN_RED) = TunnelCard(id, type, emptySet())
+    private fun repairCard(id: String, type: CardType = CardType.LANTERN_GREEN) = TunnelCard(id, type, emptySet())
+    private fun doubleRepairCard(id: String, type: CardType = CardType.DOUBLE_LANTERN_CART) = TunnelCard(id, type, emptySet())
     private fun mapCard(id: String) = TunnelCard(id, CardType.MAPCARD, emptySet())
     private fun rockfallCard(id: String) = TunnelCard(id, CardType.ROCKFALL, emptySet())
 
-    // --- Standard-Spielverlauf und positive Tests ---
+    // --- Standard game flow and positive tests ---
 
     @Test
     fun `playCard successful placement and draw`() {
@@ -112,7 +114,6 @@ class TurnManagerTest {
 
     @Test
     fun `playMapCard returns goal info and advances turn`() {
-        val targetPos = BoardPosition(2, 10)
         val targetGoal = CardDeck.createGoalCards().first()
         val distribution = CardDistributionResult(
             hands = mapOf(p1 to mutableListOf(mapCard("m1"))),
@@ -120,12 +121,12 @@ class TurnManagerTest {
             goalCards = listOf(targetGoal),
             startCard = startCard
         )
-        val state = GameState(listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)), p1, listOf(PlacedTunnelCard(startPos, startCard), PlacedTunnelCard(targetPos, targetGoal)))
+        val state = GameState(listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)), p1, listOf(PlacedTunnelCard(startPos, startCard), PlacedTunnelCard(goalPos, targetGoal)))
         turnManager.initializeGame("MAP", distribution, state)
 
-        val (_, mapResult) = turnManager.playMapCard("MAP", p1, "m1", targetPos)
+        val (_, mapResult) = turnManager.playMapCard("MAP", p1, "m1", goalPos)
 
-        assertEquals(targetPos, mapResult.position)
+        assertEquals(goalPos, mapResult.position)
         assertEquals(targetGoal.id, mapResult.card.id)
     }
 
@@ -169,7 +170,7 @@ class TurnManagerTest {
         }
     }
 
-    // --- Fehlerfälle, Negativtests, Spezialfälle: ---
+    // --- Error / negative / edge tests ---
 
     @Test
     fun `removeGame does not throw for non-existing game`() {
@@ -196,11 +197,9 @@ class TurnManagerTest {
         }
     }
 
-    // -- Loop- und Grid Coverage: getValidPositions--
-
+    // -- getValidPositions coverage --
     @Test
     fun `getValidPositions returns non-empty for two adjacent cards`() {
-        // Setup mit mindestens 2 platzierten Karten (damit der innere Loop in getValidPositions ausgeführt wird)
         val card1 = TunnelCard("1", CardType.PATH, setOf(Direction.RIGHT))
         val card2 = TunnelCard("2", CardType.PATH, setOf(Direction.LEFT))
         val pos1 = BoardPosition(3, 2)
@@ -219,39 +218,245 @@ class TurnManagerTest {
         assertTrue(result.isEmpty())
     }
 
-
-
     // -- loadFromDb error branch --
     @Test
     fun `loadFromDb logs error on bad entity`() {
-        // Simuliere eine Exception beim Deserialisieren, damit der catch-Block ausgeführt wird
         val badEntity = GameEntity(
             "BAD", "BAD", "invalid", "[]", "[]", "{}", "[]", "{}", false, 0
         )
         whenever(gameRepository.findAll()).thenReturn(listOf(badEntity))
         val freshManager = TurnManager(gameRepository, objectMapper, gameService)
-        // Bei Fehler sollte die games-Map leer bleiben!
         val result = freshManager.loadFromDb()
         assertEquals(0, result)
     }
 
-    // -- drawCardForPlayer leeres Deck (deckWasEmptied coverage) --
+    // -- drawCardForPlayer with empty deck coverage --
     @Test
     fun `drawCardForPlayer sets deckWasEmptied if pile empty`() {
-        // Methoden/Logik über public API triggern: Am einfachsten bei leerem drawPile eine Karte spielen
         val players = listOf(PlayerTurn(p1, "A", 1))
         val distribution = CardDistributionResult(
             hands = mapOf(p1 to mutableListOf(pathCard("drawMe"))),
-            drawPile = mutableListOf(), // leerer Stapel!
+            drawPile = mutableListOf(), // empty pile!
             goalCards = CardDeck.createGoalCards(),
             startCard = startCard
         )
         val initialState = GameState(players, p1, listOf(PlacedTunnelCard(startPos, startCard)))
         turnManager.initializeGame("EMPTY_DRAW", distribution, initialState)
-        val ex = assertThrows<IllegalArgumentException> {
-            // Bei leerem Stapel wird i.d.R. eine Aktion fehlschlagen, ist in Ordnung
+        assertThrows<IllegalArgumentException> {
             turnManager.playCard("EMPTY_DRAW", p1, "drawMe", BoardPosition(4, 3), false)
         }
     }
 
+    // =================== SPECIAL CARD RULE TESTS ===================
+
+    // ------- BLOCK CARDS -------
+
+    @Test
+    fun `block card only works if tool not already blocked`() {
+        val blockedPlayer = PlayerTurn(p2, "B", 2, blockedTools = setOf(ToolType.PICKAXE))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("b1", CardType.PICKAXE_RED, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1), blockedPlayer),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("BLOCK_TOOL", dist, state)
+        assertThrows<IllegalArgumentException> {
+            turnManager.playBlockCard("BLOCK_TOOL", p1, "b1", p2)
+        }
+    }
+
+    // ------- REPAIR CARDS -------
+
+    @Test
+    fun `repair card only works if matching block is present`() {
+        val blockedPlayer = PlayerTurn(p2, "B", 2, blockedTools = setOf(ToolType.CART))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("r1", CardType.CART_GREEN, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1), blockedPlayer),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("REPAIR_CARD", dist, state)
+        val result = turnManager.playRepairCard("REPAIR_CARD", p1, "r1", p2, ToolType.CART)
+        val p2updated = result.updatedGameState.players.find { it.playerId == p2 }!!
+        assertFalse(ToolType.CART in p2updated.blockedTools)
+    }
+
+    @Test
+    fun `repair card throws if nothing to repair`() {
+        val clearPlayer = PlayerTurn(p2, "B", 2, blockedTools = emptySet())
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("r2", CardType.LANTERN_GREEN, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "NOPAIR", dist, GameState(listOf(PlayerTurn(p1, "A", 1), clearPlayer), p1, listOf(PlacedTunnelCard(startPos, startCard)))
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard("NOPAIR", p1, "r2", p2, ToolType.LANTERN)
+        }
+    }
+
+    // ------- DOUBLE REPAIR CARD -------
+
+    @Test
+    fun `double repair card repairs just the chosen tool`() {
+        val blockedPlayer = PlayerTurn(p2, "B", 2, blockedTools = setOf(ToolType.LANTERN, ToolType.CART))
+        val doubleCard = TunnelCard("dr1", CardType.DOUBLE_LANTERN_CART, emptySet())
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(doubleCard)),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "DOUBLE", dist, GameState(listOf(PlayerTurn(p1, "A", 1), blockedPlayer), p1, listOf(PlacedTunnelCard(startPos, startCard)))
+        )
+        // Only one tool is repaired
+        val result = turnManager.playRepairCard("DOUBLE", p1, "dr1", p2, ToolType.LANTERN)
+        val updated = result.updatedGameState.players.find { it.playerId == p2 }!!
+        assertFalse(ToolType.LANTERN in updated.blockedTools)
+        assertTrue(ToolType.CART in updated.blockedTools)
+    }
+
+    @Test
+    fun `double repair card throws if target has neither blocked`() {
+        val clearPlayer = PlayerTurn(p2, "B", 2, blockedTools = setOf(ToolType.PICKAXE))
+        val doubleCard = TunnelCard("dr2", CardType.DOUBLE_LANTERN_CART, emptySet())
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(doubleCard)),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "DRNONE", dist, GameState(listOf(PlayerTurn(p1, "A", 1), clearPlayer), p1, listOf(PlacedTunnelCard(startPos, startCard)))
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard("DRNONE", p1, "dr2", p2, ToolType.LANTERN)
+        }
+    }
+
+    // ------- MAP CARD -------
+
+    @Test
+    fun `map card only allowed on unrevealed goal card`() {
+        val hiddenGoal = CardDeck.createGoalCards().first().copy(isRevealed = false)
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("m1", CardType.MAPCARD, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(goalPos, hiddenGoal), PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("MAPVALID", dist, state)
+        val (_, mapResult) = turnManager.playMapCard("MAPVALID", p1, "m1", goalPos)
+        assertEquals(goalPos, mapResult.position)
+    }
+
+    @Test
+    fun `map card throws if not on unrevealed goal`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("m2", CardType.MAPCARD, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("MAPINVALID", dist, state)
+        assertThrows<IllegalArgumentException> {
+            turnManager.playMapCard("MAPINVALID", p1, "m2", startPos)
+        }
+    }
+
+    // ------- ROCKFALL CARD -------
+
+    @Test
+    fun `rockfall card removes only normal path cards, not start or goal or empty`() {
+        val normalCard = TunnelCard("pathX", CardType.PATH, setOf(Direction.TOP, Direction.LEFT))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("rf1", CardType.ROCKFALL, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val board = listOf(
+            PlacedTunnelCard(BoardPosition(5, 5), normalCard),
+            PlacedTunnelCard(startPos, startCard),
+            PlacedTunnelCard(goalPos, goalCard)
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = board
+        )
+        turnManager.initializeGame("ROCKFAIL", dist, state)
+        val result = turnManager.playRockfallCard("ROCKFAIL", p1, "rf1", BoardPosition(5, 5))
+        assertNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(5, 5) })
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard("ROCKFAIL", p1, "rf1", startPos)
+        }
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard("ROCKFAIL", p1, "rf1", goalPos)
+        }
+    }
+
+    // ------- EDGE CASES -------
+
+    @Test
+    fun `blocked player cannot play path cards`() {
+        val blocked = PlayerTurn(p1, "A", 1, blockedTools = setOf(ToolType.PICKAXE, ToolType.LANTERN, ToolType.CART))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(pathCard("pathTest"))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "BLOCKEDPLAY", dist, GameState(listOf(blocked), p1, listOf(PlacedTunnelCard(startPos, startCard)))
+        )
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard("BLOCKEDPLAY", p1, "pathTest", BoardPosition(4, 3), false)
+        }
+    }
+
+    @Test
+    fun `blocked player can still play action cards`() {
+        val blocked = PlayerTurn(p1, "A", 1, blockedTools = setOf(ToolType.PICKAXE))
+        val dist = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(TunnelCard("b1", CardType.LANTERN_RED, emptySet()))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "BLOCKEDACT", dist,
+            GameState(listOf(blocked), p1, listOf(PlacedTunnelCard(startPos, startCard)))
+        )
+        // Blocked for PICKAXE, but not for LANTERN – so LANTERN block is allowed!
+        turnManager.playBlockCard("BLOCKEDACT", p1, "b1", p1)
+    }
 }

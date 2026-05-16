@@ -101,7 +101,7 @@ class TurnManager(
         synchronized(internal) {
             val state = internal.gameState
             require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-            require(playerId != targetPlayerId) { "Selbstblockade nicht möglich." }
+            // Saboteur: Self-blocking IS allowed, so do NOT block self-targets!
 
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not found")
