@@ -149,11 +149,12 @@ class TurnManagerTest {
     fun `loadFromDb handles recovery`() {
         val players = listOf(PlayerTurn(p1, "Alice", 1))
         val board = listOf(PlacedTunnelCard(startPos, startCard))
-        val entity = GameEntity("OK", p1, objectMapper.writeValueAsString(board), "[]", "[]", 
-            objectMapper.writeValueAsString(mapOf(p1 to listOf(pathCard("h1")))), objectMapper.writeValueAsString(players), "{}", false, 0)
-        
+        val entity = GameEntity("OK", p1, objectMapper.writeValueAsString(board), "[]", "[]",
+            objectMapper.writeValueAsString(mapOf(p1 to listOf(pathCard("h1")))),
+            objectMapper.writeValueAsString(players), "{}", false, 0)
+
         whenever(gameRepository.findAll()).thenReturn(listOf(entity))
-        
+
         val freshManager = TurnManager(gameRepository, objectMapper, gameService)
         assertEquals(1, freshManager.loadFromDb())
         assertNotNull(freshManager.getGameStateSnapshot("OK"))
@@ -165,5 +166,38 @@ class TurnManagerTest {
         assertThrows<IllegalArgumentException> {
             turnManager.getGameStateSnapshot(lobbyCode)
         }
+    }
+
+
+
+    @Test
+    fun `removeGame does not throw for non-existing game`() {
+        turnManager.removeGame("NON_EXISTENT_LOBBY")
+    }
+
+    @Test
+    fun `getGameStateSnapshot throws for non-existing game`() {
+        assertThrows<IllegalArgumentException> {
+            turnManager.getGameStateSnapshot("NON_EXISTENT_LOBBY")
+        }
+    }
+
+    @Test
+    fun `getHands returns emptyMap if lobby not found`() {
+        val result = turnManager.getHands("DOES_NOT_EXIST")
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `getGameState throws for non-existent game`() {
+        assertThrows<IllegalArgumentException> {
+            turnManager.getGameState("NO_GAME")
+        }
+    }
+
+    @Test
+    fun `getValidPositions returns empty if placement list empty`() {
+        val result = turnManager.getValidPositions("NO_GAME", TunnelCard("id", CardType.PATH, setOf(Direction.TOP)), false, emptyList())
+        assertTrue(result.isEmpty())
     }
 }
