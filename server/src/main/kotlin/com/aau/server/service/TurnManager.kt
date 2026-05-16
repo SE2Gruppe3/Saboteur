@@ -69,43 +69,43 @@ class TurnManager(
                 gameService.setPlayerData(entity.lobbyCode, playerRoles)
             } catch (e: Exception) {
                 logger.error("Failed to recover game {}: {}", entity.lobbyCode, e.message, e)
-                println("FAILED to recover game ${entity.lobbyCode}: ${e.message}\n${e.stackTraceToString()}")
             }
         }
         return games.size
     }
 
+    // -- PLAY CARD --
     @Transactional
     fun playCard(lobbyCode: String, playerId: String, cardId: String, position: BoardPosition, isRotated: Boolean): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
         synchronized(internal) {
             val state = internal.gameState
             require(state.currentPlayerId == playerId) { "Not your turn" }
-
             val currentPlayer = state.players.find { it.playerId == playerId }
                 ?: throw IllegalArgumentException("Spieler $playerId nicht gefunden.")
             require(currentPlayer.blockedTools.isEmpty()) { "Geblockte Spieler können keine Tunnelkarten spielen." }
-
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not in hand")
-
             val effectiveCard = if (isRotated) card.rotated180() else card
             require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) { "Invalid placement" }
 
-            playerHand.remove(card)
-            drawCardForPlayer(internal, playerId)
-
-            internal.passedSinceEmpty = 0
-            val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
-            val newPlacements = revealGoalCards(position, effectiveCard, placementsWithCard)
-
-            internal.gameState = state.copy(boardPlacements = newPlacements, currentPlayerId = nextPlayerId(state))
-            persist(lobbyCode)
-
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            try {
+                playerHand.remove(card)
+                drawCardForPlayer(internal, playerId)
+                internal.passedSinceEmpty = 0
+                val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
+                val newPlacements = revealGoalCards(position, effectiveCard, placementsWithCard)
+                internal.gameState = state.copy(boardPlacements = newPlacements, currentPlayerId = nextPlayerId(state))
+                persist(lobbyCode)
+                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            } catch (e: Exception) {
+                games.remove(lobbyCode)
+                throw e
+            }
         }
     }
 
+    // -- PLAY BLOCK CARD --
     @Transactional
     fun playBlockCard(lobbyCode: String, playerId: String, cardId: String, targetPlayerId: String): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
@@ -113,112 +113,120 @@ class TurnManager(
             val state = internal.gameState
             require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
             // Saboteur: Self-blocking IS allowed, so do NOT block self-targets!
-
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not found")
             require(card.type.isBlockCard()) { "Keine Sperrkarte." }
-
             val toolToBlock = card.type.blockedTool() ?: throw IllegalArgumentException("Ungültiges Werkzeug.")
             val targetPlayer = state.players.find { it.playerId == targetPlayerId } ?: throw IllegalArgumentException("Ziel nicht gefunden.")
             require(toolToBlock !in targetPlayer.blockedTools) { "Bereits blockiert." }
 
-            playerHand.remove(card)
-            internal.discardPile.add(card)
-
-            val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools + toolToBlock) else it }
-            internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
-
-            drawCardForPlayer(internal, playerId)
-            if (internal.deckWasEmptied) internal.passedSinceEmpty++
-            persist(lobbyCode)
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            try {
+                playerHand.remove(card)
+                internal.discardPile.add(card)
+                val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools + toolToBlock) else it }
+                internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
+                drawCardForPlayer(internal, playerId)
+                if (internal.deckWasEmptied) internal.passedSinceEmpty = 0
+                persist(lobbyCode)
+                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            } catch (e: Exception) {
+                games.remove(lobbyCode)
+                throw e
+            }
         }
     }
 
+    // -- PLAY REPAIR CARD --
     @Transactional
     fun playRepairCard(lobbyCode: String, playerId: String, cardId: String, targetPlayerId: String, tool: ToolType): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
         synchronized(internal) {
             val state = internal.gameState
             require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not found")
             require(card.type.isRepairCard()) { "Keine Reparaturkarte." }
             require(tool in card.type.repairableTools()) { "Falsches Werkzeug." }
-
             val targetPlayer = state.players.find { it.playerId == targetPlayerId } ?: throw IllegalArgumentException("Ziel nicht gefunden.")
             require(tool in targetPlayer.blockedTools) { "Werkzeug ist nicht blockiert." }
 
-            playerHand.remove(card)
-            internal.discardPile.add(card)
-
-            val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools - tool) else it }
-            internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
-
-            drawCardForPlayer(internal, playerId)
-            if (internal.deckWasEmptied) internal.passedSinceEmpty++
-            persist(lobbyCode)
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            try {
+                playerHand.remove(card)
+                internal.discardPile.add(card)
+                val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools - tool) else it }
+                internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
+                drawCardForPlayer(internal, playerId)
+                if (internal.deckWasEmptied) internal.passedSinceEmpty = 0
+                persist(lobbyCode)
+                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            } catch (e: Exception) {
+                games.remove(lobbyCode)
+                throw e
+            }
         }
     }
 
+    // -- PLAY MAP CARD --
     @Transactional
     fun playMapCard(lobbyCode: String, playerId: String, cardId: String, targetPosition: BoardPosition): Pair<TurnResult, MapResult> {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
         return synchronized(internal) {
             val state = internal.gameState
             require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not found")
             require(card.type.isMapCard()) { "Keine Map-Karte." }
-
             val targetPlacement = state.boardPlacements.find { it.position == targetPosition } ?: throw IllegalArgumentException("Keine Karte an Position.")
             require(targetPlacement.card.type.isGoalCardType()) { "Nur auf Zielkarten möglich." }
 
-            playerHand.remove(card)
-            internal.discardPile.add(card)
-            internal.knownGoalsByPlayer.getOrPut(playerId) { mutableMapOf() }[targetPosition] = targetPlacement.card
-
-            drawCardForPlayer(internal, playerId)
-            internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
-            if (internal.deckWasEmptied) internal.passedSinceEmpty++
-            persist(lobbyCode)
-
-            val res = TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
-            Pair(res, MapResult(targetPosition, targetPlacement.card))
+            try {
+                playerHand.remove(card)
+                internal.discardPile.add(card)
+                internal.knownGoalsByPlayer.getOrPut(playerId) { mutableMapOf() }[targetPosition] = targetPlacement.card
+                drawCardForPlayer(internal, playerId)
+                internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
+                if (internal.deckWasEmptied) internal.passedSinceEmpty = 0
+                persist(lobbyCode)
+                val res = TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                Pair(res, MapResult(targetPosition, targetPlacement.card))
+            } catch (e: Exception) {
+                games.remove(lobbyCode)
+                throw e
+            }
         }
     }
 
+    // -- PLAY ROCKFALL CARD --
     @Transactional
     fun playRockfallCard(lobbyCode: String, playerId: String, cardId: String, targetPosition: BoardPosition): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
         synchronized(internal) {
             val state = internal.gameState
             require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not found")
             require(card.type.isRockfallCard()) { "Kein Felssturz." }
-
             val targetPlacement = state.boardPlacements.find { it.position == targetPosition } ?: throw IllegalArgumentException("Keine Karte an Position.")
             require(targetPlacement.card.type.isPathCardType()) { "Darf nur Tunnelkarten entfernen." }
 
-            playerHand.remove(card)
-            internal.discardPile.add(card)
-            internal.discardPile.add(targetPlacement.card)
-
-            val updatedPlacements = state.boardPlacements.filterNot { it.position == targetPosition }
-            internal.gameState = state.copy(boardPlacements = updatedPlacements, currentPlayerId = nextPlayerId(state))
-
-            drawCardForPlayer(internal, playerId)
-            if (internal.deckWasEmptied) internal.passedSinceEmpty++
-            persist(lobbyCode)
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            try {
+                playerHand.remove(card)
+                internal.discardPile.add(card)
+                internal.discardPile.add(targetPlacement.card)
+                val updatedPlacements = state.boardPlacements.filterNot { it.position == targetPosition }
+                internal.gameState = state.copy(boardPlacements = updatedPlacements, currentPlayerId = nextPlayerId(state))
+                drawCardForPlayer(internal, playerId)
+                if (internal.deckWasEmptied) internal.passedSinceEmpty = 0
+                persist(lobbyCode)
+                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            } catch (e: Exception) {
+                games.remove(lobbyCode)
+                throw e
+            }
         }
     }
 
+    // -- DISCARD CARD --
     @Transactional
     fun discardCard(lobbyCode: String, playerId: String, cardId: String): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
@@ -227,15 +235,18 @@ class TurnManager(
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not found")
 
-            playerHand.remove(card)
-            internal.discardPile.add(card)
-            drawCardForPlayer(internal, playerId)
-
-            if (internal.deckWasEmptied) internal.passedSinceEmpty++
-            internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
-
-            persist(lobbyCode)
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            try {
+                playerHand.remove(card)
+                internal.discardPile.add(card)
+                drawCardForPlayer(internal, playerId)
+                if (internal.deckWasEmptied) internal.passedSinceEmpty++
+                internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
+                persist(lobbyCode)
+                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+            } catch (e: Exception) {
+                games.remove(lobbyCode)
+                throw e
+            }
         }
     }
 

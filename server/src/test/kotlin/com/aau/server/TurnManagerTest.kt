@@ -393,8 +393,9 @@ class TurnManagerTest {
     // ------- ROCKFALL CARD -------
 
     @Test
-    fun `rockfall card removes only normal path cards, not start or goal or empty`() {
-        val normalCard = TunnelCard("pathX", CardType.PATH, setOf(Direction.TOP, Direction.LEFT))
+    fun `rockfall removes path card from board`() {
+        val pathPos = BoardPosition(5, 5)
+        val pathCard = TunnelCard("pathX", CardType.PATH, setOf(Direction.TOP, Direction.LEFT))
         val dist = CardDistributionResult(
             hands = mapOf(p1 to mutableListOf(TunnelCard("rf1", CardType.ROCKFALL, emptySet()))),
             drawPile = mutableListOf(),
@@ -402,7 +403,7 @@ class TurnManagerTest {
             startCard = startCard
         )
         val board = listOf(
-            PlacedTunnelCard(BoardPosition(5, 5), normalCard),
+            PlacedTunnelCard(pathPos, pathCard),
             PlacedTunnelCard(startPos, startCard),
             PlacedTunnelCard(goalPos, goalCard)
         )
@@ -411,14 +412,53 @@ class TurnManagerTest {
             currentPlayerId = p1,
             boardPlacements = board
         )
-        turnManager.initializeGame("ROCKFAIL", dist, state)
-        val result = turnManager.playRockfallCard("ROCKFAIL", p1, "rf1", BoardPosition(5, 5))
-        assertNull(result.updatedGameState.boardPlacements.find { it.position == BoardPosition(5, 5) })
-        assertThrows<IllegalArgumentException> {
-            turnManager.playRockfallCard("ROCKFAIL", p1, "rf1", startPos)
+        turnManager.initializeGame("ROCK_REMOVE", dist, state)
+        val result = turnManager.playRockfallCard("ROCK_REMOVE", p1, "rf1", pathPos)
+        assertNull(result.updatedGameState.boardPlacements.find { it.position == pathPos })
+    }
+
+    @Test
+    fun `rockfall cannot remove start card`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("rfStart", CardType.ROCKFALL, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val board = listOf(
+            PlacedTunnelCard(startPos, startCard)
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = board
+        )
+        turnManager.initializeGame("ROCK_START", dist, state)
+        assertThrows<IllegalArgumentException>("Darf nur Tunnelkarten entfernen.") {
+            turnManager.playRockfallCard("ROCK_START", p1, "rfStart", startPos)
         }
-        assertThrows<IllegalArgumentException> {
-            turnManager.playRockfallCard("ROCKFAIL", p1, "rf1", goalPos)
+    }
+
+    @Test
+    fun `rockfall cannot remove goal card`() {
+        val goalPosCustom = BoardPosition(2, 10)
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(TunnelCard("rfGoal", CardType.ROCKFALL, emptySet()))),
+            drawPile = mutableListOf(),
+            goalCards = listOf(goalCard),
+            startCard = startCard
+        )
+        val board = listOf(
+            PlacedTunnelCard(goalPosCustom, goalCard)
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = board
+        )
+        turnManager.initializeGame("ROCK_GOAL", dist, state)
+        assertThrows<IllegalArgumentException>("Darf nur Tunnelkarten entfernen.") {
+            turnManager.playRockfallCard("ROCK_GOAL", p1, "rfGoal", goalPosCustom)
         }
     }
 

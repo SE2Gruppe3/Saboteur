@@ -184,6 +184,5 @@ class LobbyService(
 
     fun updateActivity(lobbyCode: String) {
         lastActivity[lobbyCode] = System.currentTimeMillis()
-        // Optional: Du kannst hier persist(lobbies[lobbyCode] ?: return) aufrufen, falls du willst!
     }
 }

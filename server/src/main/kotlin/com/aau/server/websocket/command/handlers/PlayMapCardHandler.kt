@@ -38,8 +38,7 @@ class PlayMapCardHandler(
 
             messagingService.sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(turnResult.updatedGameState))
             messagingService.sendEventToLobby(lobbyCode, GameEvent.CardsDealt(turnResult.updatedHands))
-            
-            // Fix: Use sendEventToSession with correct GameEvent type
+
             messagingService.sendEventToSession(session.id, GameEvent.MapResultEvent(mapResult))
         }
     }
