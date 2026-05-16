@@ -29,7 +29,7 @@ class GetValidPositionsHandler(
         val card = hands[sessionPlayerId]?.find { it.id == command.cardId }
             ?: throw IllegalArgumentException("Card ${command.cardId} not found in hand")
 
-        val placements = turnManager.getGameStateSnapshot(lobbyCode).boardPlacements
+        val placements = turnManager.getGameState(lobbyCode).boardPlacements
         val validPositions = turnManager.getValidPositions(lobbyCode, card, command.isRotated, placements)
 
         messagingService.sendEventToSession(session.id, GameEvent.ValidPositions(validPositions))

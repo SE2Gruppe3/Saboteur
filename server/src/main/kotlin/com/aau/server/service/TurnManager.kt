@@ -2,9 +2,7 @@ package com.aau.server.service
 
 import com.aau.saboteur.model.*
 import com.aau.server.game.*
-import com.aau.server.model.CardDistributionResult
-import com.aau.server.model.TurnResult
-import com.aau.server.model.GameEntity
+import com.aau.server.model.*
 import com.aau.server.repository.GameRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -93,8 +91,7 @@ class TurnManager(
             internal.gameState = state.copy(boardPlacements = newPlacements, currentPlayerId = nextPlayerId(state))
             persist(lobbyCode)
             
-            val winner = determineWinner(internal.gameState, internal)
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, winner)
+            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
         }
     }
 
@@ -111,7 +108,6 @@ class TurnManager(
             require(card.type.isBlockCard()) { "Keine Sperrkarte." }
 
             val toolToBlock = card.type.blockedTool() ?: throw IllegalArgumentException("Ungültiges Werkzeug.")
-
             val targetPlayer = state.players.find { it.playerId == targetPlayerId } ?: throw IllegalArgumentException("Ziel nicht gefunden.")
             require(toolToBlock !in targetPlayer.blockedTools) { "Bereits blockiert." }
 
@@ -265,6 +261,8 @@ class TurnManager(
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
         return synchronized(internal) { internal.gameState.copy() }
     }
+    
+    fun getGameState(lobbyCode: String): GameState = getGameStateSnapshot(lobbyCode)
 
     fun getHands(lobbyCode: String): Map<String, List<TunnelCard>> {
         val internal = games[lobbyCode] ?: return emptyMap()
@@ -377,5 +375,9 @@ class TurnManager(
         Direction.BOTTOM -> Direction.TOP
         Direction.LEFT -> Direction.RIGHT
         Direction.RIGHT -> Direction.LEFT
+    }
+
+    fun removeGame(code: String) {
+        games.remove(code)
     }
 }
