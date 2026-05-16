@@ -64,7 +64,7 @@ class LobbyService(
             lastActivity = now
         )
         lobbyRepository.save(entity)
-        
+
         messagingService.sendEventToLobby(lobby.lobbyCode, GameEvent.LobbyStateUpdate(lobby))
         messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllLobbies()))
     }
@@ -77,7 +77,7 @@ class LobbyService(
         val finalPlayerId = playerId ?: UUID.randomUUID().toString()
         val host = Player(id = finalPlayerId, name = playerName)
         val lobby = LobbyState(code, host.id, listOf(host), false)
-        
+
         messagingService.getLobbyLock(code).withLock {
             lobbies[code] = lobby
             persist(lobby)
@@ -89,7 +89,7 @@ class LobbyService(
     fun joinLobby(lobbyCode: String, playerName: String, playerId: String? = null): LobbyState {
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
-            
+
             if (playerId != null && lobby.players.any { it.id == playerId }) {
                 return@withLock lobby
             }
@@ -110,7 +110,7 @@ class LobbyService(
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
             val updatedPlayers = lobby.players.filter { it.id != playerId }
-            
+
             if (updatedPlayers.isEmpty()) {
                 deleteLobbyInternal(lobbyCode, "empty")
                 return@withLock null
@@ -138,7 +138,7 @@ class LobbyService(
     @Transactional
     fun deleteLobbyInternal(code: String, reason: String) {
         logger.info("Cleaning up {} lobby: {}", reason, code)
-        
+
         try {
             messagingService.sendEventToLobby(code, GameEvent.LobbyLeft())
         } catch (e: Exception) { }
@@ -181,5 +181,9 @@ class LobbyService(
             }
         }
     }
-}
 
+    fun updateActivity(lobbyCode: String) {
+        lastActivity[lobbyCode] = System.currentTimeMillis()
+        // Optional: Du kannst hier persist(lobbies[lobbyCode] ?: return) aufrufen, falls du willst!
+    }
+}
