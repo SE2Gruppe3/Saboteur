@@ -61,6 +61,10 @@ class PersistenceRecoveryIntegrationTest {
         // 3. Simulate restart: clear RAM caches
         turnManager.removeGame(code)
 
+        // 4. Recovery: reload state from DB into caches
+        lobbyService.loadFromDb()
+        turnManager.loadFromDb()
+
 
         // 5. Verification, catch for better fail message
         val recoveredState = try {
