@@ -47,8 +47,9 @@ fun AppNavHost(
                     isLoading = loginViewModel.isLoading,
                     errorMessage = loginViewModel.errorMessage,
                     onAuthClick = { username, password, _ ->
-                        loginViewModel.login(username, password) {
-                            navController.navigate("lobby/$username") {
+                        loginViewModel.login(username, password) { user ->
+                            lobbyViewModel.saveIdentity(user.playerId, user.username)
+                            navController.navigate("lobby/${user.username}") {
                                 popUpTo("login") { inclusive = true }
                             }
                         }
@@ -105,7 +106,11 @@ fun AppNavHost(
                     lobbyViewModel = lobbyViewModel,
                     onBackToLobby = {
                         val username = lobbyViewModel.username.value
+                        // WICHTIG: Lobby- und Game-State lokal komplett zurücksetzen
+                        lobbyViewModel.resetLobby()
+                        
                         navController.navigate("lobby/$username") {
+                            // Gesamten Backstack löschen um "Zurück-Springen" ins Spiel zu verhindern
                             popUpTo(0) { inclusive = true }
                         }
                     }

@@ -1,12 +1,9 @@
 package com.aau.server.websocket
 
-import com.aau.saboteur.model.*
-import com.aau.server.service.GameService
-import com.aau.server.service.LobbyService
+import com.aau.saboteur.model.WsMessage
 import com.aau.server.service.MessagingService
-import com.aau.server.service.TurnManager
+import com.aau.server.websocket.command.CommandDispatcher
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.treeToValue
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.CloseStatus
@@ -17,10 +14,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler
 @Component
 class WebSocketHandler(
     private val objectMapper: ObjectMapper,
-    private val gameService: GameService,
     private val messagingService: MessagingService,
-    private val lobbyService: LobbyService,
-    private val turnManager: TurnManager
+    private val commandDispatcher: CommandDispatcher
 ) : TextWebSocketHandler() {
 
     private val logger = LoggerFactory.getLogger(WebSocketHandler::class.java)
@@ -37,255 +32,29 @@ class WebSocketHandler(
         val payload = message.payload
         try {
             val jsonNode = objectMapper.readTree(payload)
-            val type = jsonNode["type"]?.asText()
-            val data = jsonNode["data"]
+            val type = jsonNode["type"]?.asText() ?: return
+            val data = jsonNode["data"] ?: objectMapper.createObjectNode()
 
-            when (type) {
-                "START_GAME" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<CreateGameRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val lobbyState = lobbyService.getLobby(lobbyCode)
-                        val playerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        require(lobbyState.hostId == playerId) {
-                            "Only the host can start the game"
-                        }
-
-                        val result = gameService.startGame(request.players)
-                        turnManager.initializeGame(result.cardDistribution, result.gameState)
-
-                        val startedLobby = lobbyService.markGameStarted(lobbyCode)
-
-                        messagingService.broadcastToLobby(lobbyCode, "LOBBY_STATE_UPDATE", startedLobby)
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.gameState)
-                        result.playerRoles.forEach { (targetPlayerId, player) ->
-                            messagingService.sendToPlayer(targetPlayerId, "PLAYER_DATA", player)
-                        }
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.cardDistribution.hands)
-                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
-                    }
-                }
-                "PLAY_CARD" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<PlayCardRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        // Guard against a client sending another player's ID in the payload.
-                        require(sessionPlayerId == request.playerId) {
-                            "Player ID mismatch: session belongs to $sessionPlayerId"
-                        }
-
-                        val result = turnManager.playCard(
-                            playerId = request.playerId,
-                            cardId = request.cardId,
-                            position = request.position,
-                            isRotated = request.isRotated
-                        )
-
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
-                        if (result.winner != null) {
-                            messagingService.broadcastToLobby(lobbyCode, "GAME_OVER", mapOf("winner" to result.winner))
-                        }
-                    }
-                }
-                "DISCARD_CARD" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<DiscardCardRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        // Guard against a client sending another player's ID in the payload.
-                        require(sessionPlayerId == request.playerId) {
-                            "Player ID mismatch: session belongs to $sessionPlayerId"
-                        }
-
-                        val result = turnManager.discardCard(
-                            playerId = request.playerId,
-                            cardId = request.cardId
-                        )
-
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
-                        if (result.winner != null) {
-                            messagingService.broadcastToLobby(lobbyCode, "GAME_OVER", mapOf("winner" to result.winner))
-                        }
-                    }
-                }
-                "PLAY_BLOCK_CARD" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<PlayBlockCardRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        // Guard against a client sending another player's ID in the payload.
-                        require(sessionPlayerId == request.playerId) {
-                            "Player ID mismatch: session belongs to $sessionPlayerId"
-                        }
-
-                        val result = turnManager.playBlockCard(
-                            playerId = request.playerId,
-                            cardId = request.cardId,
-                            targetPlayerId = request.targetPlayerId
-                        )
-
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
-                    }
-                }
-                "PLAY_REPAIR_CARD" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<PlayRepairCardRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        // Guard against a client sending another player's ID in the payload.
-                        require(sessionPlayerId == request.playerId) {
-                            "Player ID mismatch: session belongs to $sessionPlayerId"
-                        }
-
-                        val result = turnManager.playRepairCard(
-                            playerId = request.playerId,
-                            cardId = request.cardId,
-                            targetPlayerId = request.targetPlayerId,
-                            tool = request.tool
-                        )
-
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
-                    }
-                }
-                "PLAY_MAP_CARD" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<PlayMapCardRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        // Guard against a client sending another player's ID in the payload.
-                        require(sessionPlayerId == request.playerId) {
-                            "Player ID mismatch: session belongs to $sessionPlayerId"
-                        }
-
-                        val (turnResult, mapResult) = turnManager.playMapCard(
-                            playerId = request.playerId,
-                            cardId = request.cardId,
-                            targetPosition = request.targetPosition
-                        )
-
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", turnResult.updatedGameState)
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", turnResult.updatedHands)
-                        messagingService.sendToPlayer(request.playerId, "MAP_RESULT", mapResult)
-                    }
-                }
-                "PLAY_ROCKFALL_CARD" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<PlayRockfallCardRequest>(data)
-                        val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not connected to a lobby")
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        // Guard against a client sending another player's ID in the payload.
-                        require(sessionPlayerId == request.playerId) {
-                            "Player ID mismatch: session belongs to $sessionPlayerId"
-                        }
-
-                        val result = turnManager.playRockfallCard(
-                            playerId = request.playerId,
-                            cardId = request.cardId,
-                            targetPosition = request.targetPosition
-                        )
-
-                        messagingService.broadcastToLobby(lobbyCode, "GAME_STATE_UPDATE", result.updatedGameState)
-                        messagingService.broadcastToLobby(lobbyCode, "CARDS_DEALT", result.updatedHands)
-                    }
-                }
-                "LOBBY_CREATE" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<LobbyCreateRequest>(data)
-                        val lobbyState = lobbyService.createLobby(request.playerName)
-                        messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
-                        messagingService.registerPlayer(session.id, lobbyState.players.first().id)
-                        messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
-                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
-                    }
-                }
-                "LOBBY_JOIN" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<LobbyJoinRequest>(data)
-                        val lobbyState = lobbyService.joinLobby(request.lobbyCode, request.playerName)
-                        val joinedPlayer = lobbyState.players.last()
-                        messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
-                        messagingService.registerPlayer(session.id, joinedPlayer.id)
-                        messagingService.broadcastToLobby(lobbyState.lobbyCode, "LOBBY_STATE_UPDATE", lobbyState)
-                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
-                    }
-                }
-                "LOBBY_LEAVE" -> {
-                    if (data != null) {
-                        val request = objectMapper.treeToValue<LobbyLeaveRequest>(data)
-                        val updatedLobby = lobbyService.leaveLobby(request.lobbyCode, request.playerId)
-
-                        messagingService.leaveLobbyGroup(session.id, request.lobbyCode)
-                        messagingService.sendToSession(session.id, "LOBBY_LEFT", "")
-
-                        if (updatedLobby != null) {
-                            messagingService.broadcastToLobby(request.lobbyCode, "LOBBY_STATE_UPDATE", updatedLobby)
-                        }
-                        messagingService.broadcast("LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
-                    }
-                }
-                "GET_VALID_POSITIONS" -> {
-                    if (data != null) {
-                        val cardId = data["cardId"]?.asText()
-                            ?: throw IllegalArgumentException("Missing cardId")
-                        val isRotated = data["isRotated"]?.asBoolean() ?: false
-                        val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                            ?: throw IllegalArgumentException("Session is not linked to a player")
-
-                        val card = turnManager.getHands()[sessionPlayerId]?.find { it.id == cardId }
-                            ?: throw IllegalArgumentException("Card $cardId not found in player's hand")
-
-                        val placements = turnManager.getGameState().boardPlacements
-                        val validPositions = turnManager.getValidPositions(card, isRotated, placements)
-
-                        messagingService.sendToSession(
-                            session.id,
-                            "VALID_POSITIONS",
-                            mapOf("positions" to validPositions)
-                        )
-                    }
-                }
-                "LOBBY_LIST_FETCH" -> {
-                    messagingService.sendToSession(session.id, "LOBBY_LIST_UPDATE", lobbyService.getAllLobbies())
-                }
-            }
+            commandDispatcher.dispatch(session, type, data)
+            
         } catch (e: Exception) {
             logger.error("Error handling text message: {}", e.message)
-            try {
+            sendErrorMessage(session, e.message ?: "Unknown error")
+        }
+    }
+
+    private fun sendErrorMessage(session: WebSocketSession, message: String) {
+        try {
+            if (session.isOpen) {
                 val errorMsg = TextMessage(
                     objectMapper.writeValueAsString(
-                        WsMessage("ERROR", e.message ?: "Unknown error")
+                        WsMessage("ERROR", message)
                     )
                 )
                 session.sendMessage(errorMsg)
-            } catch (ex: Exception) {
-                logger.error("Error sending error message: {}", ex.message)
             }
+        } catch (ex: Exception) {
+            logger.error("Error sending error message: {}", ex.message)
         }
     }
 }

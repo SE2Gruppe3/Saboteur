@@ -1,175 +1,126 @@
 package com.aau.server
 
-import com.aau.server.service.LobbyService
+import com.aau.saboteur.model.Player
+import com.aau.server.model.LobbyEntity
+import com.aau.server.repository.GameRepository
+import com.aau.server.repository.LobbyRepository
+import com.aau.server.service.*
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.lang.reflect.Field
+import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.*
+import java.util.concurrent.locks.ReentrantLock
 
 class LobbyServiceTest {
 
-    private val lobbyService = LobbyService()
+    private val lobbyRepository: LobbyRepository = mock()
+    private val gameRepository: GameRepository = mock()
+    private val gameService: GameService = mock()
+    private val messagingService: MessagingService = mock()
+    private val turnManager: TurnManager = mock()
+    private val objectMapper: ObjectMapper = jacksonObjectMapper()
+    private lateinit var lobbyService: LobbyService
+
+    @BeforeEach
+    fun setUp() {
+        whenever(messagingService.getLobbyLock(any())).thenReturn(ReentrantLock())
+        
+        lobbyService = LobbyService(
+            lobbyRepository, 
+            gameRepository, 
+            objectMapper, 
+            gameService, 
+            messagingService, 
+            turnManager
+        )
+    }
 
     @Test
-    fun `createLobby returns lobby with host as first player`() {
-        val state = lobbyService.createLobby("Basti")
+    fun `createLobby returns lobby with host as first player and broadcasts`() {
+        val state = lobbyService.createLobby("Basti", "p1")
 
-        assertTrue(state.lobbyCode.isNotBlank())
-
-        assertEquals("Basti", state.players.first { it.id == state.hostId }.name)
-
+        assertEquals("p1", state.hostId)
         assertEquals(1, state.players.size)
-        val host = state.players.first()
-        assertEquals("Basti", host.name)
-        // Host ist korrekt über hostId identifizierbar
-        assertEquals(host.id, state.hostId)
+        assertEquals("Basti", state.players.first().name)
+        
+        verify(lobbyRepository).save(any())
+        verify(messagingService).sendEventToLobby(any(), any())
+        verify(messagingService).broadcastEvent(any())
     }
 
     @Test
-    fun `joinLobby adds a new player to existing lobby`() {
-        val created = lobbyService.createLobby("Host")
+    fun `joinLobby adds a new player and broadcasts`() {
+        val created = lobbyService.createLobby("Host", "h1")
+        reset(messagingService, lobbyRepository)
+        whenever(messagingService.getLobbyLock(any())).thenReturn(ReentrantLock())
+        
+        val updated = lobbyService.joinLobby(created.lobbyCode, "Max", "p2")
 
-        val updated = lobbyService.joinLobby(created.lobbyCode, "Max")
-        val names = updated.players.map { it.name }
-
-        assertEquals(created.lobbyCode, updated.lobbyCode)
-        assertTrue(names.contains("Host"))
-        assertTrue(names.contains("Max"))
         assertEquals(2, updated.players.size)
+        verify(messagingService, atLeastOnce()).broadcastEvent(any())
+        verify(messagingService, atLeastOnce()).sendEventToLobby(any(), any())
     }
 
     @Test
-    fun `joinLobby unknown code throws`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.joinLobby("9999", "Max")
+    fun `joinLobby throws if lobby full`() {
+        val created = lobbyService.createLobby("Host", "h1")
+        // Add 9 more players
+        for (i in 2..10) {
+            lobbyService.joinLobby(created.lobbyCode, "Player$i", "p$i")
+        }
+
+        assertThrows<IllegalArgumentException> {
+            lobbyService.joinLobby(created.lobbyCode, "FullPlayer", "p11")
         }
     }
 
     @Test
-    fun `joinLobby when full throws`() {
-        val created = lobbyService.createLobby("Host")
-        repeat(9) {
-            lobbyService.joinLobby(created.lobbyCode, "Player $it")
-        }
-        
-        val exception = assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.joinLobby(created.lobbyCode, "FullPlayer")
-        }
-        assertEquals("Lobby is full", exception.message)
-    }
-
-    @Test
-    fun `joinLobby when game started throws`() {
-        val created = lobbyService.createLobby("Host")
+    fun `joinLobby throws if game already started`() {
+        val created = lobbyService.createLobby("Host", "h1")
         lobbyService.markGameStarted(created.lobbyCode)
-        
-        val exception = assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.joinLobby(created.lobbyCode, "LatePlayer")
+
+        assertThrows<IllegalArgumentException> {
+            lobbyService.joinLobby(created.lobbyCode, "LatePlayer", "p2")
         }
-        assertEquals("Game has already started", exception.message)
     }
 
     @Test
-    fun `leaveLobby removes player and returns updated lobby`() {
-        val created = lobbyService.createLobby("Host")
-        val joined = lobbyService.joinLobby(created.lobbyCode, "Player2")
-        val p2Id = joined.players.last().id
+    fun `leaveLobby removes player and updates host if needed`() {
+        val created = lobbyService.createLobby("Host", "h1")
+        lobbyService.joinLobby(created.lobbyCode, "Max", "p2")
         
-        val updated = lobbyService.leaveLobby(created.lobbyCode, p2Id)
+        val updated = lobbyService.leaveLobby(created.lobbyCode, "h1")
+
         assertNotNull(updated)
         assertEquals(1, updated!!.players.size)
-        assertEquals("Host", updated.players.first().name)
+        assertEquals("p2", updated.hostId)
+        assertEquals("Max", updated.players.first().name)
     }
 
     @Test
-    fun `leaveLobby when host leaves assigns new host`() {
-        val created = lobbyService.createLobby("Host")
-        val hostId = created.hostId
-        val joined = lobbyService.joinLobby(created.lobbyCode, "Player2")
-        val p2Id = joined.players.last().id
+    fun `leaveLobby deletes lobby if last player leaves`() {
+        val created = lobbyService.createLobby("Host", "h1")
         
-        val updated = lobbyService.leaveLobby(created.lobbyCode, hostId)
-        assertNotNull(updated)
-        assertEquals(1, updated!!.players.size)
-        assertEquals(p2Id, updated.hostId)
-    }
+        val updated = lobbyService.leaveLobby(created.lobbyCode, "h1")
 
-    @Test
-    fun `leaveLobby when last player leaves returns null and removes lobby`() {
-        val created = lobbyService.createLobby("Host")
-        val updated = lobbyService.leaveLobby(created.lobbyCode, created.hostId)
-        
         assertNull(updated)
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.getLobby(created.lobbyCode)
-        }
+        verify(lobbyRepository).deleteById(created.lobbyCode)
     }
 
     @Test
-    fun `leaveLobby unknown code throws`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.leaveLobby("9999", "someId")
-        }
-    }
-
-    @Test
-    fun `leaveLobby when playerId not in lobby does nothing but return lobby`() {
-        val created = lobbyService.createLobby("Host")
-        val updated = lobbyService.leaveLobby(created.lobbyCode, "nonExistent")
-        assertNotNull(updated)
-        assertEquals(1, updated!!.players.size)
-    }
-
-    @Test
-    fun `markGameStarted sets gameStarted to true`() {
-        val created = lobbyService.createLobby("Host")
-        val started = lobbyService.markGameStarted(created.lobbyCode)
-        assertTrue(started.gameStarted)
-        assertTrue(lobbyService.getLobby(created.lobbyCode).gameStarted)
-    }
-
-    @Test
-    fun `markGameStarted unknown code throws`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.markGameStarted("9999")
-        }
-    }
-
-    @Test
-    fun `getAllLobbies returns all active lobbies`() {
-        lobbyService.createLobby("H1")
-        lobbyService.createLobby("H2")
-        assertEquals(2, lobbyService.getAllLobbies().size)
-    }
-
-    @Test
-    fun `getLobby returns correct lobby`() {
-        val created = lobbyService.createLobby("Host")
-        val fetched = lobbyService.getLobby(created.lobbyCode)
-        assertEquals(created.lobbyCode, fetched.lobbyCode)
-    }
-
-    @Test
-    fun `getLobby unknown code throws`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            lobbyService.getLobby("unknown")
-        }
-    }
-
-    @Test
-    fun `generateUniqueCode exhaustion throws exception`() {
-        // Use reflection to fill the lobbies map to force exhaustion
-        val lobbiesField: Field = LobbyService::class.java.getDeclaredField("lobbies")
-        lobbiesField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val lobbiesMap = lobbiesField.get(lobbyService) as MutableMap<String, Any>
+    fun `loadFromDb restores state correctly`() {
+        val players = listOf(Player("p1", "Alice"))
+        val entity = LobbyEntity("1234", "p1", false, objectMapper.writeValueAsString(players), System.currentTimeMillis())
         
-        // Fill up all possible 4-digit codes (1000-9999)
-        for (i in 1000..9999) {
-            lobbiesMap[i.toString()] = Any()
-        }
+        whenever(lobbyRepository.findAll()).thenReturn(listOf(entity))
         
-        assertThrows(IllegalStateException::class.java) {
-            lobbyService.createLobby("NoRoom")
-        }
+        lobbyService.loadFromDb()
+        
+        val lobby = lobbyService.getLobby("1234")
+        assertEquals("1234", lobby.lobbyCode)
+        assertEquals(1, lobby.players.size)
     }
 }

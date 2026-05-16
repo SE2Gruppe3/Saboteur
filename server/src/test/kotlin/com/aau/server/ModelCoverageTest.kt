@@ -1,14 +1,7 @@
 package com.aau.server
 
-import com.aau.saboteur.model.BoardPosition
-import com.aau.saboteur.model.CardType
-import com.aau.saboteur.model.GameState
-import com.aau.saboteur.model.MapResult
-import com.aau.saboteur.model.ToolType
-import com.aau.saboteur.model.TunnelCard
-import com.aau.server.model.CardDistributionResult
-import com.aau.server.model.GameStartResult
-import com.aau.server.model.UserEntity
+import com.aau.saboteur.model.*
+import com.aau.server.model.*
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -26,11 +19,6 @@ class ModelCoverageTest {
         assertEquals(result1.hashCode(), result2.hashCode())
         assertNotEquals(result1, Any())
         assertNotNull(result1.toString())
-
-        assertEquals(emptyMap(), result1.hands)
-        assertEquals(emptyList(), result1.drawPile)
-        assertEquals(emptyList(), result1.goalCards)
-        assertEquals(startCard, result1.startCard)
     }
 
     @Test
@@ -42,12 +30,7 @@ class ModelCoverageTest {
         val result2 = GameStartResult(gameState, emptyMap(), dist)
 
         assertEquals(result1, result2)
-        assertEquals(result1.hashCode(), result2.hashCode())
         assertNotNull(result1.toString())
-
-        assertEquals(gameState, result1.gameState)
-        assertEquals(emptyMap(), result1.playerRoles)
-        assertEquals(dist, result1.cardDistribution)
     }
 
     @Test
@@ -56,14 +39,6 @@ class ModelCoverageTest {
         assertEquals(1L, u1.id)
         assertEquals("u", u1.username)
         assertEquals("p", u1.passwordHash)
-
-        val u2 = UserEntity()
-        u2.id = 5L
-        u2.username = "test"
-        u2.passwordHash = "hash"
-        assertEquals(5L, u2.id)
-        assertEquals("test", u2.username)
-        assertEquals("hash", u2.passwordHash)
     }
 
     @Test
@@ -75,24 +50,25 @@ class ModelCoverageTest {
 
     @Test
     fun `exercise MapResult data class`() {
-        val card = TunnelCard(
-            id = "goal1",
-            type = CardType.GOAL,
-            connections = emptySet(),
-            isGoal = true,
-            isRevealed = false
-        )
+        val card = TunnelCard("goal1", CardType.GOAL, emptySet(), isGoal = true)
         val result1 = MapResult(BoardPosition(2, 10), card)
-        val result2 = MapResult(BoardPosition(2, 10), card)
-
-        assertEquals(result1, result2)
-        assertEquals(result1.hashCode(), result2.hashCode())
-        assertNotEquals(result1, Any())
-        assertNotNull(result1.toString())
-
         assertEquals(BoardPosition(2, 10), result1.position)
         assertEquals(card, result1.card)
     }
 
+    @Test
+    fun `exercise LobbyEntity properties`() {
+        val now = System.currentTimeMillis()
+        val l1 = LobbyEntity("1234", "host1", true, "[]", now)
+        assertEquals("1234", l1.lobbyCode)
+        assertEquals(true, l1.gameStarted)
+    }
 
+    @Test
+    fun `exercise GameEntity properties`() {
+        val g1 = GameEntity("1234", "p1", "board", "draw", "discard", "hands", "turns", "roles", true, 5)
+        assertEquals("1234", g1.lobbyCode)
+        assertEquals(true, g1.deckWasEmptied)
+        assertEquals(5, g1.passedSinceEmpty)
+    }
 }

@@ -41,6 +41,7 @@ fun ActiveLobbyScreen(
     val lobbyState by viewModel.lobbyState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val playerId by viewModel.playerId.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
 
     val currentState = lobbyState
     val players = currentState?.players.orEmpty()
@@ -49,58 +50,89 @@ fun ActiveLobbyScreen(
 
     HandleActiveLobbyEffects(
         currentState = currentState,
+        playerId = playerId,
         username = username,
         onStartGame = onStartGame,
         onLeaveLobby = onLeaveLobby,
-        setCurrentPlayerId = viewModel::setCurrentPlayerId
+        setUsername = viewModel::setUsername
     )
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Text(
-                    text = "Game Lobby",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.ExtraBold
-                    ),
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                IconButton(onClick = viewModel::leaveLobby) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = "Leave Lobby",
-                        tint = MaterialTheme.colorScheme.error
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Game Lobby",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.ExtraBold
+                        ),
+                        color = MaterialTheme.colorScheme.primary
                     )
+
+                    IconButton(onClick = viewModel::leaveLobby) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Leave Lobby",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
+
+                ActiveLobbyHeader(username = username)
+
+                currentState?.let { state ->
+                    ActiveLobbyContent(
+                        state = state,
+                        players = players,
+                        errorMessage = errorMessage,
+                        playerCountError = playerCountError,
+                        isHost = isHost,
+                        onStartGameClick = viewModel::startGame,
+                        modifier = Modifier.weight(1f)
+                    )
+                } ?: NoActiveLobbyMessage()
             }
 
-            ActiveLobbyHeader(username = username)
+            if (isSyncing) {
+                SyncOverlay()
+            }
+        }
+    }
+}
 
-            currentState?.let { state ->
-                ActiveLobbyContent(
-                    state = state,
-                    players = players,
-                    errorMessage = errorMessage,
-                    playerCountError = playerCountError,
-                    isHost = isHost,
-                    onStartGameClick = viewModel::startGame,
-                    modifier = Modifier.weight(1f)
-                )
-            } ?: NoActiveLobbyMessage()
+@Composable
+private fun SyncOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator()
+                Text("Synchronizing State...", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
@@ -108,22 +140,31 @@ fun ActiveLobbyScreen(
 @Composable
 private fun HandleActiveLobbyEffects(
     currentState: LobbyState?,
+    playerId: String?,
     username: String,
     onStartGame: () -> Unit,
     onLeaveLobby: () -> Unit,
-    setCurrentPlayerId: (String) -> Unit
+    setUsername: (String) -> Unit
 ) {
     LaunchedEffect(currentState) {
         if (currentState == null) {
             onLeaveLobby()
         } else {
-            setCurrentPlayerId(username)
+            setUsername(username)
         }
     }
 
-    LaunchedEffect(currentState?.gameStarted) {
-        if (currentState?.gameStarted == true) {
-            onStartGame()
+    LaunchedEffect(currentState?.gameStarted, currentState?.players, playerId) {
+        val state = currentState ?: return@LaunchedEffect
+        val pid = playerId ?: return@LaunchedEffect
+        
+        // EDGE CASE FIX: Nur navigieren, wenn das Spiel gestartet ist UND wir Teil der Spielerliste sind.
+        // Das verhindert, dass "Geister-Sessions" oder neue Logins in alte laufende Spiele springen.
+        if (state.gameStarted) {
+            val isParticipant = state.players.any { it.id == pid }
+            if (isParticipant) {
+                onStartGame()
+            }
         }
     }
 }
