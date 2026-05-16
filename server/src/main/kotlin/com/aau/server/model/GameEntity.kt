@@ -7,29 +7,32 @@ import jakarta.persistence.*
 class GameEntity(
     @Id
     var lobbyCode: String = "",
-    
+
     var currentPlayerId: String? = null,
-    
+
     @Column(columnDefinition = "CLOB")
-    var boardJson: String = "", // List<PlacedTunnelCard>
-    
+    var boardJson: String = "",
+
     @Column(columnDefinition = "CLOB")
-    var drawPileJson: String = "", // List<TunnelCard>
-    
+    var drawPileJson: String = "",
+
     @Column(columnDefinition = "CLOB")
-    var discardPileJson: String = "", // List<TunnelCard>
-    
+    var discardPileJson: String = "",
+
     @Column(columnDefinition = "CLOB")
-    var handsJson: String = "", // Map<String, List<TunnelCard>>
-    
+    var handsJson: String = "",
+
     @Column(columnDefinition = "CLOB")
-    var playersTurnJson: String = "", // List<PlayerTurn>
-    
+    var playersTurnJson: String = "",
+
     @Column(columnDefinition = "CLOB")
-    var playerRolesJson: String = "", // Map<String, Player> (contains roles)
-    
+    var playerRolesJson: String = "",
+
     var deckWasEmptied: Boolean = false,
-    var passedSinceEmpty: Int = 0
+    var passedSinceEmpty: Int = 0,
+
+    @Column(columnDefinition = "CLOB")
+    var knownGoalsByPlayerJson: String = ""
 ) {
     constructor() : this("")
 }

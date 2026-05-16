@@ -47,6 +47,15 @@ class TurnManager(
                 val playersTurn: List<PlayerTurn> = objectMapper.readValue(entity.playersTurnJson)
                 val board: List<PlacedTunnelCard> = objectMapper.readValue(entity.boardJson)
                 val playerRoles: Map<String, Player> = objectMapper.readValue(entity.playerRolesJson)
+                // Deserialize knownGoalsByPlayer; if null/empty, use mutableMapOf()
+                val knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> =
+                    if (!entity.knownGoalsByPlayerJson.isNullOrBlank()) {
+                        val raw: Map<String, Map<String, TunnelCard>> =
+                            objectMapper.readValue(entity.knownGoalsByPlayerJson)
+                        raw.mapValues { (_, innerMap) ->
+                            innerMap.mapKeys { BoardPosition.fromString(it.key) }.toMutableMap()
+                        }.toMutableMap()
+                    } else mutableMapOf()
 
                 games[entity.lobbyCode] = GameInternalState(
                     hands = hands.mapValues { it.value.toMutableList() },
@@ -54,11 +63,13 @@ class TurnManager(
                     discardPile = discardPile.toMutableList(),
                     deckWasEmptied = entity.deckWasEmptied,
                     passedSinceEmpty = entity.passedSinceEmpty,
-                    gameState = GameState(players = playersTurn, currentPlayerId = entity.currentPlayerId, boardPlacements = board)
+                    gameState = GameState(players = playersTurn, currentPlayerId = entity.currentPlayerId, boardPlacements = board),
+                    knownGoalsByPlayer = knownGoalsByPlayer
                 )
                 gameService.setPlayerData(entity.lobbyCode, playerRoles)
             } catch (e: Exception) {
-                logger.error("Failed to recover game {}: {}", entity.lobbyCode, e.message)
+                logger.error("Failed to recover game {}: {}", entity.lobbyCode, e.message, e)
+                println("FAILED to recover game ${entity.lobbyCode}: ${e.message}\n${e.stackTraceToString()}")
             }
         }
         return games.size
@@ -77,20 +88,20 @@ class TurnManager(
 
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand not found")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Card not in hand")
-            
+
             val effectiveCard = if (isRotated) card.rotated180() else card
             require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) { "Invalid placement" }
 
             playerHand.remove(card)
             drawCardForPlayer(internal, playerId)
-            
+
             internal.passedSinceEmpty = 0
             val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
             val newPlacements = revealGoalCards(position, effectiveCard, placementsWithCard)
-            
+
             internal.gameState = state.copy(boardPlacements = newPlacements, currentPlayerId = nextPlayerId(state))
             persist(lobbyCode)
-            
+
             return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
         }
     }
@@ -113,10 +124,10 @@ class TurnManager(
 
             playerHand.remove(card)
             internal.discardPile.add(card)
-            
+
             val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools + toolToBlock) else it }
             internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
-            
+
             drawCardForPlayer(internal, playerId)
             if (internal.deckWasEmptied) internal.passedSinceEmpty++
             persist(lobbyCode)
@@ -169,12 +180,12 @@ class TurnManager(
             playerHand.remove(card)
             internal.discardPile.add(card)
             internal.knownGoalsByPlayer.getOrPut(playerId) { mutableMapOf() }[targetPosition] = targetPlacement.card
-            
+
             drawCardForPlayer(internal, playerId)
             internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
             if (internal.deckWasEmptied) internal.passedSinceEmpty++
             persist(lobbyCode)
-            
+
             val res = TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
             Pair(res, MapResult(targetPosition, targetPlacement.card))
         }
@@ -197,10 +208,10 @@ class TurnManager(
             playerHand.remove(card)
             internal.discardPile.add(card)
             internal.discardPile.add(targetPlacement.card)
-            
+
             val updatedPlacements = state.boardPlacements.filterNot { it.position == targetPosition }
             internal.gameState = state.copy(boardPlacements = updatedPlacements, currentPlayerId = nextPlayerId(state))
-            
+
             drawCardForPlayer(internal, playerId)
             if (internal.deckWasEmptied) internal.passedSinceEmpty++
             persist(lobbyCode)
@@ -219,7 +230,7 @@ class TurnManager(
             playerHand.remove(card)
             internal.discardPile.add(card)
             drawCardForPlayer(internal, playerId)
-            
+
             if (internal.deckWasEmptied) internal.passedSinceEmpty++
             internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
 
@@ -239,6 +250,8 @@ class TurnManager(
             handsJson = objectMapper.writeValueAsString(internal.hands),
             playersTurnJson = objectMapper.writeValueAsString(internal.gameState.players),
             playerRolesJson = objectMapper.writeValueAsString(gameService.getAllPlayerData(lobbyCode)),
+            // Save knownGoalsByPlayer as JSON:
+            knownGoalsByPlayerJson = objectMapper.writeValueAsString(internal.knownGoalsByPlayer),
             deckWasEmptied = internal.deckWasEmptied,
             passedSinceEmpty = internal.passedSinceEmpty
         )
@@ -261,7 +274,7 @@ class TurnManager(
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
         return synchronized(internal) { internal.gameState.copy() }
     }
-    
+
     fun getGameState(lobbyCode: String): GameState = getGameStateSnapshot(lobbyCode)
 
     fun getHands(lobbyCode: String): Map<String, List<TunnelCard>> {
@@ -297,13 +310,13 @@ class TurnManager(
     }
 
     private fun buildGrid(placements: List<PlacedTunnelCard>) = placements.associateBy { it.position }
-    
+
     private fun canPlaceOnBoard(p: BoardPosition, c: TunnelCard, pl: List<PlacedTunnelCard>): Boolean {
         if (pl.any { it.position == p }) return false
         val grid = buildGrid(pl)
         val neighbors = Direction.entries.map { it to grid[boardNeighbor(p, it)] }
         if (neighbors.all { it.second == null }) return false
-        return neighbors.all { (dir, n) -> 
+        return neighbors.all { (dir, n) ->
             if (n == null || (n.card.type == CardType.GOAL && !n.card.isRevealed)) true
             else (dir in c.connections) == (opposite(dir) in n.card.connections)
         } && isReachableFromStart(p, grid)
