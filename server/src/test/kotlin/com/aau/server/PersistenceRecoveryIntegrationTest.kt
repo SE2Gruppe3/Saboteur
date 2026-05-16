@@ -61,19 +61,6 @@ class PersistenceRecoveryIntegrationTest {
         // 3. Simulate restart: clear RAM caches
         turnManager.removeGame(code)
 
-        // Debug: How many games are in the DB?
-        println("Games in DB: ${gameRepository.findAll().joinToString { it.lobbyCode }}")
-        assertTrue(gameRepository.existsById(code), "Game should exist in DB after flush!!")
-
-        // 4. Reload from DB
-        lobbyService.loadFromDb()
-        turnManager.loadFromDb()
-
-        // Debug: Is the game present now?
-        println(
-            "TurnManager knows game? " +
-                    try { turnManager.getGameState(code); true } catch (_: Exception) { false }
-        )
 
         // 5. Verification, catch for better fail message
         val recoveredState = try {
