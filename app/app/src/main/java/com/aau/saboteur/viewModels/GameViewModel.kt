@@ -2,35 +2,39 @@ package com.aau.saboteur.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aau.saboteur.model.BoardPosition
-import com.aau.saboteur.model.CardType
-import com.aau.saboteur.model.GameState
-import com.aau.saboteur.model.Player
-import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.model.*
 import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.game.GameApi
+import com.aau.saboteur.network.game.MapResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+private fun isBlockCard(type: CardType) =
+    type == CardType.CART_RED || type == CardType.LANTERN_RED || type == CardType.PICKAXE_RED
+
+private fun isRepairCard(type: CardType) =
+    type == CardType.CART_GREEN || type == CardType.LANTERN_GREEN || type == CardType.PICKAXE_GREEN
+            || type == CardType.DOUBLE_LANTERN_CART || type == CardType.DOUBLE_PICKAXE_CART || type == CardType.DOUBLE_PICKAXE_LANTERN
+
+private fun isMapCard(type: CardType) = type == CardType.MAPCARD
+private fun isRockfallCard(type: CardType) = type == CardType.ROCKFALL
 
 data class GameUiState(
     val isSyncing: Boolean = false,
     val isStartingGame: Boolean = false,
     val gameState: GameState = GameState(players = emptyList(), currentPlayerId = null),
+    val lobbyCode: String? = null,
     val localPlayerId: String? = null,
     val player: Player? = null,
     val hands: Map<String, List<TunnelCard>>? = null,
     val errorMessage: String? = null,
     val selectedCard: TunnelCard? = null,
     val selectedCardRotated: Boolean = false,
-    val cardRotations: Map<String, Boolean> = emptyMap()
+    val cardRotations: Map<String, Boolean> = emptyMap(),
+    val pendingSpecialCard: CardType? = null,
+    val lastMapResult: MapResult? = null
 )
 
 class GameViewModel : ViewModel() {
@@ -53,8 +57,7 @@ class GameViewModel : ViewModel() {
         observeErrors()
         observeGameOverEvents()
         observeValidPositions()
-        
-        // Initialer Sync-Status
+        observeMapResults()
         if (_uiState.value.gameState.players.isEmpty()) {
             _uiState.update { it.copy(isSyncing = true) }
         }
@@ -64,7 +67,6 @@ class GameViewModel : ViewModel() {
         WebSocketManager.onEvent("SYNC_COMPLETE") {
             _uiState.update { it.copy(isSyncing = false) }
         }
-        
         viewModelScope.launch {
             WebSocketManager.connectionStatus.collect { isConnected ->
                 if (!isConnected) {
@@ -77,14 +79,17 @@ class GameViewModel : ViewModel() {
     private fun observeGameStateUpdates() {
         viewModelScope.launch {
             GameApi.gameStateUpdates.collect { newState ->
-                _uiState.update { it.copy(
-                    gameState = newState,
-                    isStartingGame = false,
-                    isSyncing = false, 
-                    errorMessage = null,
-                    selectedCard = null,
-                    selectedCardRotated = false
-                ) }
+                _uiState.update {
+                    it.copy(
+                        gameState = newState,
+                        isStartingGame = false,
+                        isSyncing = false,
+                        errorMessage = null,
+                        selectedCard = null,
+                        selectedCardRotated = false,
+                        pendingSpecialCard = null
+                    )
+                }
                 _validPositions.value = emptyList()
             }
         }
@@ -130,6 +135,16 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    private fun observeMapResults() {
+        viewModelScope.launch {
+            GameApi.mapResultEvents.collect { result ->
+                _uiState.update { it.copy(lastMapResult = result) }
+                delay(5000)
+                _uiState.update { it.copy(lastMapResult = null) }
+            }
+        }
+    }
+
     private fun showError(message: String) {
         errorClearJob?.cancel()
         _uiState.update { it.copy(isStartingGame = false, errorMessage = message) }
@@ -139,23 +154,41 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    fun setError(msg: String) {
+        _uiState.update { it.copy(errorMessage = msg) }
+    }
+
+    fun initGameSession(lobbyCode: String, playerId: String) {
+        _uiState.update { it.copy(lobbyCode = lobbyCode, localPlayerId = playerId) }
+    }
+
     fun setLocalPlayerId(playerId: String?) {
         _uiState.update { it.copy(localPlayerId = playerId) }
     }
 
     fun selectCard(card: TunnelCard) {
-        if (_uiState.value.isSyncing) return
-        val current = _uiState.value.selectedCard
+        val state = _uiState.value
+        if (state.isSyncing) return
+        val lobbyCode = state.lobbyCode ?: return
+
+        val current = state.selectedCard
         if (current?.id == card.id) {
-            _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false) }
+            _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false, pendingSpecialCard = null) }
             if (card.type == CardType.PATH || card.type == CardType.DEAD_END) {
                 GameApi.clearValidPositions()
             }
         } else {
-            val isRotated = _uiState.value.cardRotations[card.id] ?: card.isRotated
-            _uiState.update { it.copy(selectedCard = card, selectedCardRotated = isRotated) }
+            val isRotated = state.cardRotations[card.id] ?: card.isRotated
+            val pending = when {
+                isBlockCard(card.type) -> card.type
+                isRepairCard(card.type) -> card.type
+                isMapCard(card.type) -> card.type
+                isRockfallCard(card.type) -> card.type
+                else -> null
+            }
+            _uiState.update { it.copy(selectedCard = card, selectedCardRotated = isRotated, pendingSpecialCard = pending) }
             if (card.type == CardType.PATH || card.type == CardType.DEAD_END) {
-                GameApi.requestValidPositions(card.id, isRotated)
+                GameApi.requestValidPositions(lobbyCode, card.id, isRotated)
             } else {
                 GameApi.clearValidPositions()
             }
@@ -163,44 +196,91 @@ class GameViewModel : ViewModel() {
     }
 
     fun onCardRotated(card: TunnelCard, isRotated: Boolean) {
-        if (_uiState.value.isSyncing) return
-        val newRotations = _uiState.value.cardRotations + (card.id to isRotated)
-        val newSelectedCardRotated = if (_uiState.value.selectedCard?.id == card.id) isRotated
-                                     else _uiState.value.selectedCardRotated
-        _uiState.update { it.copy(
-            cardRotations = newRotations,
-            selectedCardRotated = newSelectedCardRotated
-        ) }
-        if (_uiState.value.selectedCard?.id == card.id &&
-            (card.type == CardType.PATH || card.type == CardType.DEAD_END)) {
-            GameApi.requestValidPositions(card.id, isRotated)
+        val state = _uiState.value
+        if (state.isSyncing) return
+        val lobbyCode = state.lobbyCode ?: return
+
+        val newRotations = state.cardRotations + (card.id to isRotated)
+        val newSelectedCardRotated = if (state.selectedCard?.id == card.id) isRotated
+        else state.selectedCardRotated
+
+        _uiState.update {
+            it.copy(
+                cardRotations = newRotations,
+                selectedCardRotated = newSelectedCardRotated
+            )
+        }
+
+        if (state.selectedCard?.id == card.id && (card.type == CardType.PATH || card.type == CardType.DEAD_END)) {
+            GameApi.requestValidPositions(lobbyCode, card.id, isRotated)
         }
     }
 
     fun onBoardCellClicked(position: BoardPosition) {
         val state = _uiState.value
+        val lobbyCode = state.lobbyCode ?: return
         if (state.isSyncing) return
         val card = state.selectedCard ?: return
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
 
-        if (card.type != CardType.PATH && card.type != CardType.DEAD_END) {
-            showError("Diese Karte kann hier nicht platziert werden.")
-            return
+        when {
+            card.type == CardType.PATH || card.type == CardType.DEAD_END -> {
+                val currentPlayer = state.gameState.players.find { it.playerId == playerId }
+                if (currentPlayer != null && currentPlayer.blockedTools.isNotEmpty()) {
+                    showError("Du bist blockiert und kannst keine Tunnel legen.")
+                    return
+                }
+                GameApi.playCard(lobbyCode, playerId, card.id, position, state.selectedCardRotated)
+                _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false, pendingSpecialCard = null) }
+            }
+            isMapCard(card.type) -> {
+                GameApi.playMapCard(lobbyCode, playerId, card.id, position)
+                _uiState.update { it.copy(selectedCard = null, pendingSpecialCard = null) }
+            }
+            isRockfallCard(card.type) -> {
+                GameApi.playRockfallCard(lobbyCode, playerId, card.id, position)
+                _uiState.update { it.copy(selectedCard = null, pendingSpecialCard = null) }
+            }
+            else -> showError("Diese Karte kann hier nicht auf das Feld gespielt werden.")
         }
-
-        GameApi.playCard(playerId, card.id, position, state.selectedCardRotated)
     }
 
     fun discardSelectedCard() {
         val state = _uiState.value
+        val lobbyCode = state.lobbyCode ?: return
         if (state.isSyncing) return
         val card = state.selectedCard ?: return
         val playerId = state.localPlayerId ?: return
         if (state.gameState.currentPlayerId != playerId) return
 
-        GameApi.discardCard(playerId, card.id)
-        _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false) }
+        GameApi.discardCard(lobbyCode, playerId, card.id)
+        _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false, pendingSpecialCard = null) }
         GameApi.clearValidPositions()
+    }
+
+    fun playBlockCardOnPlayer(targetPlayerId: String) {
+        val state = _uiState.value
+        val lobbyCode = state.lobbyCode ?: return
+        val card = state.selectedCard ?: return
+        val playerId = state.localPlayerId ?: return
+        if (state.isSyncing || state.gameState.currentPlayerId != playerId || !isBlockCard(card.type)) return
+
+        GameApi.playBlockCard(lobbyCode, playerId, card.id, targetPlayerId)
+        _uiState.update { it.copy(selectedCard = null, pendingSpecialCard = null) }
+    }
+
+    fun playRepairCardOnPlayer(targetPlayerId: String, tool: String) {
+        val state = _uiState.value
+        val lobbyCode = state.lobbyCode ?: return
+        val card = state.selectedCard ?: return
+        val playerId = state.localPlayerId ?: return
+        if (state.isSyncing || state.gameState.currentPlayerId != playerId || !isRepairCard(card.type)) return
+
+        GameApi.playRepairCard(lobbyCode, playerId, card.id, targetPlayerId, tool)
+        _uiState.update { it.copy(selectedCard = null, pendingSpecialCard = null) }
+    }
+    fun dismissMapResult() {
+        _uiState.update { it.copy(lastMapResult = null) }
     }
 }
