@@ -111,7 +111,7 @@ Jeder Push und Pull Request durchläuft automatisch die SonarCloud-Qualitätsana
 
 ## Spielmodi & Einschränkungen
 
-- **3–5 Spieler** (Echtzeit-Multiplayer über WebSockets)
+- **3–10 Spieler** (Echtzeit-Multiplayer über WebSockets)
 - Login via **Benutzername + Passwort** (keine E-Mail)
 - Spielbeitritt über **Session-ID**
 - Keine KI-Gegner
