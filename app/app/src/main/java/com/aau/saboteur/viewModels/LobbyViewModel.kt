@@ -203,10 +203,16 @@ class LobbyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startGame() {
-        val players = _lobbyState.value?.players.orEmpty()
+        val state = _lobbyState.value ?: return
+        val players = state.players
+        val lobbyCode = state.lobbyCode
+
         if (players.isEmpty()) return
+
         _errorMessage.value = null
-        GameApi.startGame(players)
+
+
+        GameApi.startGame(lobbyCode, players)
     }
 
     fun refreshLobbies() {

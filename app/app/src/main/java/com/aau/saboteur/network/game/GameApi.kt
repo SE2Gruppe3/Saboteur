@@ -6,12 +6,7 @@ import com.aau.saboteur.network.lobby.LobbyApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -56,7 +51,6 @@ object GameApi {
             runCatching { data.toPlayer() }
                 .onSuccess { player ->
                     _playerUpdates.value = player
-                    // Sync hands if available in player data
                     if (player.hand.isNotEmpty()) {
                         val currentHands = _cardsDealtUpdates.value ?: emptyMap()
                         _cardsDealtUpdates.value = currentHands + (player.id to player.hand)
@@ -89,10 +83,10 @@ object GameApi {
                     _reconnectSnapshotEvents.tryEmit(snapshot)
                     _gameStateUpdates.value = snapshot.gameState ?: GameState()
                     _playerUpdates.value = snapshot.playerState
-                    
+
                     val currentHands = _cardsDealtUpdates.value ?: emptyMap()
                     _cardsDealtUpdates.value = currentHands + (snapshot.playerState.id to snapshot.playerState.hand)
-                    
+
                     WebSocketManager.sendCommand("SYNC_ACK", JSONObject())
                 }
                 .onFailure { it.printStackTrace() }
@@ -115,46 +109,96 @@ object GameApi {
         scope.launch {
             LobbyApi.reconnectData.collect { data ->
                 val existingPlayer = data.lobbyState.players.find { it.id == data.myPlayerId }
-                
+
                 data.gameState?.let {
                     _gameStateUpdates.value = it
                 }
-                
+
                 _playerUpdates.value = Player(
                     id = data.myPlayerId,
                     name = existingPlayer?.name ?: "",
                     hand = data.playerHand,
                     role = data.playerRole ?: existingPlayer?.role
                 )
-                
-                // CRITICAL: Always update hands from HTTP response
+
                 val currentHands = _cardsDealtUpdates.value ?: emptyMap()
                 _cardsDealtUpdates.value = currentHands + (data.myPlayerId to data.playerHand)
             }
         }
     }
 
-    fun startGame(players: List<Player>) {
+    fun startGame(lobbyCode: String, players: List<Player>) {
         val request = CreateGameRequest(players = players)
-        WebSocketManager.sendCommand("START_GAME", JSONObject(request.toJson()))
+        val payload = JSONObject(request.toJson()).apply {
+            put("lobbyCode", lobbyCode)
+        }
+        WebSocketManager.sendCommand("START_GAME", payload)
     }
 
-    fun playCard(playerId: String, cardId: String, position: BoardPosition, isRotated: Boolean) {
+    fun playCard(lobbyCode: String, playerId: String, cardId: String, position: BoardPosition, isRotated: Boolean) {
         val request = PlayCardRequest(playerId, cardId, position, isRotated)
-        WebSocketManager.sendCommand("PLAY_CARD", JSONObject(request.toJson()))
+        val payload = JSONObject(request.toJson()).apply {
+            put("lobbyCode", lobbyCode)
+        }
+        WebSocketManager.sendCommand("PLAY_CARD", payload)
     }
 
-    fun discardCard(playerId: String, cardId: String) {
+    fun discardCard(lobbyCode: String, playerId: String, cardId: String) {
         val request = DiscardCardRequest(playerId, cardId)
-        WebSocketManager.sendCommand("DISCARD_CARD", JSONObject(request.toJson()))
+        val payload = JSONObject(request.toJson()).apply {
+            put("lobbyCode", lobbyCode)
+        }
+        WebSocketManager.sendCommand("DISCARD_CARD", payload)
     }
 
-    fun requestValidPositions(cardId: String, isRotated: Boolean) {
+    fun requestValidPositions(lobbyCode: String, cardId: String, isRotated: Boolean) {
         val payload = JSONObject().apply {
             put("cardId", cardId)
             put("isRotated", isRotated)
+            put("lobbyCode", lobbyCode)
         }
         WebSocketManager.sendCommand("GET_VALID_POSITIONS", payload)
+    }
+
+    fun playBlockCard(lobbyCode: String, playerId: String, cardId: String, targetPlayerId: String) {
+        val payload = JSONObject().apply {
+            put("lobbyCode", lobbyCode)
+            put("playerId", playerId)
+            put("cardId", cardId)
+            put("targetPlayerId", targetPlayerId)
+        }
+        WebSocketManager.sendCommand("PLAY_BLOCK_CARD", payload)
+    }
+
+    fun playRepairCard(lobbyCode: String, playerId: String, cardId: String, targetPlayerId: String, tool: String) {
+        val payload = JSONObject().apply {
+            put("lobbyCode", lobbyCode)
+            put("playerId", playerId)
+            put("cardId", cardId)
+            put("targetPlayerId", targetPlayerId)
+            put("tool", tool)
+        }
+        WebSocketManager.sendCommand("PLAY_REPAIR_CARD", payload)
+    }
+
+    fun playMapCard(lobbyCode: String, playerId: String, cardId: String, position: BoardPosition) {
+        val payload = JSONObject().apply {
+            put("lobbyCode", lobbyCode)
+            put("playerId", playerId)
+            put("cardId", cardId)
+            put("position", position)
+        }
+        WebSocketManager.sendCommand("PLAY_MAP_CARD", payload)
+    }
+
+    fun playRockfallCard(lobbyCode: String, playerId: String, cardId: String, position: BoardPosition) {
+        val payload = JSONObject().apply {
+            put("lobbyCode", lobbyCode)
+            put("playerId", playerId)
+            put("cardId", cardId)
+            put("position", position)
+        }
+        WebSocketManager.sendCommand("PLAY_ROCKFALL_CARD", payload)
     }
 
     internal fun clearValidPositions() {
@@ -166,6 +210,5 @@ object GameApi {
         _playerUpdates.value = null
         _cardsDealtUpdates.value = null
         _validPositionsUpdates.tryEmit(emptyList())
-        // Reset flows by not emitting anything or emitting defaults
     }
 }

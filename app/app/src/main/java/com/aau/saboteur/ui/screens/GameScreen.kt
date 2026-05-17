@@ -9,19 +9,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.aau.saboteur.R
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.aau.saboteur.model.PlayerTurn
-import com.aau.saboteur.ui.components.BoardGrid
-import com.aau.saboteur.ui.components.PlayerHandRow
-import com.aau.saboteur.ui.components.PlayerTurnOrderRow
-import com.aau.saboteur.ui.components.RoleCardView
+import com.aau.saboteur.model.*
+import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
 import kotlinx.coroutines.delay
+
+private fun isBlockCard(type: CardType) =
+    type == CardType.CART_RED || type == CardType.LANTERN_RED || type == CardType.PICKAXE_RED
+
+private fun isRepairCard(type: CardType) =
+    type == CardType.CART_GREEN || type == CardType.LANTERN_GREEN || type == CardType.PICKAXE_GREEN ||
+            type == CardType.DOUBLE_LANTERN_CART || type == CardType.DOUBLE_PICKAXE_CART || type == CardType.DOUBLE_PICKAXE_LANTERN
+
+private fun needsTargetDialog(type: CardType) = isBlockCard(type) || isRepairCard(type)
 
 @Composable
 fun GameScreen(
@@ -30,7 +34,9 @@ fun GameScreen(
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val localPlayerId by lobbyViewModel.playerId.collectAsState()
+    val localPlayerId by lobbyViewModel.playerId.collectAsState(initial = null)
+    val lobbyState by lobbyViewModel.lobbyState.collectAsState()
+    val lobbyCode = lobbyState?.lobbyCode
     val validPositions by viewModel.validPositions.collectAsState()
 
     var gameOverWinner by remember { mutableStateOf<String?>(null) }
@@ -38,28 +44,20 @@ fun GameScreen(
     LaunchedEffect(Unit) {
         viewModel.gameOverEvents.collect { winner -> gameOverWinner = winner }
     }
-    
-    val sortedPlayers = uiState.gameState.players.sortedBy(PlayerTurn::turnOrder)
+
+    LaunchedEffect(localPlayerId, lobbyCode) {
+        if (localPlayerId != null && lobbyCode != null) {
+            viewModel.initGameSession(lobbyCode!!, localPlayerId!!)
+        }
+    }
+
+    val sortedPlayers = uiState.gameState.players
     val currentHand = uiState.localPlayerId?.let { uiState.hands?.get(it) }
     val isMyTurn = uiState.localPlayerId != null &&
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
-    var showTurnHint by remember { mutableStateOf(false) }
-
-    LaunchedEffect(localPlayerId) {
-        viewModel.setLocalPlayerId(localPlayerId)
-    }
-
-    LaunchedEffect(isMyTurn) {
-        if (isMyTurn) {
-            showTurnHint = true
-            delay(2000)
-            showTurnHint = false
-        } else {
-            showTurnHint = false
-        }
-    }
+    var showBlockDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -77,7 +75,6 @@ fun GameScreen(
             }
         )
 
-        // Top Header
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -106,7 +103,6 @@ fun GameScreen(
             }
         }
 
-        // Error & Hint Overlays
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -130,7 +126,6 @@ fun GameScreen(
             }
         }
 
-        // Bottom Controls
         if (currentHand != null) {
             Column(
                 modifier = Modifier
@@ -164,22 +159,85 @@ fun GameScreen(
                 PlayerHandRow(
                     hand = currentHand,
                     selectedCardId = uiState.selectedCard?.id,
-                    onCardSelected = { if (isMyTurn) viewModel.selectCard(it) },
+                    onCardSelected = { card ->
+                        if (isMyTurn) {
+                            viewModel.selectCard(card)
+                            if (needsTargetDialog(card.type)) showBlockDialog = true
+                        }
+                    },
                     onCardRotated = { card, rotated -> viewModel.onCardRotated(card, rotated) }
                 )
             }
         }
 
-        // GAME OVER OVERLAY
         gameOverWinner?.let { winner ->
             GameOverDialog(winner = winner, onBackToLobby = onBackToLobby)
         }
 
-        // SYNC OVERLAY (Reconnect Stabilität)
         if (uiState.isSyncing) {
             GameSyncOverlay()
         }
+
+        val selected = uiState.selectedCard
+        if (selected != null && needsTargetDialog(selected.type) && showBlockDialog) {
+            BlockTargetDialog(
+                playerList = uiState.gameState.players,
+                selfPlayerId = uiState.localPlayerId ?: "",
+                onPlayerSelected = { targetId ->
+                    if (isBlockCard(selected.type)) {
+                        viewModel.playBlockCardOnPlayer(targetId)
+                    } else if (isRepairCard(selected.type)) {
+                        val tool = when (selected.type) {
+                            CardType.LANTERN_GREEN -> "LANTERN"
+                            CardType.PICKAXE_GREEN -> "PICKAXE"
+                            CardType.CART_GREEN -> "CART"
+                            CardType.DOUBLE_LANTERN_CART -> "LANTERN"
+                            CardType.DOUBLE_PICKAXE_CART -> "PICKAXE"
+                            CardType.DOUBLE_PICKAXE_LANTERN -> "PICKAXE"
+                            else -> "LANTERN"
+                        }
+                        viewModel.playRepairCardOnPlayer(targetId, tool)
+                    }
+                    showBlockDialog = false
+                },
+                onDismiss = { showBlockDialog = false }
+            )
+        }
     }
+}
+
+@Composable
+fun BlockTargetDialog(
+    playerList: List<PlayerTurn>,
+    selfPlayerId: String,
+    onPlayerSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Wähle einen Spieler") },
+        text = {
+            Column {
+                playerList
+                    .filter { it.playerId != selfPlayerId }
+                    .forEach { player ->
+                        Button(
+                            onClick = { onPlayerSelected(player.playerId) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(player.playerName)
+                        }
+                    }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        }
+    )
 }
 
 @Composable
@@ -200,8 +258,7 @@ private fun GameSyncOverlay() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 CircularProgressIndicator()
-                Text("Reconnecting...", style = MaterialTheme.typography.headlineSmall)
-                Text("Synchronizing game state with server", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text("Synchronisierung...", style = MaterialTheme.typography.headlineSmall)
             }
         }
     }
@@ -215,7 +272,9 @@ private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
         else -> "Spiel beendet"
     }
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
