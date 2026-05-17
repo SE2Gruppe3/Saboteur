@@ -211,6 +211,11 @@ class GameViewModel : ViewModel() {
 
         when {
             card.type == CardType.PATH || card.type == CardType.DEAD_END -> {
+                val currentPlayer = state.gameState.players.find { it.playerId == playerId }
+                if (currentPlayer != null && currentPlayer.blockedTools.isNotEmpty()) {
+                    showError("Du bist blockiert und kannst keine Tunnel legen.")
+                    return
+                }
                 GameApi.playCard(lobbyCode, playerId, card.id, position, state.selectedCardRotated)
                 _uiState.update { it.copy(selectedCard = null, selectedCardRotated = false, pendingSpecialCard = null) }
             }
