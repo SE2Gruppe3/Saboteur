@@ -94,10 +94,7 @@ fun GameScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Du hast die Zielkarte angeschaut:")
                         Spacer(modifier = Modifier.height(12.dp))
-                        val cardName = when (result.card.type) {
-                            CardType.GOAL -> "GOLD gefunden! 💰"
-                            else -> "Nur Stein... 🪨"
-                        }
+                        val cardName = if (result.card.isGoal) "GOLD gefunden! 💰" else "Nur Stein... 🪨"
                         Text(cardName, style = MaterialTheme.typography.headlineMedium)
                     }
                 },
