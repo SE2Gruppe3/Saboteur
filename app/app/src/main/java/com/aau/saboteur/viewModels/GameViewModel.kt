@@ -280,4 +280,7 @@ class GameViewModel : ViewModel() {
         GameApi.playRepairCard(lobbyCode, playerId, card.id, targetPlayerId, tool)
         _uiState.update { it.copy(selectedCard = null, pendingSpecialCard = null) }
     }
+    fun dismissMapResult() {
+        _uiState.update { it.copy(lastMapResult = null) }
+    }
 }

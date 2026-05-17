@@ -88,7 +88,7 @@ fun GameScreen(
 
         uiState.lastMapResult?.let { result ->
             AlertDialog(
-                onDismissRequest = { /* schließt nach Timeout */ },
+                onDismissRequest = { viewModel.dismissMapResult() },
                 title = { Text("Geheim-Information") },
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -99,7 +99,7 @@ fun GameScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { }) { Text("OK") }
+                    TextButton(onClick = { viewModel.dismissMapResult() }) { Text("OK") }
                 }
             )
         }
