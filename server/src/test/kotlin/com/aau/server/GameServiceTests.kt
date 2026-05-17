@@ -8,13 +8,7 @@ import org.junit.jupiter.api.Test
 class GameServiceTests {
 
     private val gameService = GameService()
-
-    @Test
-    fun `initial state is empty`() {
-        val state = gameService.getGameState()
-        assertTrue(state.players.isEmpty())
-        assertNull(state.currentPlayerId)
-    }
+    private val lobbyCode = "TEST_LOBBY"
 
     @Test
     fun `startGame initializes everything correctly`() {
@@ -25,6 +19,7 @@ class GameServiceTests {
         )
 
         val result = gameService.startGame(players)
+        gameService.setPlayerData(lobbyCode, result.playerRoles)
 
         // Verify turn order
         val state = result.gameState
@@ -49,13 +44,13 @@ class GameServiceTests {
         assertNotNull(roleData["2"]?.role)
         assertNotNull(roleData["3"]?.role)
         
-        // Verify private data retrieval via helper
-        val player1 = gameService.getPlayer("1")
+        // Verify data retrieval
+        val player1 = gameService.getPlayer(lobbyCode, "1")
         assertNotNull(player1)
         assertEquals(roleData["1"]?.role, player1?.role)
         
         // Non-existent player
-        assertNull(gameService.getPlayer("999"))
+        assertNull(gameService.getPlayer(lobbyCode, "999"))
 
         // Verify card distribution
         val cardDist = result.cardDistribution

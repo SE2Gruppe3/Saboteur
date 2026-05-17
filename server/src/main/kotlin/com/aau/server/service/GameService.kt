@@ -8,23 +8,27 @@ import com.aau.saboteur.model.PlayerTurn
 import com.aau.server.game.CardDeck
 import com.aau.server.model.GameStartResult
 import org.springframework.stereotype.Service
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class GameService {
 
-    private val currentState = AtomicReference(
-        GameState(
-            players = emptyList(),
-            currentPlayerId = null
-        )
-    )
+    // Roles and full player data per lobby
+    private val lobbyPlayerData = ConcurrentHashMap<String, Map<String, Player>>()
 
-    private val playerData = AtomicReference<Map<String, Player>>(emptyMap())
+    fun getPlayer(lobbyCode: String, playerId: String): Player? = 
+        lobbyPlayerData[lobbyCode]?.get(playerId)
 
-    fun getGameState(): GameState = currentState.get()
+    fun setPlayerData(lobbyCode: String, players: Map<String, Player>) {
+        lobbyPlayerData[lobbyCode] = players
+    }
 
-    fun getPlayer(id: String): Player? = playerData.get()[id]
+    fun getAllPlayerData(lobbyCode: String): Map<String, Player> = 
+        lobbyPlayerData[lobbyCode] ?: emptyMap()
+
+    fun removePlayerData(lobbyCode: String) {
+        lobbyPlayerData.remove(lobbyCode)
+    }
 
     fun startGame(players: List<Player>): GameStartResult {
         validatePlayerCount(players.size)
@@ -57,14 +61,11 @@ class GameService {
                 )
             }
 
-        val gameState = GameState(
+        return GameState(
             players = randomizedPlayers,
             currentPlayerId = randomizedPlayers.firstOrNull()?.playerId,
             boardPlacements = createInitialBoardPlacements()
         )
-
-        currentState.set(gameState)
-        return gameState
     }
 
     private fun createInitialBoardPlacements(): List<PlacedTunnelCard> {
@@ -89,20 +90,13 @@ class GameService {
         )
     }
 
-    /**
-     * Assigns each player a random role at game start based on the number of players.
-     * The roles are stored in the server's player data and not in the public GameState.
-     */
     private fun assignRandomRoles(players: List<Player>): Map<String, Player> {
         val playerIds = players.map { it.id }
         val roles = RoleDistributor.distributeRoles(playerIds)
 
-        val updatedPlayerData = players.associate { player ->
+        return players.associate { player ->
             val updatedPlayer = player.copy(role = roles[player.id])
             player.id to updatedPlayer
         }
-
-        playerData.set(updatedPlayerData)
-        return updatedPlayerData
     }
 }

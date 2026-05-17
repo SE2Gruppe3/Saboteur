@@ -2,93 +2,196 @@ package com.aau.server.service
 
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
+import com.aau.server.model.LobbyEntity
+import com.aau.server.repository.GameRepository
+import com.aau.server.repository.LobbyRepository
+import com.aau.server.websocket.event.GameEvent
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Lazy
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.withLock
 import kotlin.random.Random
 
 private const val LOBBY_NOT_FOUND = "Lobby not found"
 
 @Service
-class LobbyService {
-
+class LobbyService(
+    private val lobbyRepository: LobbyRepository,
+    private val gameRepository: GameRepository,
+    private val objectMapper: ObjectMapper,
+    private val gameService: GameService,
+    @Lazy private val messagingService: MessagingService,
+    @Lazy private val turnManager: TurnManager
+) {
+    private val logger = LoggerFactory.getLogger(LobbyService::class.java)
     private val lobbies = ConcurrentHashMap<String, LobbyState>()
+    private val lastActivity = ConcurrentHashMap<String, Long>()
 
-    fun createLobby(playerName: String): LobbyState {
+    @Transactional
+    fun loadFromDb(): Int {
+        val all = lobbyRepository.findAll()
+        all.forEach { entity ->
+            try {
+                val players: List<Player> = objectMapper.readValue(entity.playersJson)
+                lobbies[entity.lobbyCode] = LobbyState(
+                    lobbyCode = entity.lobbyCode,
+                    hostId = entity.hostId,
+                    players = players,
+                    gameStarted = entity.gameStarted
+                )
+                lastActivity[entity.lobbyCode] = entity.lastActivity
+            } catch (e: Exception) {
+                logger.error("Failed to load lobby {}: {}", entity.lobbyCode, e.message)
+            }
+        }
+        return lobbies.size
+    }
+
+    private fun persist(lobby: LobbyState) {
+        val now = System.currentTimeMillis()
+        lastActivity[lobby.lobbyCode] = now
+        val entity = LobbyEntity(
+            lobbyCode = lobby.lobbyCode,
+            hostId = lobby.hostId,
+            gameStarted = lobby.gameStarted,
+            playersJson = objectMapper.writeValueAsString(lobby.players),
+            lastActivity = now
+        )
+        lobbyRepository.save(entity)
+        
+        // Broadcasts occur after save. If save fails, transaction rolls back and no events are sent.
+        messagingService.sendEventToLobby(lobby.lobbyCode, GameEvent.LobbyStateUpdate(lobby))
+        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllLobbies()))
+    }
+
+    fun updateActivity(lobbyCode: String) {
+        lastActivity[lobbyCode] = System.currentTimeMillis()
+    }
+
+    @Transactional
+    fun createLobby(playerName: String, playerId: String? = null): LobbyState {
         val code = generateUniqueCode()
-
-        val host = Player(
-            id = UUID.randomUUID().toString(),
-            name = playerName
-        )
-
-        val lobby = LobbyState(
-            lobbyCode = code,
-            hostId = host.id,
-            players = listOf(host),
-            gameStarted = false
-        )
-
-        lobbies[code] = lobby
+        val finalPlayerId = playerId ?: UUID.randomUUID().toString()
+        val host = Player(id = finalPlayerId, name = playerName)
+        val lobby = LobbyState(code, host.id, listOf(host), false)
+        
+        messagingService.getLobbyLock(code).withLock {
+            lobbies[code] = lobby
+            persist(lobby)
+        }
         return lobby
     }
 
-    fun joinLobby(lobbyCode: String, playerName: String): LobbyState {
-        return lobbies.compute(lobbyCode) { _, lobby ->
-            requireNotNull(lobby) { LOBBY_NOT_FOUND }
+    @Transactional
+    fun joinLobby(lobbyCode: String, playerName: String, playerId: String? = null): LobbyState {
+        return messagingService.getLobbyLock(lobbyCode).withLock {
+            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            
+            // CRITICAL FIX: Allow re-joining if already a member, even if game started
+            if (playerId != null && lobby.players.any { it.id == playerId }) {
+                return@withLock lobby
+            }
+
+            require(!lobby.gameStarted) { "Game already started" }
             require(lobby.players.size < 10) { "Lobby is full" }
-            require(!lobby.gameStarted) { "Game has already started" }
 
-            val newPlayer = Player(
-                id = UUID.randomUUID().toString(),
-                name = playerName
-            )
-
-            lobby.copy(players = lobby.players + newPlayer)
-        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            val finalPlayerId = playerId ?: UUID.randomUUID().toString()
+            val updatedLobby = lobby.copy(players = lobby.players + Player(finalPlayerId, playerName))
+            lobbies[lobbyCode] = updatedLobby
+            persist(updatedLobby)
+            updatedLobby
+        }
     }
 
+    @Transactional
     fun leaveLobby(lobbyCode: String, playerId: String): LobbyState? {
-        val currentLobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
-        
-        val updatedPlayers = currentLobby.players.filter { it.id != playerId }
-        
-        if (updatedPlayers.isEmpty()) {
-            lobbies.remove(lobbyCode)
-            return null
-        }
+        return messagingService.getLobbyLock(lobbyCode).withLock {
+            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            val updatedPlayers = lobby.players.filter { it.id != playerId }
+            
+            if (updatedPlayers.isEmpty()) {
+                deleteLobbyInternal(lobbyCode, "empty")
+                return@withLock null
+            }
 
-        var newHostId = currentLobby.hostId
-        if (currentLobby.hostId == playerId) {
-            newHostId = updatedPlayers.first().id
+            val newHostId = if (lobby.hostId == playerId) updatedPlayers.first().id else lobby.hostId
+            val updatedLobby = lobby.copy(players = updatedPlayers, hostId = newHostId)
+            lobbies[lobbyCode] = updatedLobby
+            persist(updatedLobby)
+            updatedLobby
         }
-
-        val updatedLobby = currentLobby.copy(
-            players = updatedPlayers,
-            hostId = newHostId
-        )
-        
-        lobbies[lobbyCode] = updatedLobby
-        return updatedLobby
     }
 
+    @Transactional
     fun markGameStarted(lobbyCode: String): LobbyState {
-        return lobbies.compute(lobbyCode) { _, lobby ->
-            requireNotNull(lobby) { LOBBY_NOT_FOUND }
-            lobby.copy(gameStarted = true)
-        } ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+        return messagingService.getLobbyLock(lobbyCode).withLock {
+            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            val updatedLobby = lobby.copy(gameStarted = true)
+            lobbies[lobbyCode] = updatedLobby
+            persist(updatedLobby)
+            updatedLobby
+        }
+    }
+
+    @Transactional
+    fun deleteLobbyInternal(code: String, reason: String) {
+        logger.info("Cleaning up {} lobby: {}", reason, code)
+        
+        // Notify participants that lobby is closing (e.g. game over or timeout)
+        try {
+            messagingService.sendEventToLobby(code, GameEvent.LobbyLeft())
+        } catch (e: Exception) {
+            // Group might already be empty or partially cleared
+        }
+
+        lobbies.remove(code)
+        lastActivity.remove(code)
+        lobbyRepository.deleteById(code)
+        gameRepository.deleteById(code)
+        turnManager.removeGame(code)
+        gameService.removePlayerData(code)
+        messagingService.clearLobbyMappings(code)
+        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllLobbies()))
     }
 
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
+    fun getLobby(lobbyCode: String): LobbyState = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
 
-    fun getLobby(lobbyCode: String): LobbyState =
-        lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+    fun getActiveLobbiesCount(): Int = lobbies.size
 
     private fun generateUniqueCode(): String {
         repeat(50) {
             val code = Random.nextInt(1000, 10000).toString()
             if (!lobbies.containsKey(code)) return code
         }
-        throw IllegalStateException("Could not generate unique lobby code")
+        throw IllegalStateException("Unique code exhaustion")
+    }
+
+    @Scheduled(fixedRate = 30000)
+    fun cleanupInactiveLobbies() {
+        val now = System.currentTimeMillis()
+        lobbies.keys.forEach { code ->
+            messagingService.getLobbyLock(code).withLock {
+                val lobby = lobbies[code] ?: return@withLock
+                val lastSeen = lastActivity[code] ?: 0
+                val inactivityPeriod = now - lastSeen
+
+                // Case 1: Lobby is empty -> Delete after 1 minute of inactivity
+                if (lobby.players.isEmpty() && inactivityPeriod > 60000) {
+                    deleteLobbyInternal(code, "timeout_empty")
+                } 
+                // Case 2: Lobby has "Ghost Players" (inactivity for 5 minutes)
+                // This handles cases where players closed the app without leaving.
+                else if (inactivityPeriod > 300000) {
+                    deleteLobbyInternal(code, "timeout_inactive")
+                }
+            }
+        }
     }
 }

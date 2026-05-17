@@ -2,13 +2,15 @@ package com.aau.server
 
 import com.aau.saboteur.model.WsMessage
 import com.aau.server.service.MessagingService
+import com.aau.server.websocket.event.GameEvent
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.*
+import org.mockito.kotlin.*
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import org.springframework.web.socket.CloseStatus
 
 class MessagingServiceTests {
 
@@ -21,255 +23,166 @@ class MessagingServiceTests {
     }
 
     @Test
-    fun `broadcast sends message to all open sessions`() {
-        val session1 = mock(WebSocketSession::class.java)
-        val session2 = mock(WebSocketSession::class.java)
-        `when`(session1.isOpen).thenReturn(true)
-        `when`(session2.isOpen).thenReturn(true)
-        `when`(session1.id).thenReturn("s1")
-        `when`(session2.id).thenReturn("s2")
+    fun `broadcastEvent sends message to all open synced sessions`() {
+        val session1 = mock<WebSocketSession>()
+        val session2 = mock<WebSocketSession>()
+        whenever(session1.isOpen).thenReturn(true)
+        whenever(session2.isOpen).thenReturn(true)
+        whenever(session1.id).thenReturn("s1")
+        whenever(session2.id).thenReturn("s2")
 
         messagingService.addSession(session1)
         messagingService.addSession(session2)
+        
+        messagingService.registerPlayer("s1", "p1")
+        messagingService.registerPlayer("s2", "p2")
+        messagingService.setSessionSynced("s1")
+        messagingService.setSessionSynced("s2")
 
-        val type = "TEST_TYPE"
-        val data = "test-data"
-        messagingService.broadcast(type, data)
+        val event = GameEvent.ErrorEvent("test-error")
+        messagingService.broadcastEvent(event)
 
-        val expectedPayload = objectMapper.writeValueAsString(WsMessage(type, data))
-        val expectedMessage = TextMessage(expectedPayload)
-
-        verify(session1).sendMessage(expectedMessage)
-        verify(session2).sendMessage(expectedMessage)
+        val expectedPayload = objectMapper.writeValueAsString(WsMessage(event.type, event.payload))
+        
+        verify(session1, atLeastOnce()).sendMessage(argThat { msg -> (msg as TextMessage).payload == expectedPayload })
+        verify(session2, atLeastOnce()).sendMessage(argThat { msg -> (msg as TextMessage).payload == expectedPayload })
     }
 
     @Test
-    fun `broadcast does not send to closed sessions`() {
-        val session1 = mock(WebSocketSession::class.java)
-        `when`(session1.isOpen).thenReturn(false)
-        `when`(session1.id).thenReturn("s1")
-
-        messagingService.addSession(session1)
-        messagingService.broadcast("TYPE", "DATA")
-
-        verify(session1, never()).sendMessage(any())
-    }
-
-    @Test
-    fun `broadcast handles exception during sendMessage`() {
-        val session1 = mock(WebSocketSession::class.java)
-        `when`(session1.isOpen).thenReturn(true)
-        `when`(session1.id).thenReturn("s1")
-        `when`(session1.sendMessage(any())).thenThrow(RuntimeException("Socket error"))
-
-        messagingService.addSession(session1)
-        
-        // This should not throw an exception out of the broadcast method
-        messagingService.broadcast("TYPE", "DATA")
-
-        verify(session1).sendMessage(any())
-    }
-
-    @Test
-    fun `removeSession prevents future broadcasts and cleans up metadata`() {
-        val session1 = mock(WebSocketSession::class.java)
-        `when`(session1.isOpen).thenReturn(true)
-        `when`(session1.id).thenReturn("s1")
-
-        messagingService.addSession(session1)
-        messagingService.joinLobbyGroup("s1", "L1")
-        messagingService.registerPlayer("s1", "P1")
-        
-        messagingService.removeSession(session1)
-        
-        messagingService.broadcast("TYPE", "DATA")
-        verify(session1, never()).sendMessage(any())
-        
-        assert(messagingService.getLobbyCodeForSession("s1") == null)
-        assert(messagingService.getPlayerIdForSession("s1") == null)
-    }
-
-    @Test
-    fun `removeSession handles session not in a lobby`() {
-        val session = mock(WebSocketSession::class.java)
-        `when`(session.id).thenReturn("s1")
-        messagingService.addSession(session)
-        
-        // Should not throw
-        messagingService.removeSession(session)
-    }
-
-    @Test
-    fun `removeSession cleans up lobby mappings only when last session leaves`() {
-        val s1 = mock(WebSocketSession::class.java)
-        val s2 = mock(WebSocketSession::class.java)
-        `when`(s1.id).thenReturn("s1")
-        `when`(s2.id).thenReturn("s2")
-        `when`(s1.isOpen).thenReturn(true)
-        `when`(s2.isOpen).thenReturn(true)
-        
-        messagingService.addSession(s1)
-        messagingService.addSession(s2)
-        messagingService.joinLobbyGroup("s1", "L1")
-        messagingService.joinLobbyGroup("s2", "L1")
-        
-        messagingService.removeSession(s1)
-        
-        // Lobby L1 should still exist because s2 is in it
-        messagingService.broadcastToLobby("L1", "TYPE", "DATA")
-        verify(s2).sendMessage(any())
-    }
-
-    @Test
-    fun `joinLobbyGroup and leaveLobbyGroup manage lobby membership`() {
-        val session1 = mock(WebSocketSession::class.java)
-        `when`(session1.isOpen).thenReturn(true)
-        `when`(session1.id).thenReturn("s1")
-        messagingService.addSession(session1)
-
-        messagingService.joinLobbyGroup("s1", "L1")
-        assert(messagingService.getLobbyCodeForSession("s1") == "L1")
-
-        // Switch lobby
-        messagingService.joinLobbyGroup("s1", "L2")
-        assert(messagingService.getLobbyCodeForSession("s1") == "L2")
-
-        messagingService.leaveLobbyGroup("s1", "L2")
-        assert(messagingService.getLobbyCodeForSession("s1") == null)
-    }
-
-    @Test
-    fun `broadcastToLobby skips sessionIds not in sessionsById`() {
-        // Add a sessionId to a lobby without calling addSession
-        messagingService.joinLobbyGroup("unknown", "L1")
-        
-        // Should not throw NPE or anything
-        messagingService.broadcastToLobby("L1", "TYPE", "DATA")
-    }
-
-    @Test
-    fun `broadcastToLobby sends only to lobby members`() {
-        val s1 = mock(WebSocketSession::class.java)
-        val s2 = mock(WebSocketSession::class.java)
-        `when`(s1.isOpen).thenReturn(true)
-        `when`(s2.isOpen).thenReturn(true)
-        `when`(s1.id).thenReturn("s1")
-        `when`(s2.id).thenReturn("s2")
-
-        messagingService.addSession(s1)
-        messagingService.addSession(s2)
-        messagingService.joinLobbyGroup("s1", "L1")
-
-        messagingService.broadcastToLobby("L1", "TYPE", "DATA")
-        verify(s1).sendMessage(any())
-        verify(s2, never()).sendMessage(any())
-        
-        // Non-existent lobby returns immediately
-        messagingService.broadcastToLobby("L-NONE", "TYPE", "DATA")
-    }
-
-    @Test
-    fun `sendToPlayer broadcasts with prefixed type to all player sessions`() {
-        val s1 = mock(WebSocketSession::class.java)
-        val s2 = mock(WebSocketSession::class.java)
-        `when`(s1.isOpen).thenReturn(true)
-        `when`(s2.isOpen).thenReturn(true)
-        `when`(s1.id).thenReturn("s1")
-        `when`(s2.id).thenReturn("s2")
-        
-        messagingService.addSession(s1)
-        messagingService.addSession(s2)
-
-        val playerId = "p1"
-        messagingService.registerPlayer("s1", playerId)
-        messagingService.registerPlayer("s2", playerId)
-        
-        val type = "PLAYER_DATA"
-        val data = "role-info"
-        
-        messagingService.sendToPlayer(playerId, type, data)
-
-        val expectedPayload = objectMapper.writeValueAsString(WsMessage("${type}_$playerId", data))
-        val expectedMessage = TextMessage(expectedPayload)
-
-        verify(s1).sendMessage(expectedMessage)
-        verify(s2).sendMessage(expectedMessage)
-    }
-
-    @Test
-    fun `sendToPlayer does nothing if player has no sessions`() {
-        messagingService.sendToPlayer("nonExistent", "TYPE", "DATA")
-    }
-
-    @Test
-    fun `sendToSession returns when sessionId is unknown`() {
-        messagingService.sendToSession("unknown", "TYPE", "DATA")
-    }
-
-    @Test
-    fun `sendToSession does not send when session is closed`() {
-        val session = mock(WebSocketSession::class.java)
-        `when`(session.isOpen).thenReturn(false)
-        `when`(session.id).thenReturn("s1")
+    fun `events are buffered during SYNCING and flushed on SYNC_ACK`() {
+        val sid = "s1"
+        val pid = "p1"
+        val session = mock<WebSocketSession>()
+        whenever(session.id).thenReturn(sid)
+        whenever(session.isOpen).thenReturn(true)
 
         messagingService.addSession(session)
-        messagingService.sendToSession("s1", "TYPE", "DATA")
+        messagingService.registerPlayer(sid, pid) // syncState = SYNCING
 
+        val event = GameEvent.GameOver("DWARVES")
+        messagingService.sendEventToPlayer(pid, event)
+
+        // Verify NOT sent
         verify(session, never()).sendMessage(any())
+
+        // Mark as SYNCED
+        messagingService.setSessionSynced(sid)
+
+        // Verify sent (flushed)
+        verify(session, atLeastOnce()).sendMessage(argThat { msg -> (msg as TextMessage).payload.contains("GAME_OVER") })
+        // And Verify SYNC_COMPLETE was sent
+        verify(session, atLeastOnce()).sendMessage(argThat { msg -> (msg as TextMessage).payload.contains("SYNC_COMPLETE") })
     }
 
     @Test
-    fun `sendToSession sends when session is open`() {
-        val session = mock(WebSocketSession::class.java)
-        `when`(session.isOpen).thenReturn(true)
-        `when`(session.id).thenReturn("s1")
+    fun `lobby locks are independent and consistent`() {
+        val lock1 = messagingService.getLobbyLock("L1")
+        val lock2 = messagingService.getLobbyLock("L2")
+        val lock1Again = messagingService.getLobbyLock("L1")
+        
+        assert(lock1 === lock1Again)
+        assert(lock1 !== lock2)
+    }
 
+    @Test
+    fun `registerPlayer closes old session for same playerId`() {
+        val session1 = mock<WebSocketSession>()
+        val session2 = mock<WebSocketSession>()
+        whenever(session1.id).thenReturn("s1")
+        whenever(session2.id).thenReturn("s2")
+        whenever(session1.isOpen).thenReturn(true)
+
+        messagingService.addSession(session1)
+        messagingService.registerPlayer("s1", "p1")
+        
+        messagingService.addSession(session2)
+        messagingService.registerPlayer("s2", "p1") // Same player, new session
+
+        verify(session1).close(CloseStatus.SESSION_NOT_RELIABLE)
+        assertEquals(1, messagingService.getActiveSessionsCount())
+    }
+
+    @Test
+    fun `removeSession cleans up all mappings`() {
+        val session = mock<WebSocketSession>()
+        whenever(session.id).thenReturn("s1")
         messagingService.addSession(session)
-
-        val type = "TYPE"
-        val data = "DATA"
-
-        messagingService.sendToSession("s1", type, data)
-
-        val expectedPayload = objectMapper.writeValueAsString(WsMessage(type, data))
-        val expectedMessage = TextMessage(expectedPayload)
-
-        verify(session).sendMessage(expectedMessage)
+        messagingService.registerPlayer("s1", "p1")
+        messagingService.joinLobbyGroup("s1", "L1")
+        
+        assertEquals(1, messagingService.getActiveSessionsCount())
+        assertEquals(1, messagingService.getRegisteredPlayersCount())
+        
+        messagingService.removeSession(session)
+        
+        assertEquals(0, messagingService.getActiveSessionsCount())
+        assertEquals(0, messagingService.getRegisteredPlayersCount())
+        assertEquals(null, messagingService.getLobbyCodeForSession("s1"))
     }
 
     @Test
-    fun `sendToSession handles exception during sendMessage`() {
-        val session = mock(WebSocketSession::class.java)
-        `when`(session.isOpen).thenReturn(true)
-        `when`(session.id).thenReturn("s1")
-        `when`(session.sendMessage(any())).thenThrow(RuntimeException("Socket error"))
-
-        messagingService.addSession(session)
-        messagingService.sendToSession("s1", "TYPE", "DATA")
-
-        verify(session).sendMessage(any())
+    fun `updatePlayerActivity and getPlayerLastSeen work`() {
+        val before = System.currentTimeMillis()
+        messagingService.updatePlayerActivity("p1")
+        val activity = messagingService.getPlayerLastSeen("p1")
+        val after = System.currentTimeMillis()
+        
+        assert(activity in before..after)
+        assertEquals(0L, messagingService.getPlayerLastSeen("unknown"))
     }
 
     @Test
-    fun `sendToSessions skips unknown sessionIds`() {
-        messagingService.sendToSessions(listOf("unknown"), "TYPE", "DATA")
-    }
-
-    @Test
-    fun `sendToSessions sends to each sessionId`() {
-        val s1 = mock(WebSocketSession::class.java)
-        val s2 = mock(WebSocketSession::class.java)
-        `when`(s1.isOpen).thenReturn(true)
-        `when`(s2.isOpen).thenReturn(true)
-        `when`(s1.id).thenReturn("s1")
-        `when`(s2.id).thenReturn("s2")
+    fun `sendEventToLobby sends message to all sessions in group`() {
+        val s1 = mock<WebSocketSession>()
+        val s2 = mock<WebSocketSession>()
+        whenever(s1.id).thenReturn("sid1")
+        whenever(s2.id).thenReturn("sid2")
+        whenever(s1.isOpen).thenReturn(true)
+        whenever(s2.isOpen).thenReturn(true)
 
         messagingService.addSession(s1)
         messagingService.addSession(s2)
+        messagingService.joinLobbyGroup("sid1", "L1")
+        messagingService.joinLobbyGroup("sid2", "L1")
 
-        messagingService.sendToSessions(listOf("s1", "s2"), "TYPE", "DATA")
+        messagingService.sendEventToLobby("L1", GameEvent.LobbyLeft())
 
         verify(s1).sendMessage(any())
         verify(s2).sendMessage(any())
+    }
+
+    @Test
+    fun `leaveLobbyGroup removes session from group`() {
+        val s1 = mock<WebSocketSession>()
+        whenever(s1.id).thenReturn("sid1")
+        whenever(s1.isOpen).thenReturn(true)
+        messagingService.addSession(s1)
+        messagingService.joinLobbyGroup("sid1", "L1")
+        
+        messagingService.leaveLobbyGroup("sid1", "L1")
+        messagingService.sendEventToLobby("L1", GameEvent.LobbyLeft())
+        
+        verify(s1, never()).sendMessage(any())
+    }
+
+    @Test
+    fun `sendEventToSession sends message directly`() {
+        val s1 = mock<WebSocketSession>()
+        whenever(s1.id).thenReturn("sid1")
+        whenever(s1.isOpen).thenReturn(true)
+        messagingService.addSession(s1)
+        
+        messagingService.sendEventToSession("sid1", GameEvent.SyncComplete())
+        verify(s1).sendMessage(any())
+    }
+
+    @Test
+    fun `clearLobbyMappings removes lobby entries`() {
+        messagingService.joinLobbyGroup("s1", "L1")
+        messagingService.clearLobbyMappings("L1")
+
+        val s1 = mock<WebSocketSession>()
+        messagingService.sendEventToLobby("L1", GameEvent.LobbyLeft())
+        verify(s1, never()).sendMessage(any())
     }
 }

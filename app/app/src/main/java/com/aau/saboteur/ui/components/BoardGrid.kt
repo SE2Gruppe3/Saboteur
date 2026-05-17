@@ -49,8 +49,9 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
+import androidx.compose.ui.draw.rotate
+import com.aau.saboteur.ui.toCanonicalDrawableName
 import com.aau.saboteur.ui.toContentDescription
-import com.aau.saboteur.ui.toDrawableName
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -78,16 +79,20 @@ private val TileContentPadding = 6.dp
  * Scrollbares, zoombares Spielfeld für Saboteur.
  *
  * Zeigt ein [BoardColumns]×[BoardRows]-Raster aus [BoardTile]-Kacheln.
+ *
+ * @param validPositions cells highlighted as legal placement targets for the selected card
  */
 @Composable
 fun BoardGrid(
     placements: List<PlacedTunnelCard>,
     modifier: Modifier = Modifier,
+    validPositions: List<BoardPosition> = emptyList(),
     onCellClick: (BoardPosition) -> Unit = {},
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
+    val validPositionSet = remember(validPositions) { validPositions.toHashSet() }
     val gridColor = Color(0xFF000000).copy(alpha = BoardGridLineAlpha)
     var scale by remember { mutableFloatStateOf(0.8f) }
 
@@ -185,12 +190,21 @@ fun BoardGrid(
                                 repeat(BoardColumns) { column ->
                                     val position = BoardPosition(row = row, column = column)
                                     val placement = placementMap[position]
-                                    BoardTile(
-                                        card = placement?.card,
-                                        cardWidth = scaledCardWidth,
-                                        cardHeight = scaledCardHeight,
-                                        onClick = { onCellClick(position) }
-                                    )
+                                    Box(modifier = Modifier.size(width = scaledCardWidth, height = scaledCardHeight)) {
+                                        BoardTile(
+                                            card = placement?.card,
+                                            cardWidth = scaledCardWidth,
+                                            cardHeight = scaledCardHeight,
+                                            onClick = { onCellClick(position) }
+                                        )
+                                        if (position in validPositionSet) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(Color.Green.copy(alpha = 0.15f))
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -293,7 +307,7 @@ private fun BoardTile(
     onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val drawableName = card?.toDrawableName()
+    val drawableName = card?.toCanonicalDrawableName()
     @Suppress("DiscouragedApi")
     val imageRes = drawableName?.let {
         context.resources.getIdentifier(it, "drawable", context.packageName)
@@ -321,11 +335,8 @@ private fun BoardTile(
                         painter = painterResource(id = imageRes),
                         contentDescription = card.toContentDescription(),
                         contentScale = ContentScale.FillBounds,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                rotationZ = if (card.isRotated) 180f else 0f
-                            }
+                        modifier = Modifier.fillMaxSize()
+                            .then(if (card.isRotated) Modifier.rotate(180f) else Modifier)
                     )
                 }
                 else -> ConnectionPattern(card = card)
