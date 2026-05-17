@@ -26,8 +26,8 @@ class LobbyService(
     private val gameRepository: GameRepository,
     private val objectMapper: ObjectMapper,
     private val gameService: GameService,
-    @Lazy private val messagingService: MessagingService,
-    @Lazy private val turnManager: TurnManager
+    @param:Lazy private val messagingService: MessagingService,
+    @param:Lazy private val turnManager: TurnManager
 ) {
     private val logger = LoggerFactory.getLogger(LobbyService::class.java)
     private val lobbies = ConcurrentHashMap<String, LobbyState>()
@@ -64,15 +64,12 @@ class LobbyService(
             lastActivity = now
         )
         lobbyRepository.save(entity)
-        
-        // Broadcasts occur after save. If save fails, transaction rolls back and no events are sent.
+
         messagingService.sendEventToLobby(lobby.lobbyCode, GameEvent.LobbyStateUpdate(lobby))
         messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllLobbies()))
     }
 
-    fun updateActivity(lobbyCode: String) {
-        lastActivity[lobbyCode] = System.currentTimeMillis()
-    }
+    fun getActiveLobbiesCount(): Int = lobbies.size
 
     @Transactional
     fun createLobby(playerName: String, playerId: String? = null): LobbyState {
@@ -80,7 +77,7 @@ class LobbyService(
         val finalPlayerId = playerId ?: UUID.randomUUID().toString()
         val host = Player(id = finalPlayerId, name = playerName)
         val lobby = LobbyState(code, host.id, listOf(host), false)
-        
+
         messagingService.getLobbyLock(code).withLock {
             lobbies[code] = lobby
             persist(lobby)
@@ -92,8 +89,7 @@ class LobbyService(
     fun joinLobby(lobbyCode: String, playerName: String, playerId: String? = null): LobbyState {
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
-            
-            // CRITICAL FIX: Allow re-joining if already a member, even if game started
+
             if (playerId != null && lobby.players.any { it.id == playerId }) {
                 return@withLock lobby
             }
@@ -114,7 +110,7 @@ class LobbyService(
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
             val updatedPlayers = lobby.players.filter { it.id != playerId }
-            
+
             if (updatedPlayers.isEmpty()) {
                 deleteLobbyInternal(lobbyCode, "empty")
                 return@withLock null
@@ -142,13 +138,10 @@ class LobbyService(
     @Transactional
     fun deleteLobbyInternal(code: String, reason: String) {
         logger.info("Cleaning up {} lobby: {}", reason, code)
-        
-        // Notify participants that lobby is closing (e.g. game over or timeout)
+
         try {
             messagingService.sendEventToLobby(code, GameEvent.LobbyLeft())
-        } catch (e: Exception) {
-            // Group might already be empty or partially cleared
-        }
+        } catch (e: Exception) { }
 
         lobbies.remove(code)
         lastActivity.remove(code)
@@ -162,8 +155,6 @@ class LobbyService(
 
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
     fun getLobby(lobbyCode: String): LobbyState = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
-
-    fun getActiveLobbiesCount(): Int = lobbies.size
 
     private fun generateUniqueCode(): String {
         repeat(50) {
@@ -182,16 +173,16 @@ class LobbyService(
                 val lastSeen = lastActivity[code] ?: 0
                 val inactivityPeriod = now - lastSeen
 
-                // Case 1: Lobby is empty -> Delete after 1 minute of inactivity
                 if (lobby.players.isEmpty() && inactivityPeriod > 60000) {
                     deleteLobbyInternal(code, "timeout_empty")
-                } 
-                // Case 2: Lobby has "Ghost Players" (inactivity for 5 minutes)
-                // This handles cases where players closed the app without leaving.
-                else if (inactivityPeriod > 300000) {
+                } else if (inactivityPeriod > 300000) {
                     deleteLobbyInternal(code, "timeout_inactive")
                 }
             }
         }
+    }
+
+    fun updateActivity(lobbyCode: String) {
+        lastActivity[lobbyCode] = System.currentTimeMillis()
     }
 }

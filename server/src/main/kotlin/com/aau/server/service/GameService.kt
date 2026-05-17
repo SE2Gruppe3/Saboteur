@@ -1,7 +1,7 @@
 package com.aau.server.service
 
-import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.BoardPosition
+import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.PlayerTurn

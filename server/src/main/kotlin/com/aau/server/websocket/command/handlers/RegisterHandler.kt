@@ -1,6 +1,6 @@
 package com.aau.server.websocket.command.handlers
 
-import com.aau.saboteur.model.ReconnectSnapshot
+import com.aau.saboteur.model.*
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
@@ -30,17 +30,13 @@ class RegisterHandler(
         val playerId = command.playerId
         val lobbyCode = command.lobbyCode
 
-        // 1. LOCK lobby to prevent parallel state changes during sync
         messagingService.getLobbyLock(lobbyCode).withLock {
-            
-            // 2. REGISTER/REPLACE session (starts buffering)
             messagingService.registerPlayer(session.id, playerId)
             messagingService.joinLobbyGroup(session.id, lobbyCode)
 
             logger.info("REGISTER: Player {} in lobby {}", playerId, lobbyCode)
 
             try {
-                // 3. Build DETERMINISTIC SNAPSHOT from services
                 val lobby = lobbyService.getLobby(lobbyCode)
                 val playerInLobby = lobby.players.find { it.id == playerId }
                     ?: throw IllegalArgumentException("Player $playerId not in lobby $lobbyCode")
@@ -49,7 +45,6 @@ class RegisterHandler(
                     val gameState = turnManager.getGameState(lobbyCode)
                     val basePlayer = gameService.getPlayer(lobbyCode, playerId) ?: playerInLobby
                     
-                    // CRITICAL FIX: Merge role from GameService with current hand from TurnManager
                     val currentHands = turnManager.getHands(lobbyCode)
                     val playerWithHand = basePlayer.copy(
                         hand = currentHands[playerId] ?: emptyList()
@@ -70,13 +65,8 @@ class RegisterHandler(
                     )
                 }
 
-                // 4. SEND SNAPSHOT (This skips the buffer in MessagingService.sendEventToSession)
                 messagingService.sendEventToSession(session.id, GameEvent.ReconnectSnapshotEvent(snapshot))
                 
-                // NOTE: We do NOT send SYNC_COMPLETE here. 
-                // We wait for the client to send SYNC_ACK to ensure it processed the snapshot.
-                // SyncAckHandler will then flush the buffer and send SYNC_COMPLETE.
-
             } catch (e: Exception) {
                 if (e.message?.contains("not found", ignoreCase = true) == true) {
                     logger.warn("Sync failed: Lobby {} not found for player {}", lobbyCode, playerId)
@@ -85,7 +75,6 @@ class RegisterHandler(
                     logger.error("Sync failed for player {}: {}", playerId, e.message)
                     messagingService.sendEventToSession(session.id, GameEvent.ErrorEvent("Sync failed: ${e.message}"))
                 }
-                // Recovery: ensure session isn't stuck in syncing forever
                 messagingService.setSessionSynced(session.id)
             }
         }

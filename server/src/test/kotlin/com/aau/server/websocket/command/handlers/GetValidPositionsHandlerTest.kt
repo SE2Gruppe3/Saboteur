@@ -4,6 +4,7 @@ import com.aau.saboteur.model.*
 import com.aau.server.service.MessagingService
 import com.aau.server.service.TurnManager
 import com.aau.server.websocket.command.GetValidPositionsCommand
+import com.aau.server.websocket.event.GameEvent
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -29,7 +30,7 @@ class GetValidPositionsHandlerTest {
         val playerId = "player-1"
         val command = GetValidPositionsCommand("card-1", false)
         val card = TunnelCard("card-1", CardType.PATH, setOf(Direction.TOP, Direction.BOTTOM))
-        val gameState = GameState(emptyList(), "p1", emptyList())
+        val gameState = GameState(emptyList(), "player-1", emptyList())
         val validPositions = listOf(BoardPosition(0, 0))
 
         whenever(messagingService.getLobbyCodeForSession("session-1")).thenReturn(lobbyCode)
@@ -40,7 +41,7 @@ class GetValidPositionsHandlerTest {
 
         handler.handle(session, command)
 
-        verify(messagingService).sendEventToSession(eq("session-1"), any())
+        verify(messagingService).sendEventToSession(eq("session-1"), any<GameEvent.ValidPositions>())
     }
 
     @Test

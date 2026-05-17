@@ -21,11 +21,13 @@ class GetValidPositionsHandler(
     override fun handle(session: WebSocketSession, command: GetValidPositionsCommand) {
         val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
             ?: throw IllegalArgumentException("Session is not connected to a lobby")
+        
         val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
             ?: throw IllegalArgumentException("Session is not linked to a player")
 
-        val card = turnManager.getHands(lobbyCode)[sessionPlayerId]?.find { it.id == command.cardId }
-            ?: throw IllegalArgumentException("Card ${command.cardId} not found in player's hand")
+        val hands = turnManager.getHands(lobbyCode)
+        val card = hands[sessionPlayerId]?.find { it.id == command.cardId }
+            ?: throw IllegalArgumentException("Card ${command.cardId} not found in hand")
 
         val placements = turnManager.getGameState(lobbyCode).boardPlacements
         val validPositions = turnManager.getValidPositions(lobbyCode, card, command.isRotated, placements)
