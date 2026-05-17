@@ -134,6 +134,7 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    // PRIVATE interne Fehlerfunktion fürs automatische Timeout
     private fun showError(message: String) {
         errorClearJob?.cancel()
         _uiState.update { it.copy(isStartingGame = false, errorMessage = message) }
@@ -141,6 +142,11 @@ class GameViewModel : ViewModel() {
             delay(2000)
             _uiState.update { it.copy(errorMessage = null) }
         }
+    }
+
+    // ÖFFENTLICHE Helper-Funktion fürs Setzen von Error-Messages von außen!
+    fun setError(msg: String) {
+        _uiState.update { it.copy(errorMessage = msg) }
     }
 
     fun initGameSession(lobbyCode: String, playerId: String) {
