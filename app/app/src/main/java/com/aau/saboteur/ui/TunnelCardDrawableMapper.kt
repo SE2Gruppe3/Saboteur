@@ -12,8 +12,8 @@ fun TunnelCard.toDrawableName(): String = when (type) {
     CardType.LANTERN_GREEN -> "lantern_green"
     CardType.PICKAXE_RED -> "pickaxe_red"
     CardType.PICKAXE_GREEN -> "pickaxe_green"
-    CardType.MAPCARD -> "mapcard_tmp" // Korrigiert auf die schönere Datei
-    CardType.ROCKFALL -> "rockfall_tmp" // Korrigiert auf die schönere Datei
+    CardType.MAPCARD -> "mapcard" // Zurück auf den Original-Namen
+    CardType.ROCKFALL -> "rockfall" // Zurück auf den Original-Namen
     CardType.DOUBLE_LANTERN_CART -> "double_lantern_cart"
     CardType.DOUBLE_PICKAXE_CART -> "double_pickaxe_cart"
     CardType.DOUBLE_PICKAXE_LANTERN -> "double_pickaxe_lantern"
