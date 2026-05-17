@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.model.*
 import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.game.GameApi
+import com.aau.saboteur.network.game.MapResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -32,7 +33,8 @@ data class GameUiState(
     val selectedCard: TunnelCard? = null,
     val selectedCardRotated: Boolean = false,
     val cardRotations: Map<String, Boolean> = emptyMap(),
-    val pendingSpecialCard: CardType? = null
+    val pendingSpecialCard: CardType? = null,
+    val lastMapResult: MapResult? = null
 )
 
 class GameViewModel : ViewModel() {
@@ -55,7 +57,7 @@ class GameViewModel : ViewModel() {
         observeErrors()
         observeGameOverEvents()
         observeValidPositions()
-
+        observeMapResults()
         if (_uiState.value.gameState.players.isEmpty()) {
             _uiState.update { it.copy(isSyncing = true) }
         }
@@ -65,7 +67,6 @@ class GameViewModel : ViewModel() {
         WebSocketManager.onEvent("SYNC_COMPLETE") {
             _uiState.update { it.copy(isSyncing = false) }
         }
-
         viewModelScope.launch {
             WebSocketManager.connectionStatus.collect { isConnected ->
                 if (!isConnected) {
@@ -134,7 +135,16 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    // PRIVATE interne Fehlerfunktion fürs automatische Timeout
+    private fun observeMapResults() {
+        viewModelScope.launch {
+            GameApi.mapResultEvents.collect { result ->
+                _uiState.update { it.copy(lastMapResult = result) }
+                delay(5000)
+                _uiState.update { it.copy(lastMapResult = null) }
+            }
+        }
+    }
+
     private fun showError(message: String) {
         errorClearJob?.cancel()
         _uiState.update { it.copy(isStartingGame = false, errorMessage = message) }
@@ -144,7 +154,6 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    // ÖFFENTLICHE Helper-Funktion fürs Setzen von Error-Messages von außen!
     fun setError(msg: String) {
         _uiState.update { it.copy(errorMessage = msg) }
     }

@@ -85,6 +85,28 @@ fun GameScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+
+        uiState.lastMapResult?.let { result ->
+            AlertDialog(
+                onDismissRequest = { /* schließt nach Timeout */ },
+                title = { Text("Geheim-Information") },
+                text = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Du hast die Zielkarte angeschaut:")
+                        Spacer(modifier = Modifier.height(12.dp))
+                        val cardName = when (result.card.type) {
+                            CardType.GOAL -> "GOLD gefunden! 💰"
+                            else -> "Nur Stein... 🪨"
+                        }
+                        Text(cardName, style = MaterialTheme.typography.headlineMedium)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { }) { Text("OK") }
+                }
+            )
+        }
+
         BoardGrid(
             placements = uiState.gameState.boardPlacements,
             modifier = Modifier.fillMaxSize(),

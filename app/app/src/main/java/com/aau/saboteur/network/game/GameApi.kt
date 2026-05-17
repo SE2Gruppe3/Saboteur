@@ -9,6 +9,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+
+data class MapResult(
+    val position: BoardPosition,
+    val card: TunnelCard
+)
 
 object GameApi {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -33,6 +40,9 @@ object GameApi {
 
     private val _reconnectSnapshotEvents = MutableSharedFlow<ReconnectSnapshot>(replay = 1)
     val reconnectSnapshotEvents: SharedFlow<ReconnectSnapshot> = _reconnectSnapshotEvents.asSharedFlow()
+
+    private val _mapResultEvents = MutableSharedFlow<MapResult>(replay = 0, extraBufferCapacity = 1)
+    val mapResultEvents: SharedFlow<MapResult> = _mapResultEvents.asSharedFlow()
 
     init {
         observeEvents()
@@ -94,6 +104,12 @@ object GameApi {
 
         WebSocketManager.onEvent("ERROR") { data ->
             _errorMessages.tryEmit(data)
+        }
+
+        WebSocketManager.onEvent("MAP_RESULT") { data ->
+            runCatching { data.toMapResult() }
+                .onSuccess { _mapResultEvents.tryEmit(it) }
+                .onFailure { it.printStackTrace() }
         }
     }
 
@@ -186,7 +202,10 @@ object GameApi {
             put("lobbyCode", lobbyCode)
             put("playerId", playerId)
             put("cardId", cardId)
-            put("position", position)
+            put("targetPosition", JSONObject().apply {
+                put("row", position.row)
+                put("column", position.column)
+            })
         }
         WebSocketManager.sendCommand("PLAY_MAP_CARD", payload)
     }
@@ -196,7 +215,10 @@ object GameApi {
             put("lobbyCode", lobbyCode)
             put("playerId", playerId)
             put("cardId", cardId)
-            put("position", position)
+            put("targetPosition", JSONObject().apply {
+                put("row", position.row)
+                put("column", position.column)
+            })
         }
         WebSocketManager.sendCommand("PLAY_ROCKFALL_CARD", payload)
     }
@@ -210,5 +232,15 @@ object GameApi {
         _playerUpdates.value = null
         _cardsDealtUpdates.value = null
         _validPositionsUpdates.tryEmit(emptyList())
+    }
+
+    private fun String.toMapResult(): MapResult {
+        val json = JSONObject(this)
+        val posJson = json.getJSONObject("position")
+        val cardJson = json.getJSONObject("card")
+        return MapResult(
+            position = BoardPosition(posJson.getInt("row"), posJson.getInt("column")),
+            card = Json.decodeFromString<TunnelCard>(cardJson.toString())
+        )
     }
 }

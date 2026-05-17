@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +47,11 @@ fun PlayerCard(
             colors = listOf(MineCoal, MineSlate)
         )
     }
+    val toolEmojis = buildString {
+        if (player.blockedTools.any { it.name == "PICKAXE" }) append("⛏️")
+        if (player.blockedTools.any { it.name == "LANTERN" }) append("🏮")
+        if (player.blockedTools.any { it.name == "CART" }) append("🛒")
+    }
 
     Card(
         modifier = modifier.then(
@@ -79,12 +87,22 @@ fun PlayerCard(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = player.playerName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isCurrentPlayer) MineCoal else Quartz
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = player.playerName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isCurrentPlayer) MineCoal else Quartz
+                    )
+                    if (toolEmojis.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = toolEmojis,
+                            color = if (isCurrentPlayer) MineCoal else Quartz,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
             }
         }
     }
