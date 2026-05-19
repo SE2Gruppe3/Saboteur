@@ -1,5 +1,12 @@
 package com.aau.saboteur.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -307,11 +314,6 @@ private fun BoardTile(
     onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val drawableName = card?.toCanonicalDrawableName()
-    @Suppress("DiscouragedApi")
-    val imageRes = drawableName?.let {
-        context.resources.getIdentifier(it, "drawable", context.packageName)
-    } ?: 0
 
     Card(
         onClick = onClick,
@@ -327,19 +329,40 @@ private fun BoardTile(
                 .padding(TileContentPadding),
             contentAlignment = Alignment.Center
         ) {
-            when {
-                card == null -> EmptyTilePattern()
-                card.type == CardType.GOAL && !card.isRevealed -> HiddenGoalCard()
-                imageRes != 0 -> {
-                    Image(
-                        painter = painterResource(id = imageRes),
-                        contentDescription = card.toContentDescription(),
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier.fillMaxSize()
-                            .then(if (card.isRotated) Modifier.rotate(180f) else Modifier)
-                    )
+            AnimatedContent(
+                targetState = card,
+                transitionSpec = {
+                    if (initialState == null && targetState != null) {
+                        (scaleIn(
+                            initialScale = 0.4f,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                        ) + fadeIn()) togetherWith fadeOut()
+                    } else {
+                        fadeIn() togetherWith fadeOut()
+                    }
+                },
+                label = "tileContent"
+            ) { displayedCard ->
+                val drawableName = displayedCard?.toCanonicalDrawableName()
+                @Suppress("DiscouragedApi")
+                val imageRes = drawableName?.let {
+                    context.resources.getIdentifier(it, "drawable", context.packageName)
+                } ?: 0
+
+                when {
+                    displayedCard == null -> EmptyTilePattern()
+                    displayedCard.type == CardType.GOAL && !displayedCard.isRevealed -> HiddenGoalCard()
+                    imageRes != 0 -> {
+                        Image(
+                            painter = painterResource(id = imageRes),
+                            contentDescription = displayedCard.toContentDescription(),
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize()
+                                .then(if (displayedCard.isRotated) Modifier.rotate(180f) else Modifier)
+                        )
+                    }
+                    else -> ConnectionPattern(card = displayedCard)
                 }
-                else -> ConnectionPattern(card = card)
             }
         }
     }
