@@ -34,7 +34,8 @@ data class GameUiState(
     val selectedCardRotated: Boolean = false,
     val cardRotations: Map<String, Boolean> = emptyMap(),
     val pendingSpecialCard: CardType? = null,
-    val lastMapResult: MapResult? = null
+    val lastMapResult: MapResult? = null,
+    val remainingDeckSize: Int = 0
 )
 
 class GameViewModel : ViewModel() {
@@ -82,6 +83,7 @@ class GameViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         gameState = newState,
+                        remainingDeckSize = newState.deckSize,
                         isStartingGame = false,
                         isSyncing = false,
                         errorMessage = null,

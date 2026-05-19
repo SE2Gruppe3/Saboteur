@@ -141,6 +141,22 @@ fun GameScreen(
                 }
             }
         }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 72.dp, end = 16.dp)
+                .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "🃏", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "${uiState.remainingDeckSize}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
