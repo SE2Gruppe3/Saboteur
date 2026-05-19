@@ -69,12 +69,12 @@ fun TunnelCardView(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .graphicsLayer { translationY = liftDp.toPx() }
+            .width(60.dp)
+            .height(90.dp)
             .shadow(
                 elevation = if (isSelected) 8.dp else 1.dp,
                 shape = RoundedCornerShape(6.dp)
             )
-            .width(60.dp)
-            .height(90.dp)
             .border(
                 width = if (isSelected) 3.dp else 1.dp,
                 color = if (isSelected) SelectedBorderColor else MaterialTheme.colorScheme.outline,
