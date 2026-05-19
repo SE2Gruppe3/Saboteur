@@ -66,7 +66,7 @@ class TurnManager(
                     discardPile = discardPile.toMutableList(),
                     deckWasEmptied = entity.deckWasEmptied,
                     passedSinceEmpty = entity.passedSinceEmpty,
-                    gameState = GameState(players = playersTurn, currentPlayerId = entity.currentPlayerId, boardPlacements = board),
+                    gameState = GameState(players = playersTurn, currentPlayerId = entity.currentPlayerId, boardPlacements = board, deckSize = drawPile.size),
                     knownGoalsByPlayer = knownGoalsByPlayer
                 )
                 gameService.setPlayerData(entity.lobbyCode, playerRoles)
@@ -99,7 +99,7 @@ class TurnManager(
                 val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
                 val newPlacements = revealGoalCards(position, effectiveCard, placementsWithCard)
                 internal.gameState = state.copy(boardPlacements = newPlacements, currentPlayerId = nextPlayerId(state))
-                persist(lobbyCode)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -130,7 +130,7 @@ class TurnManager(
                 internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
-                persist(lobbyCode)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -160,7 +160,7 @@ class TurnManager(
                 internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
-                persist(lobbyCode)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -189,7 +189,7 @@ class TurnManager(
                 drawCardForPlayer(internal, playerId)
                 internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
                 internal.passedSinceEmpty = 0
-                persist(lobbyCode)
+                finalizeAndPersist(lobbyCode, internal)
                 val res = TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
                 Pair(res, MapResult(targetPosition, targetPlacement.card))
             } catch (e: Exception) {
@@ -220,7 +220,7 @@ class TurnManager(
                 internal.gameState = state.copy(boardPlacements = updatedPlacements, currentPlayerId = nextPlayerId(state))
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
-                persist(lobbyCode)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -244,13 +244,18 @@ class TurnManager(
                 drawCardForPlayer(internal, playerId)
                 if (internal.deckWasEmptied) internal.passedSinceEmpty++
                 internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
-                persist(lobbyCode)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
             }
         }
+    }
+
+    private fun finalizeAndPersist(lobbyCode: String, internal: GameInternalState) {
+        internal.gameState = internal.gameState.copy(deckSize = internal.drawPile.size)
+        persist(lobbyCode)
     }
 
     private fun persist(lobbyCode: String) {
@@ -288,12 +293,12 @@ class TurnManager(
             knownGoalsByPlayer = initialGameState.players.associate { it.playerId to mutableMapOf<BoardPosition, TunnelCard>() }.toMutableMap()
         )
         games[lobbyCode] = internal
-        persist(lobbyCode)
+        finalizeAndPersist(lobbyCode, internal)
     }
 
     fun getGameStateSnapshot(lobbyCode: String): GameState {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
-        return synchronized(internal) { internal.gameState.copy() }
+        return synchronized(internal) { internal.gameState.copy(deckSize = internal.drawPile.size) }
     }
 
     fun getGameState(lobbyCode: String): GameState = getGameStateSnapshot(lobbyCode)

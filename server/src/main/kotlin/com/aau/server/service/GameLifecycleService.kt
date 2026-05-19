@@ -45,9 +45,9 @@ class GameLifecycleService(
     private fun broadcastStartEvents(lobbyCode: String, lobby: com.aau.saboteur.model.LobbyState, result: GameStartResult) {
         // REIHENFOLGE GEÄNDERT: Erst Spieldaten, dann Lobby-Update (Navigation)
         // Das verhindert Race Conditions auf dem Client.
-        
-        // 1. Game State senden
-        messagingService.sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(result.gameState))
+
+        // 1. Game State senden (deckSize ist nach initializeGame korrekt gesetzt)
+        messagingService.sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(turnManager.getGameState(lobbyCode)))
         
         // 2. Rollen senden
         result.playerRoles.forEach { (pid, player) ->
