@@ -298,7 +298,7 @@ class TurnManager(
 
     fun getGameStateSnapshot(lobbyCode: String): GameState {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Game not found")
-        return synchronized(internal) { internal.gameState.copy(deckSize = internal.drawPile.size) }
+        return synchronized(internal) { internal.gameState }
     }
 
     fun getGameState(lobbyCode: String): GameState = getGameStateSnapshot(lobbyCode)
