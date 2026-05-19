@@ -21,6 +21,9 @@ import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
 
+private val DeckBadgeBackground = Color(0xFF2A2A2A)
+private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
+
 private fun isToolBlocked(blockedTools: Set<ToolType>, tool: String): Boolean {
     return blockedTools.any { it.name == tool }
 }
@@ -299,7 +302,7 @@ private fun DeckBadge(count: Int) {
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .clip(shape)
-                .background(Color(0xFF2A2A2A))
+                .background(DeckBadgeBackground)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -308,7 +311,7 @@ private fun DeckBadge(count: Int) {
                 Box(
                     modifier = Modifier
                         .size(width = 10.dp, height = 14.dp)
-                        .background(Color(0xFF1A1A1A), RoundedCornerShape(2.dp))
+                        .background(DeckBadgeIconBackground, RoundedCornerShape(2.dp))
                         .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(2.dp))
                 )
                 Spacer(modifier = Modifier.width(6.dp))
