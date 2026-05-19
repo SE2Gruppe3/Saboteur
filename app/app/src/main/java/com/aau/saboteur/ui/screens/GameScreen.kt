@@ -1,14 +1,19 @@
 package com.aau.saboteur.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.model.*
@@ -141,22 +146,6 @@ fun GameScreen(
                 }
             }
         }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 72.dp, end = 16.dp)
-                .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "🃏", style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    text = "${uiState.remainingDeckSize}",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-        }
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -195,8 +184,18 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                uiState.player?.role?.let { role ->
-                    RoleCardView(role = role, compact = true)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    uiState.player?.role?.let { role ->
+                        RoleCardView(role = role, compact = true)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    DeckBadge(count = uiState.remainingDeckSize)
                 }
                 if (isMyTurn && uiState.selectedCard != null) {
                     Button(
@@ -207,6 +206,7 @@ fun GameScreen(
                     }
                 }
                 PlayerHandRow(
+                    modifier = Modifier.fillMaxWidth(),
                     hand = currentHand,
                     selectedCardId = uiState.selectedCard?.id,
                     onCardSelected = { card ->
@@ -277,6 +277,48 @@ fun GameScreen(
                     pendingToolSelection = null
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun DeckBadge(count: Int) {
+    val shape = RoundedCornerShape(12.dp)
+    Card(
+        modifier = Modifier.shadow(
+            elevation = 4.dp,
+            shape = shape,
+            ambientColor = Color.Black,
+            spotColor = Color.Black
+        ),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .clip(shape)
+                .background(Color(0xFF2A2A2A))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 10.dp, height = 14.dp)
+                        .background(Color(0xFF1A1A1A), RoundedCornerShape(2.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(2.dp))
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = count.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
