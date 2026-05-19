@@ -74,7 +74,7 @@ fun ActiveLobbyScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Game Lobby",
+                        text = "Spiellobby",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.ExtraBold
@@ -85,7 +85,7 @@ fun ActiveLobbyScreen(
                     IconButton(onClick = viewModel::leaveLobby) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = "Leave Lobby",
+                            contentDescription = "Lobby verlassen",
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -131,7 +131,7 @@ private fun SyncOverlay() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 CircularProgressIndicator()
-                Text("Synchronizing State...", style = MaterialTheme.typography.bodyMedium)
+                Text("Zustand wird synchronisiert...", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -190,7 +190,7 @@ private fun ActiveLobbyHeader(username: String) {
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                text = "Signed in as: $username",
+                text = "Angemeldet als: $username",
                 style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.SansSerif),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -202,7 +202,7 @@ private fun ActiveLobbyHeader(username: String) {
 private fun NoActiveLobbyMessage() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            text = "No active lobby selected.",
+            text = "Keine aktive Lobby ausgewählt.",
             style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.SansSerif),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -241,7 +241,7 @@ private fun ActiveLobbyContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "LOBBY CODE",
+                    text = "LOBBY-CODE",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Bold
@@ -269,7 +269,7 @@ private fun ActiveLobbyContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Players",
+                text = "Spieler",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold
@@ -308,7 +308,7 @@ private fun ActiveLobbyContent(
 
             errorMessage?.let {
                 ActiveLobbyMessage(
-                    text = "Error: $it",
+                    text = "Fehler: $it",
                     icon = Icons.Default.Info,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -329,7 +329,7 @@ private fun ActiveLobbyContent(
                 )
             ) {
                 Text(
-                    "START GAME",
+                    "SPIEL STARTEN",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.ExtraBold
@@ -345,7 +345,7 @@ private fun ActiveLobbyContent(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = "Waiting for $hostName to start...",
+                    text = "Warte auf $hostName...",
                     modifier = Modifier
                         .padding(16.dp)
                         .fillMaxWidth(),
@@ -435,7 +435,7 @@ private fun PlayerHeadline(name: String, isHost: Boolean) {
 @Composable
 private fun HostSupportingContent() {
     Text(
-        text = "Lobby Host",
+        text = "Lobby-Host",
         style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.SansSerif),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
     )
@@ -515,8 +515,8 @@ private fun ActiveLobbyMessage(
 
 private fun playerCountError(playerCount: Int): String? {
     return when {
-        playerCount < MIN_PLAYERS -> "At least $MIN_PLAYERS players are required to start."
-        playerCount > MAX_PLAYERS -> "Maximum $MAX_PLAYERS players allowed."
+        playerCount < MIN_PLAYERS -> "Mindestens $MIN_PLAYERS Spieler erforderlich."
+        playerCount > MAX_PLAYERS -> "Maximal $MAX_PLAYERS Spieler erlaubt."
         else -> null
     }
 }

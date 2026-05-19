@@ -34,7 +34,7 @@ fun AvailableLobbies(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Available Lobbies",
+                text = "Verfügbare Lobbys",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -44,7 +44,7 @@ fun AvailableLobbies(
                 shape = CircleShape
             ) {
                 Text(
-                    text = "${availableLobbies.size} Found",
+                    text = "${availableLobbies.size} gefunden",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
@@ -67,7 +67,7 @@ fun AvailableLobbies(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "No public lobbies found. Create one to get started!",
+                            "Keine öffentlichen Lobbys gefunden. Erstelle eine!",
                             modifier = Modifier.padding(24.dp),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -115,7 +115,7 @@ fun LobbyItem(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "${lobby.players.size} Players",
+                        text = "${lobby.players.size} Spieler",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -133,7 +133,7 @@ fun LobbyItem(
                     modifier = Modifier.height(32.dp)
                 ) {
                     Text(
-                        "SELECT",
+                        "AUSWÄHLEN",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
