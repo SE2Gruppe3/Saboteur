@@ -1,6 +1,9 @@
 package com.aau.saboteur.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -19,6 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,6 +55,12 @@ fun TunnelCardView(
         label = "cardRotation"
     )
 
+    val liftDp by animateDpAsState(
+        targetValue = if (isSelected) (-12).dp else 0.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "cardLift"
+    )
+
     val context = LocalContext.current
     val drawableName = card.toDrawableName()
     val resId = context.resources.getIdentifier(drawableName, "drawable", context.packageName)
@@ -58,6 +68,11 @@ fun TunnelCardView(
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
+            .graphicsLayer { translationY = liftDp.toPx() }
+            .shadow(
+                elevation = if (isSelected) 8.dp else 1.dp,
+                shape = RoundedCornerShape(6.dp)
+            )
             .width(60.dp)
             .height(90.dp)
             .border(
