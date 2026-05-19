@@ -27,7 +27,7 @@ fun PlayerHandRow(
     onCardRotated: (TunnelCard, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    val displayedCards = remember { mutableStateListOf<TunnelCard>() }
+    val displayedCards = remember { mutableStateListOf(*hand.toTypedArray()) }
 
     LaunchedEffect(hand) {
         val handIds = hand.map { it.id }.toSet()
