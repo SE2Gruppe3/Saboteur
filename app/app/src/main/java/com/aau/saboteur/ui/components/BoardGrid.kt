@@ -1,12 +1,12 @@
 package com.aau.saboteur.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,6 +59,7 @@ import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import com.aau.saboteur.ui.toCanonicalDrawableName
 import com.aau.saboteur.ui.toContentDescription
 import kotlin.math.cos
@@ -315,10 +317,29 @@ private fun BoardTile(
     onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scaleAnim = remember { Animatable(1f) }
+    val prevCard = remember { mutableStateOf<TunnelCard?>(card) }
+
+    LaunchedEffect(card) {
+        val wasNull = prevCard.value == null
+        prevCard.value = card
+        if (wasNull && card != null) {
+            scaleAnim.snapTo(0.4f)
+            scaleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
+            )
+        }
+    }
 
     Card(
         onClick = onClick,
-        modifier = Modifier.size(width = cardWidth, height = cardHeight),
+        modifier = Modifier
+            .size(width = cardWidth, height = cardHeight)
+            .scale(scaleAnim.value),
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
         colors = CardDefaults.cardColors(containerColor = tileColor(card))
@@ -333,14 +354,7 @@ private fun BoardTile(
             AnimatedContent(
                 targetState = card,
                 transitionSpec = {
-                    if (initialState == null && targetState != null) {
-                        (scaleIn(
-                            initialScale = 0.4f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                        ) + fadeIn()) togetherWith fadeOut(tween(50))
-                    } else {
-                        fadeIn(tween(150)) togetherWith fadeOut(tween(150))
-                    }
+                    fadeIn(tween(200)) togetherWith fadeOut(tween(150))
                 },
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
