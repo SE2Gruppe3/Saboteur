@@ -3,6 +3,7 @@ package com.aau.saboteur.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -336,11 +337,13 @@ private fun BoardTile(
                         (scaleIn(
                             initialScale = 0.4f,
                             animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                        ) + fadeIn()) togetherWith fadeOut()
+                        ) + fadeIn()) togetherWith fadeOut(tween(50))
                     } else {
-                        fadeIn() togetherWith fadeOut()
+                        fadeIn(tween(150)) togetherWith fadeOut(tween(150))
                     }
                 },
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
                 label = "tileContent"
             ) { displayedCard ->
                 val drawableName = displayedCard?.toCanonicalDrawableName()
