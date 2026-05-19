@@ -1,12 +1,12 @@
 package com.aau.server
 
-import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.Player
 import com.aau.server.repository.GameRepository
 import com.aau.server.repository.LobbyRepository
 import com.aau.server.service.GameLifecycleService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.TurnManager
+import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -23,8 +23,10 @@ class PersistenceRecoveryIntegrationTest {
     @Autowired lateinit var gameLifecycleService: GameLifecycleService
     @Autowired lateinit var lobbyRepository: LobbyRepository
     @Autowired lateinit var gameRepository: GameRepository
+    @Autowired lateinit var entityManager: EntityManager
 
     @Test
+    @Transactional
     fun `Game state survives full server restart simulation`() {
         val lobbyCode = "TEST1"
         val players = listOf(
@@ -33,44 +35,49 @@ class PersistenceRecoveryIntegrationTest {
             Player("p3", "Charlie")
         )
 
-        // 1. Spiel initialisieren und starten
+        // 1. Create lobby and start game
         val lobby = lobbyService.createLobby("Alice", "p1")
         val code = lobby.lobbyCode
         lobbyService.joinLobby(code, "Bob", "p2")
         lobbyService.joinLobby(code, "Charlie", "p3")
-        
         gameLifecycleService.startGame(code, "p1", players)
 
-        // 2. Einen Zug machen
+        // 2. Take a turn
         val stateBefore = turnManager.getGameState(code)
         val currentPlayerId = stateBefore.currentPlayerId!!
         val hand = turnManager.getHands(code)[currentPlayerId]!!
         val cardToPlay = hand.first()
-        
-        // Wir werfen eine Karte ab, um den State zu ändern
         turnManager.discardCard(code, currentPlayerId, cardToPlay.id)
-        
+
+        // WICHTIG: Flush, damit alles wirklich in die DB geschrieben ist
+        entityManager.flush()
+        gameRepository.flush()
+        lobbyRepository.flush()
+        entityManager.clear()
+
         val stateAfterMove = turnManager.getGameState(code)
         assertNotEquals(currentPlayerId, stateAfterMove.currentPlayerId, "Turn should have advanced")
 
-        // 3. RESTART SIMULATION: Wir löschen die RAM-Caches, behalten aber die DB
-        // In einem echten Szenario würde Spring neu starten und loadFromDb() rufen.
-        // Wir triggern loadFromDb manuell auf den frischen Repositories.
-        
-        turnManager.removeGame(code) // RAM löschen
-        
-        // Recovery triggern
+        // 3. Simulate restart: clear RAM caches
+        turnManager.removeGame(code)
+
+        // 4. Recovery: reload state from DB into caches
         lobbyService.loadFromDb()
         turnManager.loadFromDb()
 
-        // 4. Verifikation
-        val recoveredState = turnManager.getGameState(code)
+
+        // 5. Verification, catch for better fail message
+        val recoveredState = try {
+            turnManager.getGameState(code)
+        } catch (e: IllegalArgumentException) {
+            fail("Game with code $code was not found in TurnManager after loadFromDb. Check loadFromDb().")
+        }
         val recoveredLobby = lobbyService.getLobby(code)
 
         assertEquals(stateAfterMove.currentPlayerId, recoveredState.currentPlayerId, "Recovered turn must match")
         assertEquals(stateAfterMove.boardPlacements.size, recoveredState.boardPlacements.size, "Board must match")
         assertTrue(recoveredLobby.gameStarted, "Lobby must still be in 'started' state")
-        
+
         val recoveredHand = turnManager.getHands(code)[currentPlayerId]!!
         assertFalse(recoveredHand.any { it.id == cardToPlay.id }, "Played card must remain gone after recovery")
     }

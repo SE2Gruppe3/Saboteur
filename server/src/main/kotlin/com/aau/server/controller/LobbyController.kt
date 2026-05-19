@@ -28,10 +28,7 @@ class LobbyController(
     @PostMapping("/join")
     fun joinSession(@RequestBody request: LobbyJoinRequest): ResponseEntity<ReconnectResponse> {
         val lobby = lobbyService.joinLobby(request.lobbyCode, request.playerName, request.playerId)
-        
-        // Find the player in the lobby to return their actual ID
         val finalPlayerId = request.playerId ?: lobby.players.last().id
-        
         return buildReconnectResponse(finalPlayerId, lobby)
     }
 
@@ -43,7 +40,6 @@ class LobbyController(
             return ResponseEntity.notFound().build()
         }
         
-        // Validate player membership
         if (lobby.players.none { it.id == request.playerId }) {
             return ResponseEntity.status(403).build()
         }

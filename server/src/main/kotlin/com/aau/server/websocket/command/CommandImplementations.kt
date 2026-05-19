@@ -2,6 +2,7 @@ package com.aau.server.websocket.command
 
 import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.Player
+import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
 
 data class RegisterCommand(
@@ -26,6 +27,31 @@ class LobbyListFetchCommand : Command
 data class LobbyCreateCommand(val playerName: String) : Command
 data class LobbyJoinCommand(val lobbyCode: String, val playerName: String) : Command
 data class HeartbeatCommand(val playerId: String, val lobbyCode: String) : Command
+
+data class PlayBlockCardCommand(
+    val playerId: String,
+    val cardId: String,
+    val targetPlayerId: String
+) : Command
+
+data class PlayRepairCardCommand(
+    val playerId: String,
+    val cardId: String,
+    val targetPlayerId: String,
+    val tool: ToolType
+) : Command
+
+data class PlayMapCardCommand(
+    val playerId: String,
+    val cardId: String,
+    val targetPosition: BoardPosition
+) : Command
+
+data class PlayRockfallCardCommand(
+    val playerId: String,
+    val cardId: String,
+    val targetPosition: BoardPosition
+) : Command
 
 /**
  * Sent by the client after receiving and processing a RECONNECT_SNAPSHOT.
