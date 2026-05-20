@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.AvailableLobbies
+import com.aau.saboteur.ui.components.LobbyMenu
+import com.aau.saboteur.ui.components.MenuButton
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 @Composable
@@ -37,6 +39,8 @@ fun LobbyScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var lobbyCodeInput by remember { mutableStateOf("") }
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
 
     HandleLobbyNavigation(
         currentState = lobbyState,
@@ -54,11 +58,27 @@ fun LobbyScreen(
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "Join a Game",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Join a Game",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Box {
+                    MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                    LobbyMenu(
+                        expanded = menuOpen,
+                        onDismiss = { menuOpen = false },
+                        volume = volume,
+                        onVolumeChange = { volume = it },
+                        showLeaveGame = false
+                    )
+                }
+            }
 
             LobbyHeader(username = username)
 

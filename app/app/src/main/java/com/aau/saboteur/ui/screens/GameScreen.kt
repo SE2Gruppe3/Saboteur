@@ -84,6 +84,9 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
+
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
     var pendingToolSelection by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
@@ -129,7 +132,7 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (sortedPlayers.isNotEmpty()) {
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
@@ -140,12 +143,25 @@ fun GameScreen(
                                 )
                             )
                         )
-                        .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                        .padding(top = 16.dp, bottom = 8.dp, start = 8.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerTurnOrderRow(
-                        players = sortedPlayers,
-                        currentPlayerId = uiState.gameState.currentPlayerId
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        PlayerTurnOrderRow(
+                            players = sortedPlayers,
+                            currentPlayerId = uiState.gameState.currentPlayerId
+                        )
+                    }
+                    Box {
+                        MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                        LobbyMenu(
+                            expanded = menuOpen,
+                            onDismiss = { menuOpen = false },
+                            volume = volume,
+                            onVolumeChange = { volume = it },
+                            onLeaveGame = onBackToLobby
+                        )
+                    }
                 }
             }
         }

@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -26,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
+import com.aau.saboteur.ui.components.LobbyMenu
+import com.aau.saboteur.ui.components.MenuButton
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 private const val MIN_PLAYERS = 3
@@ -47,6 +48,9 @@ fun ActiveLobbyScreen(
     val players = currentState?.players.orEmpty()
     val isHost = currentState?.hostId == playerId
     val playerCountError = playerCountError(players.size)
+
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
 
     HandleActiveLobbyEffects(
         currentState = currentState,
@@ -81,12 +85,14 @@ fun ActiveLobbyScreen(
                         ),
                         color = MaterialTheme.colorScheme.primary
                     )
-
-                    IconButton(onClick = viewModel::leaveLobby) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = "Leave Lobby",
-                            tint = MaterialTheme.colorScheme.error
+                    Box {
+                        MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                        LobbyMenu(
+                            expanded = menuOpen,
+                            onDismiss = { menuOpen = false },
+                            volume = volume,
+                            onVolumeChange = { volume = it },
+                            onLeaveGame = viewModel::leaveLobby
                         )
                     }
                 }
