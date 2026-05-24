@@ -27,8 +27,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aau.saboteur.R
 import com.aau.saboteur.util.LanguageManager
+import java.util.Locale
 
 @Composable
 fun LobbyMenu(
@@ -52,6 +54,15 @@ fun LobbyMenu(
     onLeaveGame: (() -> Unit)? = null,
     showLeaveGame: Boolean = true
 ) {
+    val language by LanguageManager.currentLanguage
+    val context = LocalContext.current
+    val localizedContext = remember(language) {
+        val locale = Locale(language)
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        context.createConfigurationContext(config)
+    }
+
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -59,29 +70,31 @@ fun LobbyMenu(
             .width(220.dp)
             .clip(RoundedCornerShape(12.dp))
     ) {
-        LanguageSelector()
+        CompositionLocalProvider(LocalContext provides localizedContext) {
+            LanguageSelector()
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-        VolumeSliderRow(volume = volume, onVolumeChange = onVolumeChange)
-
-        if (showLeaveGame && onLeaveGame != null) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.leave_game), color = MaterialTheme.colorScheme.error) },
-                onClick = {
-                    onLeaveGame()
-                    onDismiss()
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            )
+            VolumeSliderRow(volume = volume, onVolumeChange = onVolumeChange)
+
+            if (showLeaveGame && onLeaveGame != null) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.leave_game), color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        onLeaveGame()
+                        onDismiss()
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                )
+            }
         }
     }
 }
