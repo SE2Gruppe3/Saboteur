@@ -70,7 +70,10 @@
     <string name="switch_language">Sprache wechseln</string>
 
     <!-- Menu actions -->
+    <string name="menu_toggle">Menü öffnen/schließen</string>
     <string name="leave_game">Spiel verlassen</string>
+    <string name="player_count_min">Mindestens %d Spieler erforderlich.</string>
+    <string name="player_count_max">Maximal %d Spieler erlaubt.</string>
 
     <!-- Role names -->
     <string name="role_golddigger">GOLDGRÄBER</string>

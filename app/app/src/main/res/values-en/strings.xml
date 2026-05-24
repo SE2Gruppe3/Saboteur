@@ -70,7 +70,10 @@
     <string name="switch_language">Switch Language</string>
 
     <!-- Menu actions -->
+    <string name="menu_toggle">Open/close menu</string>
     <string name="leave_game">Leave Game</string>
+    <string name="player_count_min">At least %d players are required to start.</string>
+    <string name="player_count_max">Maximum %d players allowed.</string>
 
     <!-- Role names -->
     <string name="role_golddigger">GOLDDIGGER</string>
