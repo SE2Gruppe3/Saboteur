@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        LanguageManager.currentLanguage.value = LanguageManager.getLanguage(this)
+        LanguageManager.init(this)
         enableEdgeToEdge()
         setContent {
             val language by LanguageManager.currentLanguage

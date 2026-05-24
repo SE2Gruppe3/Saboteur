@@ -2,6 +2,7 @@ package com.aau.saboteur.util
 
 import android.content.Context
 import android.content.res.Configuration
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import java.util.Locale
 
@@ -14,8 +15,15 @@ object LanguageManager {
     const val LANG_EN = "en"
     val SUPPORTED = listOf(LANG_DE, LANG_EN)
 
+    private val _currentLanguage = mutableStateOf(LANG_DE)
+
     /** Observed by the Compose root to re-provide a localized context on change. */
-    val currentLanguage = mutableStateOf(LANG_DE)
+    val currentLanguage: State<String> = _currentLanguage
+
+    /** Load the persisted language into state without writing to SharedPreferences. */
+    fun init(context: Context) {
+        _currentLanguage.value = getLanguage(context)
+    }
 
     /**
      * Persist the chosen language and notify Compose to recompose with the new locale.
@@ -25,7 +33,7 @@ object LanguageManager {
         require(language in SUPPORTED) { "Unsupported language tag: $language" }
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putString(KEY_LANGUAGE, language).apply()
-        currentLanguage.value = language
+        _currentLanguage.value = language
     }
 
     fun getLanguage(context: Context): String =
