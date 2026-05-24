@@ -59,7 +59,6 @@
     <string name="game_over">Game Over</string>
     <string name="back_to_lobby_button">Back to Lobby</string>
     <string name="cards_remaining">Cards remaining: %d</string>
-    <string name="menu_leave_game">Leave Game</string>
     <!-- Game state hints -->
     <string name="your_turn_hint">Your turn! Choose a card.</string>
     <string name="starting_game">Starting game…</string>
