@@ -72,4 +72,8 @@
 
     <!-- Menu actions -->
     <string name="leave_game">Spiel verlassen</string>
+
+    <!-- Role names -->
+    <string name="role_golddigger">GOLDGRÄBER</string>
+    <string name="role_saboteur">SABOTEUR</string>
 </resources>

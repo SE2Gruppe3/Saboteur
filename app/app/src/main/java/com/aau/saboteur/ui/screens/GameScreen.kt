@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,8 +87,8 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
-    var menuOpen by remember { mutableStateOf(false) }
-    var volume by remember { mutableFloatStateOf(0.8f) }
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    var volume by rememberSaveable { mutableFloatStateOf(0.8f) }
 
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }

@@ -33,8 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,18 +101,29 @@ fun BoardGrid(
     validPositions: List<BoardPosition> = emptyList(),
     onCellClick: (BoardPosition) -> Unit = {},
 ) {
+    var isFirstLoad by rememberSaveable { mutableStateOf(true) }
+    var savedScrollX by rememberSaveable { mutableIntStateOf(0) }
+    var savedScrollY by rememberSaveable { mutableIntStateOf(0) }
+    var scale by rememberSaveable { mutableFloatStateOf(0.8f) }
+
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
     val validPositionSet = remember(validPositions) { validPositions.toHashSet() }
     val gridColor = Color(0xFF000000).copy(alpha = BoardGridLineAlpha)
-    var scale by remember { mutableFloatStateOf(0.8f) }
 
-    // Initial scroll to center
     LaunchedEffect(Unit) {
-        horizontalScroll.scrollTo(horizontalScroll.maxValue / 2)
-        verticalScroll.scrollTo(verticalScroll.maxValue / 2)
+        if (isFirstLoad) {
+            horizontalScroll.scrollTo(horizontalScroll.maxValue / 2)
+            verticalScroll.scrollTo(verticalScroll.maxValue / 2)
+            isFirstLoad = false
+        } else {
+            horizontalScroll.scrollTo(savedScrollX)
+            verticalScroll.scrollTo(savedScrollY)
+        }
     }
+    LaunchedEffect(horizontalScroll.value) { savedScrollX = horizontalScroll.value }
+    LaunchedEffect(verticalScroll.value) { savedScrollY = verticalScroll.value }
 
     Surface(
         modifier = modifier,
