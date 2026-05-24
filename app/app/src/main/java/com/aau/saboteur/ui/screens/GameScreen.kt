@@ -9,7 +9,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aau.saboteur.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
@@ -89,17 +91,17 @@ fun GameScreen(
         uiState.lastMapResult?.let { result ->
             AlertDialog(
                 onDismissRequest = { viewModel.dismissMapResult() },
-                title = { Text("Geheim-Information") },
+                title = { Text(stringResource(R.string.secret_info_title)) },
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Du hast die Zielkarte angeschaut:")
+                        Text(stringResource(R.string.peek_goal_card_message))
                         Spacer(modifier = Modifier.height(12.dp))
-                        val cardName = if (result.card.isGoal) "GOLD gefunden! 💰" else "Nur Stein... 🪨"
+                        val cardName = if (result.card.isGoal) stringResource(R.string.gold_found) else stringResource(R.string.only_stone)
                         Text(cardName, style = MaterialTheme.typography.headlineMedium)
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.dismissMapResult() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.dismissMapResult() }) { Text(stringResource(R.string.ok_button)) }
                 }
             )
         }
@@ -187,7 +189,7 @@ fun GameScreen(
                         onClick = { viewModel.discardSelectedCard() },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
-                        Text("Karte verwerfen", color = MaterialTheme.colorScheme.onErrorContainer)
+                        Text(stringResource(R.string.discard_card_button), color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
                 PlayerHandRow(
@@ -274,12 +276,12 @@ fun BlockTargetDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Wähle einen Spieler") },
+        title = { Text(stringResource(R.string.choose_player_title)) },
         text = {
             Column {
                 playerList.forEach { player ->
                     val label = if (player.playerId == selfPlayerId)
-                        "${player.playerName} (Ich)"
+                        stringResource(R.string.player_name_self, player.playerName)
                     else
                         player.playerName
                     Button(
@@ -294,7 +296,7 @@ fun BlockTargetDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) }
         }
     )
 }
@@ -307,7 +309,7 @@ fun DoubleRepairToolDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Welches Werkzeug reparieren?") },
+        title = { Text(stringResource(R.string.choose_tool_title)) },
         text = {
             Column {
                 tools.forEach { tool ->
@@ -317,9 +319,9 @@ fun DoubleRepairToolDialog(
                     ) {
                         Text(
                             when(tool) {
-                                "LANTERN" -> "Lampe reparieren 🏮"
-                                "PICKAXE" -> "Spitzhacke reparieren ⛏️"
-                                "CART" -> "Lore reparieren 🛒"
+                                "LANTERN" -> stringResource(R.string.repair_lantern)
+                                "PICKAXE" -> stringResource(R.string.repair_pickaxe)
+                                "CART" -> stringResource(R.string.repair_cart)
                                 else -> tool
                             }
                         )
@@ -328,7 +330,7 @@ fun DoubleRepairToolDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) }
         }
     )
 }
@@ -348,9 +350,9 @@ private fun GameSyncOverlay() {
 @Composable
 private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
     val resultText = when (winner) {
-        "DWARVES" -> "Zwerge gewinnen! ⛏️"
-        "SABOTEURS" -> "Saboteure gewinnen! 🪓"
-        else -> "Spiel beendet"
+        "DWARVES" -> stringResource(R.string.dwarves_win)
+        "SABOTEURS" -> stringResource(R.string.saboteurs_win)
+        else -> stringResource(R.string.game_over)
     }
     Box(
         modifier = Modifier
@@ -361,7 +363,7 @@ private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = resultText, style = MaterialTheme.typography.displayMedium, color = Color.White)
             Spacer(modifier = Modifier.height(48.dp))
-            Button(onClick = onBackToLobby) { Text("Zurück zur Lobby") }
+            Button(onClick = onBackToLobby) { Text(stringResource(R.string.back_to_lobby_button)) }
         }
     }
 }

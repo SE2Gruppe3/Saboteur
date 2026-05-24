@@ -39,7 +39,7 @@ class RegisterHandler(
             try {
                 val lobby = lobbyService.getLobby(lobbyCode)
                 val playerInLobby = lobby.players.find { it.id == playerId }
-                    ?: throw IllegalArgumentException("Player $playerId not in lobby $lobbyCode")
+                    ?: throw IllegalArgumentException("Spieler $playerId nicht in Lobby $lobbyCode")
 
                 val snapshot = if (lobby.gameStarted) {
                     val gameState = turnManager.getGameState(lobbyCode)

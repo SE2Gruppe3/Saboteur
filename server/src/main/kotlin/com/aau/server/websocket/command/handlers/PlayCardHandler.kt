@@ -23,15 +23,15 @@ class PlayCardHandler(
 
     override fun handle(session: WebSocketSession, command: PlayCardCommand) {
         val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+            ?: throw IllegalArgumentException("Session ist mit keiner Lobby verbunden")
         
         // Final Fix: Sequential processing per lobby
         messagingService.getLobbyLock(lobbyCode).withLock {
             val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                ?: throw IllegalArgumentException("Session is not linked to a player")
+                ?: throw IllegalArgumentException("Session ist mit keinem Spieler verknüpft")
 
             require(sessionPlayerId == command.playerId) {
-                "Player ID mismatch: session belongs to $sessionPlayerId"
+                "Spieler-ID stimmt nicht überein: Session gehört $sessionPlayerId"
             }
 
             val result = turnManager.playCard(

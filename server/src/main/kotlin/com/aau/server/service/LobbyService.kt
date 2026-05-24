@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.withLock
 import kotlin.random.Random
 
-private const val LOBBY_NOT_FOUND = "Lobby not found"
+private const val LOBBY_NOT_FOUND = "Lobby nicht gefunden"
 
 @Service
 class LobbyService(
@@ -94,8 +94,8 @@ class LobbyService(
                 return@withLock lobby
             }
 
-            require(!lobby.gameStarted) { "Game already started" }
-            require(lobby.players.size < 10) { "Lobby is full" }
+            require(!lobby.gameStarted) { "Spiel bereits gestartet" }
+            require(lobby.players.size < 10) { "Lobby ist voll" }
 
             val finalPlayerId = playerId ?: UUID.randomUUID().toString()
             val updatedLobby = lobby.copy(players = lobby.players + Player(finalPlayerId, playerName))
@@ -161,7 +161,7 @@ class LobbyService(
             val code = Random.nextInt(1000, 10000).toString()
             if (!lobbies.containsKey(code)) return code
         }
-        throw IllegalStateException("Unique code exhaustion")
+        throw IllegalStateException("Eindeutiger Code erschöpft")
     }
 
     @Scheduled(fixedRate = 30000)
