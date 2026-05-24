@@ -18,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aau.saboteur.R
 
 @Composable
 fun MenuButton(isOpen: Boolean, onToggle: () -> Unit) {
@@ -38,7 +40,7 @@ fun MenuButton(isOpen: Boolean, onToggle: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Default.Menu,
-                contentDescription = "Menü öffnen/schließen",
+                contentDescription = stringResource(R.string.menu_toggle),
                 modifier = Modifier.rotate(rotation)
             )
         }
