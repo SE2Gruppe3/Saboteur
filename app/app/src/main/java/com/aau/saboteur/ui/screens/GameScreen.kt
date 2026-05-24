@@ -450,4 +450,3 @@ private fun localizeServerError(code: String): String = when (code) {
     "error.invalid_placement" -> stringResource(R.string.error_invalid_placement)
     else -> code
 }
-}
