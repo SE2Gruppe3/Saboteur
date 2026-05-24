@@ -39,7 +39,7 @@ class SimpleHandlersTest {
         val command = LobbyListFetchCommand()
         val lobbies = listOf(LobbyState("L1", "h1"))
         
-        whenever(lobbyService.getAllLobbies()).doReturn(lobbies)
+        whenever(lobbyService.getAllPublicLobbies()).doReturn(lobbies)
         
         handler.handle(session, command)
         

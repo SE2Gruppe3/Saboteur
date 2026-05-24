@@ -16,6 +16,8 @@
     <string name="lobby_code_label">Lobby Code</string>
     <string name="lobby_code_placeholder">Enter code to join…</string>
     <string name="create_lobby_button">CREATE</string>
+    <string name="create_lobby_private">Private Lobby</string>
+    <string name="create_lobby_private_desc">Lobby won\'t appear in the list</string>
     <string name="join_lobby_button">JOIN</string>
     <string name="current_selection">Current Selection</string>
     <string name="lobby_code_display">Lobby: %s</string>

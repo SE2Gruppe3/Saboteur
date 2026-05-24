@@ -1,5 +1,6 @@
 package com.aau.server.service
 
+import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.model.Player
 import com.aau.server.model.LobbyEntity
 import com.aau.server.repository.GameRepository
@@ -42,7 +43,24 @@ class LobbyServiceTest {
         val state = lobbyService.createLobby("Basti", "p1")
         assertEquals("p1", state.hostId)
         assertEquals(1, state.players.size)
+        assertEquals(LobbyVisibility.PUBLIC, state.visibility)
         verify(lobbyRepository).save(any())
+    }
+
+    @Test
+    fun `createLobby with private visibility`() {
+        val state = lobbyService.createLobby("Basti", "p1", LobbyVisibility.PRIVATE)
+        assertEquals(LobbyVisibility.PRIVATE, state.visibility)
+    }
+
+    @Test
+    fun `getAllPublicLobbies filters private lobbies`() {
+        lobbyService.createLobby("Host1", "h1", LobbyVisibility.PUBLIC)
+        lobbyService.createLobby("Host2", "h2", LobbyVisibility.PRIVATE)
+        
+        val publicLobbies = lobbyService.getAllPublicLobbies()
+        assertEquals(1, publicLobbies.size)
+        assertEquals("h1", publicLobbies[0].hostId)
     }
 
     @Test
@@ -103,7 +121,6 @@ class LobbyServiceTest {
         val created = lobbyService.createLobby("Host", "h1")
         lobbyService.leaveLobby(created.lobbyCode, "h1")
         // No players now. Activity time was updated during leave.
-        // We can't mock System.currentTimeMillis easily, so we just check it doesn't crash
         lobbyService.cleanupInactiveLobbies()
     }
 

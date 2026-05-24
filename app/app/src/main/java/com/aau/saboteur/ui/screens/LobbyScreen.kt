@@ -43,6 +43,7 @@ fun LobbyScreen(
     var lobbyCodeInput by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
+    var isPrivate by remember { mutableStateOf(false) }
 
     HandleLobbyNavigation(
         currentState = lobbyState,
@@ -103,9 +104,15 @@ fun LobbyScreen(
                         onLobbyCodeChange = { lobbyCodeInput = it }
                     )
 
+                    PrivateLobbyToggle(
+                        isPrivate = isPrivate,
+                        onIsPrivateChange = { isPrivate = it }
+                    )
+
                     LobbyActions(
                         username = username,
                         lobbyCodeInput = lobbyCodeInput,
+                        isPrivate = isPrivate,
                         onCreateLobby = viewModel::createLobby,
                         onJoinLobby = viewModel::joinLobby
                     )
@@ -212,10 +219,44 @@ private fun LobbyCodeInput(
 }
 
 @Composable
+private fun PrivateLobbyToggle(
+    isPrivate: Boolean,
+    onIsPrivateChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.create_lobby_private),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.create_lobby_private_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = isPrivate,
+            onCheckedChange = onIsPrivateChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+            )
+        )
+    }
+}
+
+@Composable
 private fun LobbyActions(
     username: String,
     lobbyCodeInput: String,
-    onCreateLobby: (String) -> Unit,
+    isPrivate: Boolean,
+    onCreateLobby: (String, Boolean) -> Unit,
     onJoinLobby: (String, String) -> Unit
 ) {
     Row(
@@ -223,7 +264,7 @@ private fun LobbyActions(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Button(
-            onClick = { onCreateLobby(username.trim()) },
+            onClick = { onCreateLobby(username.trim(), isPrivate) },
             modifier = Modifier.weight(1f).height(48.dp),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(

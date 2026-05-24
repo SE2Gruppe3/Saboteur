@@ -19,6 +19,6 @@ class LobbyListFetchHandler(
     override val commandClass: KClass<LobbyListFetchCommand> = LobbyListFetchCommand::class
 
     override fun handle(session: WebSocketSession, command: LobbyListFetchCommand) {
-        messagingService.sendEventToSession(session.id, GameEvent.LobbyListUpdate(lobbyService.getAllLobbies()))
+        messagingService.sendEventToSession(session.id, GameEvent.LobbyListUpdate(lobbyService.getAllPublicLobbies()))
     }
 }

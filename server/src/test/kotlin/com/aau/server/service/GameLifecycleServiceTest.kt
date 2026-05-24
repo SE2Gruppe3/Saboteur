@@ -41,7 +41,7 @@ class GameLifecycleServiceTest {
         whenever(lobbyService.getLobby(lobbyCode)).thenReturn(lobby)
         whenever(gameService.startGame(players)).thenReturn(gameStartResult)
         whenever(lobbyService.markGameStarted(lobbyCode)).thenReturn(startedLobby)
-        whenever(lobbyService.getAllLobbies()).thenReturn(listOf(startedLobby))
+        whenever(lobbyService.getAllPublicLobbies()).thenReturn(listOf(startedLobby))
         whenever(turnManager.getGameState(lobbyCode)).thenReturn(gameStartResult.gameState)
 
         gameLifecycleService.startGame(lobbyCode, hostId, players)

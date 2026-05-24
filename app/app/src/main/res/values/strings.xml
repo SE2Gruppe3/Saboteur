@@ -16,6 +16,8 @@
     <string name="lobby_code_label">Lobby-Code</string>
     <string name="lobby_code_placeholder">Code eingeben zum Beitreten…</string>
     <string name="create_lobby_button">ERSTELLEN</string>
+    <string name="create_lobby_private">Private Lobby</string>
+    <string name="create_lobby_private_desc">Lobby erscheint nicht in der Liste</string>
     <string name="join_lobby_button">BEITRETEN</string>
     <string name="current_selection">Aktuelle Auswahl</string>
     <string name="lobby_code_display">Lobby: %s</string>

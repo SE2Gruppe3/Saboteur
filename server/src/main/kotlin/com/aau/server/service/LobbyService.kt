@@ -1,6 +1,7 @@
 package com.aau.server.service
 
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.model.Player
 import com.aau.server.model.LobbyEntity
 import com.aau.server.repository.GameRepository
@@ -43,7 +44,8 @@ class LobbyService(
                     lobbyCode = entity.lobbyCode,
                     hostId = entity.hostId,
                     players = players,
-                    gameStarted = entity.gameStarted
+                    gameStarted = entity.gameStarted,
+                    visibility = entity.visibility
                 )
                 lastActivity[entity.lobbyCode] = entity.lastActivity
             } catch (e: Exception) {
@@ -61,22 +63,23 @@ class LobbyService(
             hostId = lobby.hostId,
             gameStarted = lobby.gameStarted,
             playersJson = objectMapper.writeValueAsString(lobby.players),
-            lastActivity = now
+            lastActivity = now,
+            visibility = lobby.visibility
         )
         lobbyRepository.save(entity)
 
         messagingService.sendEventToLobby(lobby.lobbyCode, GameEvent.LobbyStateUpdate(lobby))
-        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllLobbies()))
+        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllPublicLobbies()))
     }
 
     fun getActiveLobbiesCount(): Int = lobbies.size
 
     @Transactional
-    fun createLobby(playerName: String, playerId: String? = null): LobbyState {
+    fun createLobby(playerName: String, playerId: String? = null, visibility: LobbyVisibility = LobbyVisibility.PUBLIC): LobbyState {
         val code = generateUniqueCode()
         val finalPlayerId = playerId ?: UUID.randomUUID().toString()
         val host = Player(id = finalPlayerId, name = playerName)
-        val lobby = LobbyState(code, host.id, listOf(host), false)
+        val lobby = LobbyState(code, host.id, listOf(host), false, visibility)
 
         messagingService.getLobbyLock(code).withLock {
             lobbies[code] = lobby
@@ -150,10 +153,10 @@ class LobbyService(
         turnManager.removeGame(code)
         gameService.removePlayerData(code)
         messagingService.clearLobbyMappings(code)
-        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllLobbies()))
+        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(getAllPublicLobbies()))
     }
 
-    fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
+    fun getAllPublicLobbies(): List<LobbyState> = lobbies.values.filter { it.visibility == LobbyVisibility.PUBLIC }.toList()
     fun getLobby(lobbyCode: String): LobbyState = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
 
     private fun generateUniqueCode(): String {

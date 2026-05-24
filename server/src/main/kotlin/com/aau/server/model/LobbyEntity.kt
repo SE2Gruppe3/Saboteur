@@ -1,5 +1,6 @@
 package com.aau.server.model
 
+import com.aau.saboteur.model.LobbyVisibility
 import jakarta.persistence.*
 
 @Entity
@@ -14,7 +15,10 @@ class LobbyEntity(
     @Column(columnDefinition = "CLOB")
     var playersJson: String = "", // Serialized List<Player>
     @Column(nullable = false)
-    var lastActivity: Long = System.currentTimeMillis()
+    var lastActivity: Long = System.currentTimeMillis(),
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var visibility: LobbyVisibility = LobbyVisibility.PUBLIC
 ) {
-    constructor() : this("", "", false, "", System.currentTimeMillis())
+    constructor() : this("", "", false, "", System.currentTimeMillis(), LobbyVisibility.PUBLIC)
 }

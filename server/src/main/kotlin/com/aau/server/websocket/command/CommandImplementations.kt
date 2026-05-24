@@ -1,6 +1,7 @@
 package com.aau.server.websocket.command
 
 import com.aau.saboteur.model.BoardPosition
+import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
@@ -24,7 +25,7 @@ data class DiscardCardCommand(val playerId: String, val cardId: String) : Comman
 data class LobbyLeaveCommand(val lobbyCode: String, val playerId: String) : Command
 data class GetValidPositionsCommand(val cardId: String, val isRotated: Boolean) : Command
 class LobbyListFetchCommand : Command
-data class LobbyCreateCommand(val playerName: String) : Command
+data class LobbyCreateCommand(val playerName: String, val visibility: LobbyVisibility = LobbyVisibility.PUBLIC) : Command
 data class LobbyJoinCommand(val lobbyCode: String, val playerName: String) : Command
 data class HeartbeatCommand(val playerId: String, val lobbyCode: String) : Command
 

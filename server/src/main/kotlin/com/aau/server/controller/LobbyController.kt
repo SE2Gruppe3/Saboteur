@@ -18,7 +18,7 @@ class LobbyController(
 
     @PostMapping("/create")
     fun createSession(@RequestBody request: LobbyCreateRequest): ResponseEntity<ReconnectResponse> {
-        val lobby = lobbyService.createLobby(request.playerName, request.playerId)
+        val lobby = lobbyService.createLobby(request.playerName, request.playerId, request.visibility)
         return ResponseEntity.ok(ReconnectResponse(
             myPlayerId = lobby.hostId,
             lobbyState = lobby

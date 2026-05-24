@@ -35,9 +35,9 @@ class LobbyControllerTest {
 
     @Test
     fun `create lobby returns 200 and reconnect response`() {
-        val request = LobbyCreateRequest("Alice", "p1")
+        val request = LobbyCreateRequest("Alice", "p1", LobbyVisibility.PUBLIC)
         val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", "Alice")), false)
-        whenever(lobbyService.createLobby(any<String>(), anyOrNull())).thenReturn(lobbyState)
+        whenever(lobbyService.createLobby(any<String>(), anyOrNull(), any())).thenReturn(lobbyState)
 
         mockMvc.perform(post("/api/lobby/create")
             .contentType(MediaType.APPLICATION_JSON)

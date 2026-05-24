@@ -61,6 +61,6 @@ class GameLifecycleService(
         messagingService.sendEventToLobby(lobbyCode, GameEvent.LobbyStateUpdate(lobby))
         
         // 5. Globale Listen-Updates
-        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(lobbyService.getAllLobbies()))
+        messagingService.broadcastEvent(GameEvent.LobbyListUpdate(lobbyService.getAllPublicLobbies()))
     }
 }
