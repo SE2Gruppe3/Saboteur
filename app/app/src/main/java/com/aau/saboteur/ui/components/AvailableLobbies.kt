@@ -13,10 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.aau.saboteur.R
 import com.aau.saboteur.model.LobbyState
 
 @Composable
@@ -34,7 +36,7 @@ fun AvailableLobbies(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Available Lobbies",
+                text = stringResource(R.string.available_lobbies_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -44,7 +46,7 @@ fun AvailableLobbies(
                 shape = CircleShape
             ) {
                 Text(
-                    text = "${availableLobbies.size} Found",
+                    text = stringResource(R.string.lobbies_found_count, availableLobbies.size),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
@@ -67,7 +69,7 @@ fun AvailableLobbies(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "No public lobbies found. Create one to get started!",
+                            stringResource(R.string.no_public_lobbies),
                             modifier = Modifier.padding(24.dp),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -99,7 +101,7 @@ fun LobbyItem(
         ListItem(
             headlineContent = {
                 Text(
-                    text = "Lobby ${lobby.lobbyCode}",
+                    text = stringResource(R.string.lobby_with_code, lobby.lobbyCode),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Serif
@@ -115,7 +117,7 @@ fun LobbyItem(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "${lobby.players.size} Players",
+                        text = stringResource(R.string.player_count, lobby.players.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -133,7 +135,7 @@ fun LobbyItem(
                     modifier = Modifier.height(32.dp)
                 ) {
                     Text(
-                        "SELECT",
+                        stringResource(R.string.select_button),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )

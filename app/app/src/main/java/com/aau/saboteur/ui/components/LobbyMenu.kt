@@ -1,5 +1,6 @@
 package com.aau.saboteur.ui.components
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,8 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aau.saboteur.R
+import com.aau.saboteur.util.LanguageManager
 
 enum class AppLanguage { DE, EN }
 
@@ -66,7 +72,7 @@ fun LobbyMenu(
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             DropdownMenuItem(
-                text = { Text("Leave Game", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.menu_leave_game), color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     onLeaveGame()
                     onDismiss()
@@ -85,7 +91,12 @@ fun LobbyMenu(
 
 @Composable
 fun LanguageSelector() {
-    var selectedLanguage by remember { mutableStateOf(AppLanguage.DE) }
+    val context = LocalContext.current
+
+    var selectedLanguage by remember {
+        val currentLangCode = LanguageManager.getLanguage(context)
+        mutableStateOf(if (currentLangCode == LanguageManager.LANG_EN) AppLanguage.EN else AppLanguage.DE)
+    }
     var showAlternative by remember { mutableStateOf(false) }
 
     val currentFlag     = if (selectedLanguage == AppLanguage.DE) "🇩🇪" else "🇬🇧"
@@ -107,7 +118,11 @@ fun LanguageSelector() {
                     onClick = {
                         selectedLanguage = alternativeLang
                         showAlternative = false
-                        // TODO: LocaleHelper.setLocale(context, alternativeLang)
+
+                        val langCode = alternativeLang.name.lowercase()
+                        LanguageManager.setLanguage(context, langCode)
+
+                        (context as? Activity)?.recreate()
                     }
                 )
             }

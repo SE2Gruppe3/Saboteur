@@ -21,13 +21,13 @@ class PlayRepairCardHandler(
 
     override fun handle(session: WebSocketSession, command: PlayRepairCardCommand) {
         val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+            ?: throw IllegalArgumentException("Session ist mit keiner Lobby verbunden")
         
         messagingService.getLobbyLock(lobbyCode).withLock {
             val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
-                ?: throw IllegalArgumentException("Session is not linked to a player")
+                ?: throw IllegalArgumentException("Session ist mit keinem Spieler verknüpft")
 
-            require(sessionPlayerId == command.playerId) { "Player ID mismatch" }
+            require(sessionPlayerId == command.playerId) { "Spieler-ID stimmt nicht überein" }
 
             val result = turnManager.playRepairCard(
                 lobbyCode = lobbyCode,

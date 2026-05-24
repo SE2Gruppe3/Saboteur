@@ -17,9 +17,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.aau.saboteur.R
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.AvailableLobbies
@@ -64,7 +66,7 @@ fun LobbyScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Join a Game",
+                    text = stringResource(R.string.lobby_join_title),
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -159,7 +161,7 @@ private fun LobbyHeader(username: String) {
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                text = "Signed in as: $username",
+                text = stringResource(R.string.logged_in_as, username),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -195,8 +197,8 @@ private fun LobbyCodeInput(
     OutlinedTextField(
         value = lobbyCodeInput,
         onValueChange = onLobbyCodeChange,
-        label = { Text("Lobby Code") },
-        placeholder = { Text("Enter code to join...") },
+        label = { Text(stringResource(R.string.lobby_code_label)) },
+        placeholder = { Text(stringResource(R.string.lobby_code_placeholder)) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         shape = RoundedCornerShape(8.dp),
@@ -231,7 +233,7 @@ private fun LobbyActions(
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("CREATE", fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.create_lobby_button), fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold)
         }
 
         Button(
@@ -246,7 +248,7 @@ private fun LobbyActions(
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("JOIN", fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.join_lobby_button), fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -255,10 +257,10 @@ private fun LobbyActions(
 private fun LobbyDetails(currentState: LobbyState?) {
     currentState?.let { state ->
         val players = state.players
-        
+
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "Current Selection",
+                text = stringResource(R.string.current_selection),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -278,7 +280,7 @@ private fun LobbyDetails(currentState: LobbyState?) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Lobby: ${state.lobbyCode}",
+                            text = stringResource(R.string.lobby_code_display, state.lobbyCode),
                             style = MaterialTheme.typography.titleMedium,
                             fontFamily = FontFamily.Default,
                             color = MaterialTheme.colorScheme.primary
@@ -288,7 +290,7 @@ private fun LobbyDetails(currentState: LobbyState?) {
                             shape = CircleShape
                         ) {
                             Text(
-                                text = "${players.size} Players",
+                                text = stringResource(R.string.player_count, players.size),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
@@ -331,7 +333,7 @@ private fun LobbyPlayerItem(
                 .size(24.dp)
                 .clip(CircleShape)
                 .background(
-                    if (isHost) MaterialTheme.colorScheme.primary 
+                    if (isHost) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
                 ),
             contentAlignment = Alignment.Center

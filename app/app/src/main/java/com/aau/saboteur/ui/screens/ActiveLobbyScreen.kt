@@ -18,11 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aau.saboteur.R
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.LobbyMenu
@@ -78,7 +80,7 @@ fun ActiveLobbyScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Game Lobby",
+                        text = stringResource(R.string.active_lobby_title),
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.ExtraBold
@@ -137,7 +139,7 @@ private fun SyncOverlay() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 CircularProgressIndicator()
-                Text("Synchronizing State...", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.syncing_state), style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -163,9 +165,7 @@ private fun HandleActiveLobbyEffects(
     LaunchedEffect(currentState?.gameStarted, currentState?.players, playerId) {
         val state = currentState ?: return@LaunchedEffect
         val pid = playerId ?: return@LaunchedEffect
-        
-        // EDGE CASE FIX: Nur navigieren, wenn das Spiel gestartet ist UND wir Teil der Spielerliste sind.
-        // Das verhindert, dass "Geister-Sessions" oder neue Logins in alte laufende Spiele springen.
+
         if (state.gameStarted) {
             val isParticipant = state.players.any { it.id == pid }
             if (isParticipant) {
@@ -196,7 +196,7 @@ private fun ActiveLobbyHeader(username: String) {
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                text = "Signed in as: $username",
+                text = stringResource(R.string.logged_in_as, username),
                 style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.SansSerif),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -208,7 +208,7 @@ private fun ActiveLobbyHeader(username: String) {
 private fun NoActiveLobbyMessage() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            text = "No active lobby selected.",
+            text = stringResource(R.string.no_active_lobby),
             style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.SansSerif),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -247,7 +247,7 @@ private fun ActiveLobbyContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "LOBBY CODE",
+                    text = stringResource(R.string.lobby_code_section_header),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Bold
@@ -275,7 +275,7 @@ private fun ActiveLobbyContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Players",
+                text = stringResource(R.string.players_label),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold
@@ -314,7 +314,7 @@ private fun ActiveLobbyContent(
 
             errorMessage?.let {
                 ActiveLobbyMessage(
-                    text = "Error: $it",
+                    text = stringResource(R.string.error_message, it),
                     icon = Icons.Default.Info,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -335,7 +335,7 @@ private fun ActiveLobbyContent(
                 )
             ) {
                 Text(
-                    "START GAME",
+                    stringResource(R.string.start_game_button),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.ExtraBold
@@ -351,7 +351,7 @@ private fun ActiveLobbyContent(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = "Waiting for $hostName to start...",
+                    text = stringResource(R.string.waiting_for_host, hostName),
                     modifier = Modifier
                         .padding(16.dp)
                         .fillMaxWidth(),
@@ -441,7 +441,7 @@ private fun PlayerHeadline(name: String, isHost: Boolean) {
 @Composable
 private fun HostSupportingContent() {
     Text(
-        text = "Lobby Host",
+        text = stringResource(R.string.lobby_host_label),
         style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.SansSerif),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
     )

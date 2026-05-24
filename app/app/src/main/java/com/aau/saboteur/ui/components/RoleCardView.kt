@@ -79,7 +79,7 @@ fun RoleCardView(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = role.name,
+                    text = role.displayName,
                     color = textColor,
                     style = textStyle,
                     fontWeight = FontWeight.Bold
