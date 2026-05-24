@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.data.repository.AuthRepository
 import com.aau.saboteur.model.User
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 class LoginViewModel(private val repository: AuthRepository = AuthRepository()) : ViewModel() {
 
@@ -26,8 +27,11 @@ class LoginViewModel(private val repository: AuthRepository = AuthRepository()) 
 
             result.onSuccess { user ->
                 onSuccess(user)
-            }.onFailure {
-                errorMessage = it.message ?: "Login fehlgeschlagen"
+            }.onFailure { e ->
+                errorMessage = when (e) {
+                    is IOException -> "error.connection_failed"
+                    else -> e.message ?: "error.login_failed"
+                }
             }
         }
     }

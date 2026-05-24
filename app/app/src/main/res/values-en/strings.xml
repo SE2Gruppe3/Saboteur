@@ -71,6 +71,8 @@
 
     <!-- Server error codes -->
     <string name="error_invalid_placement">Invalid placement</string>
+    <string name="error_connection_failed">Server unreachable. Please check your connection.</string>
+    <string name="error_login_failed">Login failed.</string>
 
     <!-- Menu actions -->
     <string name="menu_toggle">Open/close menu</string>

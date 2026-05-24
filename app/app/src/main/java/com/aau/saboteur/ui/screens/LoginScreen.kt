@@ -14,6 +14,13 @@ import com.aau.saboteur.ui.components.LobbyMenu
 import com.aau.saboteur.ui.components.MenuButton
 
 @Composable
+private fun localizeLoginError(code: String): String = when (code) {
+    "error.connection_failed" -> stringResource(R.string.error_connection_failed)
+    "error.login_failed"      -> stringResource(R.string.error_login_failed)
+    else                      -> code
+}
+
+@Composable
 fun LoginScreen(
     isLoading: Boolean = false,
     errorMessage: String? = null,
@@ -60,7 +67,7 @@ fun LoginScreen(
 
                 if (errorMessage != null) {
                     Text(
-                        text = errorMessage,
+                        text = localizeLoginError(errorMessage),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 16.dp)
