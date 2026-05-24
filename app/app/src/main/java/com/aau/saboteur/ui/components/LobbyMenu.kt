@@ -1,6 +1,5 @@
 package com.aau.saboteur.ui.components
 
-import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -113,7 +112,6 @@ fun LanguageSelector() {
                         LanguageManager.setLanguage(context, alternativeLang)
                         selectedLanguage = alternativeLang
                         showAlternative = false
-                        (context as? Activity)?.recreate()
                     }
                 )
             }
