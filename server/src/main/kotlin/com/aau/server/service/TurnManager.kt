@@ -90,7 +90,7 @@ class TurnManager(
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht auf der Hand")
             val effectiveCard = if (isRotated) card.rotated180() else card
-            require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) { "Ungültige Platzierung" }
+            require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) { "error.invalid_placement" }
 
             try {
                 playerHand.remove(card)

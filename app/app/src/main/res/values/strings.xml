@@ -69,6 +69,9 @@
     <string name="language_english">English</string>
     <string name="switch_language">Sprache wechseln</string>
 
+    <!-- Server error codes -->
+    <string name="error_invalid_placement">Ungültige Platzierung</string>
+
     <!-- Menu actions -->
     <string name="menu_toggle">Menü öffnen/schließen</string>
     <string name="leave_game">Spiel verlassen</string>

@@ -180,7 +180,7 @@ fun GameScreen(
                     tonalElevation = 4.dp
                 ) {
                     Text(
-                        text = it,
+                        text = localizeServerError(it),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -443,4 +443,11 @@ private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
             Button(onClick = onBackToLobby) { Text(stringResource(R.string.back_to_lobby_button)) }
         }
     }
+}
+
+@Composable
+private fun localizeServerError(code: String): String = when (code) {
+    "error.invalid_placement" -> stringResource(R.string.error_invalid_placement)
+    else -> code
+}
 }
