@@ -519,10 +519,9 @@ private fun ActiveLobbyMessage(
     }
 }
 
-private fun playerCountError(playerCount: Int): String? {
-    return when {
-        playerCount < MIN_PLAYERS -> "At least $MIN_PLAYERS players are required to start."
-        playerCount > MAX_PLAYERS -> "Maximum $MAX_PLAYERS players allowed."
-        else -> null
-    }
+@Composable
+private fun playerCountError(playerCount: Int): String? = when {
+    playerCount < MIN_PLAYERS -> stringResource(R.string.player_count_min, MIN_PLAYERS)
+    playerCount > MAX_PLAYERS -> stringResource(R.string.player_count_max, MAX_PLAYERS)
+    else -> null
 }
