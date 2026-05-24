@@ -44,8 +44,6 @@ import androidx.compose.ui.unit.sp
 import com.aau.saboteur.R
 import com.aau.saboteur.util.LanguageManager
 
-enum class AppLanguage { DE, EN }
-
 @Composable
 fun LobbyMenu(
     expanded: Boolean,
@@ -72,7 +70,7 @@ fun LobbyMenu(
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.menu_leave_game), color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.leave_game), color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     onLeaveGame()
                     onDismiss()
@@ -92,16 +90,12 @@ fun LobbyMenu(
 @Composable
 fun LanguageSelector() {
     val context = LocalContext.current
-
-    var selectedLanguage by remember {
-        val currentLangCode = LanguageManager.getLanguage(context)
-        mutableStateOf(if (currentLangCode == LanguageManager.LANG_EN) AppLanguage.EN else AppLanguage.DE)
-    }
+    var selectedLanguage by remember { mutableStateOf(LanguageManager.getLanguage(context)) }
     var showAlternative by remember { mutableStateOf(false) }
 
-    val currentFlag     = if (selectedLanguage == AppLanguage.DE) "🇩🇪" else "🇬🇧"
-    val alternativeFlag = if (selectedLanguage == AppLanguage.DE) "🇬🇧" else "🇩🇪"
-    val alternativeLang = if (selectedLanguage == AppLanguage.DE) AppLanguage.EN else AppLanguage.DE
+    val currentFlag     = if (selectedLanguage == LanguageManager.LANG_DE) "🇩🇪" else "🇬🇧"
+    val alternativeFlag = if (selectedLanguage == LanguageManager.LANG_DE) "🇬🇧" else "🇩🇪"
+    val alternativeLang = if (selectedLanguage == LanguageManager.LANG_DE) LanguageManager.LANG_EN else LanguageManager.LANG_DE
 
     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
         FlagChip(flag = currentFlag, onClick = { showAlternative = !showAlternative })
@@ -116,12 +110,9 @@ fun LanguageSelector() {
                 FlagChip(
                     flag = alternativeFlag,
                     onClick = {
+                        LanguageManager.setLanguage(context, alternativeLang)
                         selectedLanguage = alternativeLang
                         showAlternative = false
-
-                        val langCode = alternativeLang.name.lowercase()
-                        LanguageManager.setLanguage(context, langCode)
-
                         (context as? Activity)?.recreate()
                     }
                 )

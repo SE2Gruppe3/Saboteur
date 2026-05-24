@@ -69,4 +69,7 @@
     <string name="language_german">Deutsch</string>
     <string name="language_english">English</string>
     <string name="switch_language">Switch Language</string>
+
+    <!-- Menu actions -->
+    <string name="leave_game">Leave Game</string>
 </resources>
