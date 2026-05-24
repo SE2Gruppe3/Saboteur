@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -43,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aau.saboteur.R
 import com.aau.saboteur.util.LanguageManager
-import java.util.Locale
+import com.aau.saboteur.util.rememberLocalizedContext
 
 @Composable
 fun LobbyMenu(
@@ -55,13 +54,7 @@ fun LobbyMenu(
     showLeaveGame: Boolean = true
 ) {
     val language by LanguageManager.currentLanguage
-    val context = LocalContext.current
-    val localizedContext = remember(language) {
-        val locale = Locale(language)
-        val config = Configuration(context.resources.configuration)
-        config.setLocale(locale)
-        context.createConfigurationContext(config)
-    }
+    val localizedContext = rememberLocalizedContext(language)
 
     DropdownMenu(
         expanded = expanded,
