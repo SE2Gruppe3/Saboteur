@@ -95,7 +95,7 @@ fun LobbyMenu(
 @Composable
 fun LanguageSelector() {
     val context = LocalContext.current
-    var selectedLanguage by remember { mutableStateOf(LanguageManager.getLanguage(context)) }
+    val selectedLanguage by LanguageManager.currentLanguage
     var showAlternative by remember { mutableStateOf(false) }
 
     val currentFlag     = if (selectedLanguage == LanguageManager.LANG_DE) "🇩🇪" else "🇬🇧"
@@ -116,7 +116,6 @@ fun LanguageSelector() {
                     flag = alternativeFlag,
                     onClick = {
                         LanguageManager.setLanguage(context, alternativeLang)
-                        selectedLanguage = alternativeLang
                         showAlternative = false
                     }
                 )
