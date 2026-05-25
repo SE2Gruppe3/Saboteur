@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -122,8 +123,12 @@ fun BoardGrid(
             verticalScroll.scrollTo(savedScrollY)
         }
     }
-    LaunchedEffect(horizontalScroll.value) { savedScrollX = horizontalScroll.value }
-    LaunchedEffect(verticalScroll.value) { savedScrollY = verticalScroll.value }
+    LaunchedEffect(Unit) {
+        snapshotFlow { horizontalScroll.value }.collect { savedScrollX = it }
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { verticalScroll.value }.collect { savedScrollY = it }
+    }
 
     Surface(
         modifier = modifier,

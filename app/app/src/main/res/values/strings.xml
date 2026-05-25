@@ -58,7 +58,6 @@
     <string name="saboteurs_win">Saboteure gewinnen! 🪓</string>
     <string name="game_over">Spiel beendet</string>
     <string name="back_to_lobby_button">Zurück zur Lobby</string>
-    <string name="cards_remaining">Verbleibende Karten: %d</string>
     <!-- Game state hints -->
     <string name="your_turn_hint">Du bist dran! Wähle eine Karte aus.</string>
     <string name="starting_game">Spiel wird gestartet…</string>

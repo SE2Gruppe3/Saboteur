@@ -49,7 +49,10 @@ class GameLifecycleServiceTest {
         verify(gameService).setPlayerData(eq(lobbyCode), any())
         verify(turnManager).initializeGame(eq(lobbyCode), any(), any())
         verify(lobbyService).markGameStarted(lobbyCode)
-        
+
+        // deckSize is sourced from turnManager.getGameState after initializeGame
+        verify(turnManager).getGameState(lobbyCode)
+
         // Verify broadcast events
         verify(messagingService, atLeastOnce()).sendEventToLobby(eq(lobbyCode), any())
         verify(messagingService, times(3)).sendEventToPlayer(any(), any())

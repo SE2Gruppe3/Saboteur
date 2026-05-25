@@ -25,6 +25,15 @@ import com.aau.saboteur.viewModels.LobbyViewModel
 
 private val DeckBadgeBackground = Color(0xFF2A2A2A)
 private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
+private val DeckBadgeShape = RoundedCornerShape(12.dp)
+private val DeckBadgeIconShape = RoundedCornerShape(2.dp)
+private const val DeckBadgeBorderAlpha = 0.4f
+private const val DeckBadgeIconBorderAlpha = 0.6f
+private val DeckBadgeIconWidth = 10.dp
+private val DeckBadgeIconHeight = 14.dp
+private val DeckBadgePaddingH = 12.dp
+private val DeckBadgePaddingV = 6.dp
+private val DeckBadgeIconSpacing = 6.dp
 
 private fun isToolBlocked(blockedTools: Set<ToolType>, tool: String): Boolean {
     return blockedTools.any { it.name == tool }
@@ -304,35 +313,34 @@ fun GameScreen(
 
 @Composable
 private fun DeckBadge(count: Int) {
-    val shape = RoundedCornerShape(12.dp)
     Card(
         modifier = Modifier.shadow(
             elevation = 4.dp,
-            shape = shape,
+            shape = DeckBadgeShape,
             ambientColor = Color.Black,
             spotColor = Color.Black
         ),
-        shape = shape,
+        shape = DeckBadgeShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+        border = BorderStroke(1.dp, Color.White.copy(alpha = DeckBadgeBorderAlpha))
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .clip(shape)
+                .clip(DeckBadgeShape)
                 .background(DeckBadgeBackground)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = DeckBadgePaddingH, vertical = DeckBadgePaddingV),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(width = 10.dp, height = 14.dp)
-                        .background(DeckBadgeIconBackground, RoundedCornerShape(2.dp))
-                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(2.dp))
+                        .size(width = DeckBadgeIconWidth, height = DeckBadgeIconHeight)
+                        .background(DeckBadgeIconBackground, DeckBadgeIconShape)
+                        .border(1.dp, Color.White.copy(alpha = DeckBadgeIconBorderAlpha), DeckBadgeIconShape)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(DeckBadgeIconSpacing))
                 Text(
                     text = count.toString(),
                     color = Color.White,

@@ -44,6 +44,15 @@ import com.aau.saboteur.R
 import com.aau.saboteur.util.LanguageManager
 import com.aau.saboteur.util.rememberLocalizedContext
 
+private val MenuWidth = 220.dp
+private val MenuCornerRadius = 12.dp
+private val FlagChipSize = 36.dp
+private val FlagTextSize = 20.sp
+private val SelectorPaddingH = 12.dp
+private val SelectorPaddingV = 6.dp
+private val FlagChipSpacing = 4.dp
+private val VolumeIconSpacing = 8.dp
+
 @Composable
 fun LobbyMenu(
     expanded: Boolean,
@@ -60,8 +69,8 @@ fun LobbyMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
         modifier = Modifier
-            .width(220.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .width(MenuWidth)
+            .clip(RoundedCornerShape(MenuCornerRadius))
     ) {
         CompositionLocalProvider(LocalContext provides localizedContext) {
             LanguageSelector()
@@ -102,7 +111,7 @@ fun LanguageSelector() {
     val alternativeFlag = if (selectedLanguage == LanguageManager.LANG_DE) "🇬🇧" else "🇩🇪"
     val alternativeLang = if (selectedLanguage == LanguageManager.LANG_DE) LanguageManager.LANG_EN else LanguageManager.LANG_DE
 
-    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+    Column(modifier = Modifier.padding(horizontal = SelectorPaddingH, vertical = SelectorPaddingV)) {
         FlagChip(flag = currentFlag, onClick = { showAlternative = !showAlternative })
 
         AnimatedVisibility(
@@ -111,7 +120,7 @@ fun LanguageSelector() {
             exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
         ) {
             Column {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(FlagChipSpacing))
                 FlagChip(
                     flag = alternativeFlag,
                     onClick = {
@@ -128,13 +137,13 @@ fun LanguageSelector() {
 private fun FlagChip(flag: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(FlagChipSize)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = flag, fontSize = 20.sp)
+        Text(text = flag, fontSize = FlagTextSize)
     }
 }
 
@@ -142,16 +151,16 @@ private fun FlagChip(flag: String, onClick: () -> Unit) {
 fun VolumeSliderRow(volume: Float, onVolumeChange: (Float) -> Unit) {
     Row(
         modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = SelectorPaddingH, vertical = SelectorPaddingV)
             .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = if (volume == 0f) "🔇" else "🔊",
-            fontSize = 20.sp
+            fontSize = FlagTextSize
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(VolumeIconSpacing))
 
         Slider(
             value = volume,
