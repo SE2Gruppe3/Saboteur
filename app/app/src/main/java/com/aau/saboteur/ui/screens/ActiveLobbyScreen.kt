@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -28,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.aau.saboteur.R
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
+import com.aau.saboteur.ui.components.LobbyMenu
+import com.aau.saboteur.ui.components.MenuButton
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 private const val MIN_PLAYERS = 3
@@ -49,6 +50,9 @@ fun ActiveLobbyScreen(
     val players = currentState?.players.orEmpty()
     val isHost = currentState?.hostId == playerId
     val playerCountError = playerCountError(players.size)
+
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
 
     HandleActiveLobbyEffects(
         currentState = currentState,
@@ -83,12 +87,14 @@ fun ActiveLobbyScreen(
                         ),
                         color = MaterialTheme.colorScheme.primary
                     )
-
-                    IconButton(onClick = viewModel::leaveLobby) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = stringResource(R.string.leave_lobby_desc),
-                            tint = MaterialTheme.colorScheme.error
+                    Box {
+                        MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                        LobbyMenu(
+                            expanded = menuOpen,
+                            onDismiss = { menuOpen = false },
+                            volume = volume,
+                            onVolumeChange = { volume = it },
+                            onLeaveGame = viewModel::leaveLobby
                         )
                     }
                 }
@@ -159,9 +165,7 @@ private fun HandleActiveLobbyEffects(
     LaunchedEffect(currentState?.gameStarted, currentState?.players, playerId) {
         val state = currentState ?: return@LaunchedEffect
         val pid = playerId ?: return@LaunchedEffect
-        
-        // EDGE CASE FIX: Nur navigieren, wenn das Spiel gestartet ist UND wir Teil der Spielerliste sind.
-        // Das verhindert, dass "Geister-Sessions" oder neue Logins in alte laufende Spiele springen.
+
         if (state.gameStarted) {
             val isParticipant = state.players.any { it.id == pid }
             if (isParticipant) {
@@ -515,10 +519,9 @@ private fun ActiveLobbyMessage(
     }
 }
 
-private fun playerCountError(playerCount: Int): String? {
-    return when {
-        playerCount < MIN_PLAYERS -> "Mindestens $MIN_PLAYERS Spieler erforderlich."
-        playerCount > MAX_PLAYERS -> "Maximal $MAX_PLAYERS Spieler erlaubt."
-        else -> null
-    }
+@Composable
+private fun playerCountError(playerCount: Int): String? = when {
+    playerCount < MIN_PLAYERS -> stringResource(R.string.player_count_min, MIN_PLAYERS)
+    playerCount > MAX_PLAYERS -> stringResource(R.string.player_count_max, MAX_PLAYERS)
+    else -> null
 }

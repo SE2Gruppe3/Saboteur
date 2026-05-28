@@ -58,7 +58,6 @@
     <string name="saboteurs_win">Saboteure gewinnen! 🪓</string>
     <string name="game_over">Spiel beendet</string>
     <string name="back_to_lobby_button">Zurück zur Lobby</string>
-
     <!-- Game state hints -->
     <string name="your_turn_hint">Du bist dran! Wähle eine Karte aus.</string>
     <string name="starting_game">Spiel wird gestartet…</string>
@@ -68,4 +67,19 @@
     <string name="language_german">Deutsch</string>
     <string name="language_english">English</string>
     <string name="switch_language">Sprache wechseln</string>
+
+    <!-- Server error codes -->
+    <string name="error_invalid_placement">Ungültige Platzierung</string>
+    <string name="error_connection_failed">Server nicht erreichbar. Bitte Verbindung prüfen.</string>
+    <string name="error_login_failed">Login fehlgeschlagen.</string>
+
+    <!-- Menu actions -->
+    <string name="menu_toggle">Menü öffnen/schließen</string>
+    <string name="leave_game">Spiel verlassen</string>
+    <string name="player_count_min">Mindestens %d Spieler erforderlich.</string>
+    <string name="player_count_max">Maximal %d Spieler erlaubt.</string>
+
+    <!-- Role names -->
+    <string name="role_golddigger">GOLDGRÄBER</string>
+    <string name="role_saboteur">SABOTEUR</string>
 </resources>

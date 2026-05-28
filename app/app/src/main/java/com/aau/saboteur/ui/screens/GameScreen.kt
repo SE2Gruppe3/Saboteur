@@ -1,22 +1,39 @@
 package com.aau.saboteur.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.aau.saboteur.R
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aau.saboteur.R
 import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
+
+private val DeckBadgeBackground = Color(0xFF2A2A2A)
+private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
+private val DeckBadgeShape = RoundedCornerShape(12.dp)
+private val DeckBadgeIconShape = RoundedCornerShape(2.dp)
+private const val DeckBadgeBorderAlpha = 0.4f
+private const val DeckBadgeIconBorderAlpha = 0.6f
+private val DeckBadgeIconWidth = 10.dp
+private val DeckBadgeIconHeight = 14.dp
+private val DeckBadgePaddingH = 12.dp
+private val DeckBadgePaddingV = 6.dp
+private val DeckBadgeIconSpacing = 6.dp
 
 private fun isToolBlocked(blockedTools: Set<ToolType>, tool: String): Boolean {
     return blockedTools.any { it.name == tool }
@@ -78,6 +95,9 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
+
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
     var pendingToolSelection by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
@@ -123,7 +143,7 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (sortedPlayers.isNotEmpty()) {
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
@@ -134,12 +154,25 @@ fun GameScreen(
                                 )
                             )
                         )
-                        .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                        .padding(top = 16.dp, bottom = 8.dp, start = 8.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerTurnOrderRow(
-                        players = sortedPlayers,
-                        currentPlayerId = uiState.gameState.currentPlayerId
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        PlayerTurnOrderRow(
+                            players = sortedPlayers,
+                            currentPlayerId = uiState.gameState.currentPlayerId
+                        )
+                    }
+                    Box {
+                        MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                        LobbyMenu(
+                            expanded = menuOpen,
+                            onDismiss = { menuOpen = false },
+                            volume = volume,
+                            onVolumeChange = { volume = it },
+                            onLeaveGame = onBackToLobby
+                        )
+                    }
                 }
             }
         }
@@ -156,7 +189,7 @@ fun GameScreen(
                     tonalElevation = 4.dp
                 ) {
                     Text(
-                        text = it,
+                        text = localizeServerError(it),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -181,8 +214,18 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                uiState.player?.role?.let { role ->
-                    RoleCardView(role = role, compact = true)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    uiState.player?.role?.let { role ->
+                        RoleCardView(role = role, compact = true)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    DeckBadge(count = uiState.remainingDeckSize)
                 }
                 if (isMyTurn && uiState.selectedCard != null) {
                     Button(
@@ -193,6 +236,7 @@ fun GameScreen(
                     }
                 }
                 PlayerHandRow(
+                    modifier = Modifier.fillMaxWidth(),
                     hand = currentHand,
                     selectedCardId = uiState.selectedCard?.id,
                     onCardSelected = { card ->
@@ -263,6 +307,47 @@ fun GameScreen(
                     pendingToolSelection = null
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun DeckBadge(count: Int) {
+    Card(
+        modifier = Modifier.shadow(
+            elevation = 4.dp,
+            shape = DeckBadgeShape,
+            ambientColor = Color.Black,
+            spotColor = Color.Black
+        ),
+        shape = DeckBadgeShape,
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = DeckBadgeBorderAlpha))
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .clip(DeckBadgeShape)
+                .background(DeckBadgeBackground)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = DeckBadgePaddingH, vertical = DeckBadgePaddingV),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = DeckBadgeIconWidth, height = DeckBadgeIconHeight)
+                        .background(DeckBadgeIconBackground, DeckBadgeIconShape)
+                        .border(1.dp, Color.White.copy(alpha = DeckBadgeIconBorderAlpha), DeckBadgeIconShape)
+                )
+                Spacer(modifier = Modifier.width(DeckBadgeIconSpacing))
+                Text(
+                    text = count.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -366,4 +451,10 @@ private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
             Button(onClick = onBackToLobby) { Text(stringResource(R.string.back_to_lobby_button)) }
         }
     }
+}
+
+@Composable
+private fun localizeServerError(code: String): String = when (code) {
+    "error.invalid_placement" -> stringResource(R.string.error_invalid_placement)
+    else -> code
 }

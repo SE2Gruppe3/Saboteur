@@ -25,6 +25,8 @@ import com.aau.saboteur.R
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.AvailableLobbies
+import com.aau.saboteur.ui.components.LobbyMenu
+import com.aau.saboteur.ui.components.MenuButton
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 @Composable
@@ -39,6 +41,8 @@ fun LobbyScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var lobbyCodeInput by remember { mutableStateOf("") }
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
 
     HandleLobbyNavigation(
         currentState = lobbyState,
@@ -56,11 +60,27 @@ fun LobbyScreen(
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = stringResource(R.string.lobby_join_title),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.lobby_join_title),
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Box {
+                    MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                    LobbyMenu(
+                        expanded = menuOpen,
+                        onDismiss = { menuOpen = false },
+                        volume = volume,
+                        onVolumeChange = { volume = it },
+                        showLeaveGame = false
+                    )
+                }
+            }
 
             LobbyHeader(username = username)
 
@@ -237,7 +257,7 @@ private fun LobbyActions(
 private fun LobbyDetails(currentState: LobbyState?) {
     currentState?.let { state ->
         val players = state.players
-        
+
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 text = stringResource(R.string.current_selection),
@@ -313,7 +333,7 @@ private fun LobbyPlayerItem(
                 .size(24.dp)
                 .clip(CircleShape)
                 .background(
-                    if (isHost) MaterialTheme.colorScheme.primary 
+                    if (isHost) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
                 ),
             contentAlignment = Alignment.Center
