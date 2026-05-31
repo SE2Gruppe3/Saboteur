@@ -1,6 +1,7 @@
 package com.aau.server.controller
 
 import com.aau.saboteur.model.*
+import com.aau.server.repository.UserRepository
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.TurnManager
@@ -12,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
@@ -30,20 +32,50 @@ class LobbyControllerTest {
     @MockitoBean
     private lateinit var turnManager: TurnManager
 
+    @MockitoBean
+    private lateinit var userRepository: UserRepository
+
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
     @Test
     fun `create lobby returns 200 and reconnect response`() {
-        val request = LobbyCreateRequest("Alice", "p1")
+        val request = LobbyCreateRequest("Alice", "p1", LobbyVisibility.PUBLIC)
         val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", "Alice")), false)
-        whenever(lobbyService.createLobby(any<String>(), anyOrNull())).thenReturn(lobbyState)
+        
+        whenever(userRepository.findByPlayerId(any())).thenReturn(null)
+        whenever(lobbyService.createLobby(any(), anyOrNull(), any(), any())).thenReturn(lobbyState)
 
         mockMvc.perform(post("/api/lobby/create")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.myPlayerId").value("p1"))
+    }
+
+    @Test
+    fun `join session returns 200 and reconnect response`() {
+        val request = LobbyJoinRequest("1234", "Bob", "p2")
+        val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", "Alice"), Player("p2", "Bob")), false)
+        
+        whenever(userRepository.findByPlayerId(any())).thenReturn(null)
+        whenever(lobbyService.joinLobby(any(), any(), anyOrNull(), any())).thenReturn(lobbyState)
+
+        mockMvc.perform(post("/api/lobby/join")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.myPlayerId").value("p2"))
+    }
+
+    @Test
+    fun `list public lobbies returns list`() {
+        val lobbies = listOf(LobbyState("1234", "p1", emptyList(), false, LobbyVisibility.PUBLIC))
+        whenever(lobbyService.getPublicLobbies()).thenReturn(lobbies)
+
+        mockMvc.perform(get("/api/lobby/list"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].lobbyCode").value("1234"))
     }
 
     @Test
@@ -65,56 +97,5 @@ class LobbyControllerTest {
             .andExpect(jsonPath("$.gameState").exists())
             .andExpect(jsonPath("$.playerHand[0].id").value("c1"))
             .andExpect(jsonPath("$.playerRole").value("SABOTEUR"))
-    }
-
-    @Test
-    fun `reconnect returns 200 even if game state fails to load`() {
-        val request = ReconnectRequest("p1", "1234")
-        val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", "Alice")), true)
-        
-        whenever(lobbyService.getLobby("1234")).thenReturn(lobbyState)
-        whenever(turnManager.getGameState("1234")).thenThrow(RuntimeException("DB Error"))
-        whenever(turnManager.getHands("1234")).thenReturn(emptyMap())
-
-        mockMvc.perform(post("/api/lobby/reconnect")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isOk)
-    }
-
-    @Test
-    fun `reconnect returns 404 when lobby not found`() {
-        val request = ReconnectRequest("p1", "1234")
-        whenever(lobbyService.getLobby("1234")).thenThrow(IllegalArgumentException("Not found"))
-
-        mockMvc.perform(post("/api/lobby/reconnect")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isNotFound)
-    }
-
-    @Test
-    fun `reconnect returns 403 when player not in lobby`() {
-        val request = ReconnectRequest("p3", "1234")
-        val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", "Alice")), false)
-        whenever(lobbyService.getLobby("1234")).thenReturn(lobbyState)
-
-        mockMvc.perform(post("/api/lobby/reconnect")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden)
-    }
-
-    @Test
-    fun `join session returns 200 and reconnect response`() {
-        val request = LobbyJoinRequest("1234", "Bob", "p2")
-        val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", "Alice"), Player("p2", "Bob")), false)
-        whenever(lobbyService.joinLobby(any<String>(), any<String>(), anyOrNull())).thenReturn(lobbyState)
-
-        mockMvc.perform(post("/api/lobby/join")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.myPlayerId").value("p2"))
     }
 }

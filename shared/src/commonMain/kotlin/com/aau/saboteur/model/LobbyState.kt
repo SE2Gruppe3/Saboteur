@@ -7,5 +7,6 @@ data class LobbyState(
     val lobbyCode: String,
     val hostId: String,
     val players: List<Player> = emptyList(),
-    val gameStarted: Boolean = false
+    val gameStarted: Boolean = false,
+    val visibility: LobbyVisibility = LobbyVisibility.PUBLIC
 )

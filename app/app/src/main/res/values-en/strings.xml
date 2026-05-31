@@ -20,6 +20,10 @@
     <string name="current_selection">Current Selection</string>
     <string name="lobby_code_display">Lobby: %s</string>
     <string name="player_count">%d Players</string>
+    <string name="lobby_visibility_label">Visibility</string>
+    <string name="visibility_public">Public</string>
+    <string name="visibility_private">Private</string>
+    <string name="visibility_friends">Friends Only</string>
 
     <!-- Active Lobby -->
     <string name="active_lobby_title">Game Lobby</string>

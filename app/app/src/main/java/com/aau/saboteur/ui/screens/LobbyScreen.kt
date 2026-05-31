@@ -17,16 +17,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aau.saboteur.R
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.AvailableLobbies
 import com.aau.saboteur.ui.components.LobbyMenu
 import com.aau.saboteur.ui.components.MenuButton
+import com.aau.saboteur.ui.theme.OreGold
+import com.aau.saboteur.ui.theme.Steel
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 @Composable
@@ -43,6 +47,7 @@ fun LobbyScreen(
     var lobbyCodeInput by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
+    var selectedVisibility by remember { mutableStateOf(LobbyVisibility.PUBLIC) }
 
     HandleLobbyNavigation(
         currentState = lobbyState,
@@ -103,9 +108,15 @@ fun LobbyScreen(
                         onLobbyCodeChange = { lobbyCodeInput = it }
                     )
 
+                    VisibilitySelector(
+                        selectedVisibility = selectedVisibility,
+                        onVisibilityChange = { selectedVisibility = it }
+                    )
+
                     LobbyActions(
                         username = username,
                         lobbyCodeInput = lobbyCodeInput,
+                        selectedVisibility = selectedVisibility,
                         onCreateLobby = viewModel::createLobby,
                         onJoinLobby = viewModel::joinLobby
                     )
@@ -118,6 +129,71 @@ fun LobbyScreen(
                 availableLobbies = availableLobbies,
                 onLobbySelected = { lobbyCodeInput = it },
                 modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun VisibilitySelector(
+    selectedVisibility: LobbyVisibility,
+    onVisibilityChange: (LobbyVisibility) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.lobby_visibility_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            VisibilityOption(
+                label = stringResource(R.string.visibility_public),
+                isSelected = selectedVisibility == LobbyVisibility.PUBLIC,
+                activeColor = OreGold,
+                onClick = { onVisibilityChange(LobbyVisibility.PUBLIC) },
+                modifier = Modifier.weight(1f)
+            )
+            VisibilityOption(
+                label = stringResource(R.string.visibility_private),
+                isSelected = selectedVisibility == LobbyVisibility.PRIVATE,
+                activeColor = Steel,
+                onClick = { onVisibilityChange(LobbyVisibility.PRIVATE) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun VisibilityOption(
+    label: String,
+    isSelected: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) activeColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) activeColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        )
+    ) {
+        Box(
+            modifier = Modifier.padding(vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -215,7 +291,8 @@ private fun LobbyCodeInput(
 private fun LobbyActions(
     username: String,
     lobbyCodeInput: String,
-    onCreateLobby: (String) -> Unit,
+    selectedVisibility: LobbyVisibility,
+    onCreateLobby: (String, LobbyVisibility) -> Unit,
     onJoinLobby: (String, String) -> Unit
 ) {
     Row(
@@ -223,7 +300,7 @@ private fun LobbyActions(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Button(
-            onClick = { onCreateLobby(username.trim()) },
+            onClick = { onCreateLobby(username.trim(), selectedVisibility) },
             modifier = Modifier.weight(1f).height(48.dp),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(
@@ -359,5 +436,18 @@ private fun LobbyPlayerItem(
             color = if (isHost) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = if (isHost) FontWeight.Bold else FontWeight.Normal
         )
+        if (player.isGuest) {
+            Surface(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    text = "GUEST",
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        }
     }
 }
