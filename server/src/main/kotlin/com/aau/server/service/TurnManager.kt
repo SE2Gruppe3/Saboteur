@@ -252,6 +252,37 @@ class TurnManager(
         }
     }
 
+    @Transactional
+    fun cheatPlayer(lobbyCode: String, playerId: String, cheatType: String, consumeTurn: Boolean): TurnResult {
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        synchronized(internal) {
+            val state = internal.gameState
+
+            when (cheatType) {
+                "LANTERN_FLASHLIGHT" -> {
+                    // Spezifische Validierung für LANTERN_FLASHLIGHT: Muss am Zug sein
+                    require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
+                    
+                    val updatedPlayers = state.players.map { player ->
+                        if (player.playerId == playerId) {
+                            player.copy(blockedTools = player.blockedTools - ToolType.LANTERN)
+                        } else player
+                    }
+                    internal.gameState = state.copy(players = updatedPlayers)
+                }
+                else -> throw IllegalArgumentException("Unbekannter Cheat-Typ: $cheatType")
+            }
+
+            if (consumeTurn) {
+                internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
+                internal.passedSinceEmpty = 0
+            }
+
+            finalizeAndPersist(lobbyCode, internal)
+            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+        }
+    }
+
     private fun finalizeAndPersist(lobbyCode: String, internal: GameInternalState) {
         internal.gameState = internal.gameState.copy(deckSize = internal.drawPile.size)
         persist(lobbyCode)

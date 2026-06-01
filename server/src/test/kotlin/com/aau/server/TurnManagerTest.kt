@@ -462,6 +462,60 @@ class TurnManagerTest {
         }
     }
 
+    // ------- CHEAT TESTS -------
+
+    @Test
+    fun `cheat LANTERN_FLASHLIGHT with consumeTurn false keeps player active`() {
+        val blockedPlayer = PlayerTurn(p1, "Alice", 1, blockedTools = setOf(ToolType.LANTERN))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame("CHEAT1", dist, GameState(listOf(blockedPlayer, PlayerTurn(p2, "Bob", 2)), p1, emptyList()))
+
+        val result = turnManager.cheatPlayer("CHEAT1", p1, "LANTERN_FLASHLIGHT", consumeTurn = false)
+
+        val updatedP1 = result.updatedGameState.players.find { it.playerId == p1 }!!
+        assertFalse(ToolType.LANTERN in updatedP1.blockedTools)
+        assertEquals(p1, result.updatedGameState.currentPlayerId)
+    }
+
+    @Test
+    fun `cheat LANTERN_FLASHLIGHT with consumeTurn true advances turn`() {
+        val blockedPlayer = PlayerTurn(p1, "Alice", 1, blockedTools = setOf(ToolType.LANTERN))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame("CHEAT2", dist, GameState(listOf(blockedPlayer, PlayerTurn(p2, "Bob", 2)), p1, emptyList()))
+
+        val result = turnManager.cheatPlayer("CHEAT2", p1, "LANTERN_FLASHLIGHT", consumeTurn = true)
+
+        val updatedP1 = result.updatedGameState.players.find { it.playerId == p1 }!!
+        assertFalse(ToolType.LANTERN in updatedP1.blockedTools)
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+    }
+
+    @Test
+    fun `cheat LANTERN_FLASHLIGHT fails if not players turn`() {
+        val blockedPlayer = PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.LANTERN))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame("CHEAT3", dist, GameState(listOf(PlayerTurn(p1, "Alice", 1), blockedPlayer), p1, emptyList()))
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.cheatPlayer("CHEAT3", p2, "LANTERN_FLASHLIGHT", consumeTurn = false)
+        }
+    }
+
     // ------- EDGE CASES -------
 
     @Test

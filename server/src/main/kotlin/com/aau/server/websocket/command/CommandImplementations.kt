@@ -53,6 +53,12 @@ data class PlayRockfallCardCommand(
     val targetPosition: BoardPosition
 ) : Command
 
+data class PlayerCheatCommand(
+    val lobbyCode: String,
+    val cheatType: String,
+    val consumeTurn: Boolean
+) : Command
+
 /**
  * Sent by the client after receiving and processing a RECONNECT_SNAPSHOT.
  * This signals the server to release the event buffer and start sending live updates.
