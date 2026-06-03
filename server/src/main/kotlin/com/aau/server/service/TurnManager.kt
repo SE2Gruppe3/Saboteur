@@ -45,14 +45,37 @@ class TurnManager(
             try {
                 val hands: Map<String, List<TunnelCard>> = objectMapper.readValue(entity.handsJson)
                 val drawPile: List<TunnelCard> = objectMapper.readValue(entity.drawPileJson)
-                val discardPile: List<TunnelCard> = if (entity.discardPileJson.isNotEmpty()) objectMapper.readValue(entity.discardPileJson) else mutableListOf()
+                val discardPile: List<TunnelCard> =
+                    if (entity.discardPileJson.isNotEmpty()) objectMapper.readValue(entity.discardPileJson)
+                    else mutableListOf()
                 val playersTurn: List<PlayerTurn> = objectMapper.readValue(entity.playersTurnJson)
                 val board: List<PlacedTunnelCard> = objectMapper.readValue(entity.boardJson)
                 val playerRoles: Map<String, Player> = objectMapper.readValue(entity.playerRolesJson)
 
+                val lastRoundResult: RoundResult? = try {
+                    if (entity.lastRoundResultJson.isNotBlank()) {
+                        objectMapper.readValue(entity.lastRoundResultJson)
+                    } else null
+                } catch (e: Exception) {
+                    logger.warn("Could not parse lastRoundResult for game {}, using null", entity.lobbyCode)
+                    null
+                }
+
+                val goldDeck: List<GoldCard> = try {
+                    if (entity.goldDeckJson.isNotBlank()) {
+                        objectMapper.readValue(entity.goldDeckJson)
+                    } else {
+                        CardDeck.createGoldDeck().shuffled()
+                    }
+                } catch (e: Exception) {
+                    logger.warn("Could not parse goldDeck for game {}, creating new gold deck", entity.lobbyCode)
+                    CardDeck.createGoldDeck().shuffled()
+                }
+
                 val knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> = try {
                     if (!entity.knownGoalsByPlayerJson.isNullOrBlank()) {
-                        val raw: Map<String, Map<String, TunnelCard>> = objectMapper.readValue(entity.knownGoalsByPlayerJson)
+                        val raw: Map<String, Map<String, TunnelCard>> =
+                            objectMapper.readValue(entity.knownGoalsByPlayerJson)
                         raw.mapValues { (_, innerMap) ->
                             innerMap.mapKeys { BoardPosition.fromString(it.key) }.toMutableMap()
                         }.toMutableMap()
@@ -72,9 +95,15 @@ class TurnManager(
                         players = playersTurn,
                         currentPlayerId = entity.currentPlayerId,
                         boardPlacements = board,
-                        deckSize = drawPile.size
+                        deckSize = drawPile.size,
+                        currentRound = entity.currentRound,
+                        isRoundOver = entity.isRoundOver,
+                        isGameOver = entity.isGameOver,
+                        lastRoundResult = lastRoundResult
                     ),
-                    knownGoalsByPlayer = knownGoalsByPlayer
+                    knownGoalsByPlayer = knownGoalsByPlayer,
+                    goldDeck = goldDeck.toMutableList(),
+                    lastPlayerWhoPlayed = entity.lastPlayerWhoPlayed
                 )
 
                 games[entity.lobbyCode] = internal
@@ -343,6 +372,12 @@ class TurnManager(
             }
         )
 
+        val lastRoundResultJson = internal.gameState.lastRoundResult?.let {
+            objectMapper.writeValueAsString(it)
+        } ?: ""
+
+        val goldDeckJson = objectMapper.writeValueAsString(internal.goldDeck)
+
         val entity = GameEntity(
             lobbyCode = lobbyCode,
             currentPlayerId = internal.gameState.currentPlayerId,
@@ -354,7 +389,13 @@ class TurnManager(
             playerRolesJson = objectMapper.writeValueAsString(gameService.getAllPlayerData(lobbyCode)),
             knownGoalsByPlayerJson = knownGoalsJson,
             deckWasEmptied = internal.deckWasEmptied,
-            passedSinceEmpty = internal.passedSinceEmpty
+            passedSinceEmpty = internal.passedSinceEmpty,
+            currentRound = internal.gameState.currentRound,
+            isRoundOver = internal.gameState.isRoundOver,
+            isGameOver = internal.gameState.isGameOver,
+            lastRoundResultJson = lastRoundResultJson,
+            goldDeckJson = goldDeckJson,
+            lastPlayerWhoPlayed = internal.lastPlayerWhoPlayed
         )
         gameRepository.save(entity)
     }
