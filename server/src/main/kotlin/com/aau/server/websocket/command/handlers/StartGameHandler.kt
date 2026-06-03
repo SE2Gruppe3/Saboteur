@@ -20,10 +20,10 @@ class StartGameHandler(
 
     override fun handle(session: WebSocketSession, command: StartGameCommand) {
         val lobbyCode = messagingService.getLobbyCodeForSession(session.id)
-            ?: throw IllegalArgumentException("Session is not connected to a lobby")
+            ?: throw IllegalArgumentException("Session ist mit keiner Lobby verbunden")
         
         val playerId = messagingService.getPlayerIdForSession(session.id)
-            ?: throw IllegalArgumentException("Session is not linked to a player")
+            ?: throw IllegalArgumentException("Session ist mit keinem Spieler verknüpft")
 
         messagingService.getLobbyLock(lobbyCode).withLock {
             // Orchestration is now handled atomically by GameLifecycleService

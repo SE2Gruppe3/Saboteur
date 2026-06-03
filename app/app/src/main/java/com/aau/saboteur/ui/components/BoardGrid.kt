@@ -1,5 +1,13 @@
 package com.aau.saboteur.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,8 +33,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -50,6 +62,7 @@ import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import com.aau.saboteur.ui.toCanonicalDrawableName
 import com.aau.saboteur.ui.toContentDescription
 import kotlin.math.cos
@@ -89,17 +102,32 @@ fun BoardGrid(
     validPositions: List<BoardPosition> = emptyList(),
     onCellClick: (BoardPosition) -> Unit = {},
 ) {
+    var isFirstLoad by rememberSaveable { mutableStateOf(true) }
+    var savedScrollX by rememberSaveable { mutableIntStateOf(0) }
+    var savedScrollY by rememberSaveable { mutableIntStateOf(0) }
+    var scale by rememberSaveable { mutableFloatStateOf(0.8f) }
+
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
     val placementMap = placements.associateBy(PlacedTunnelCard::position)
     val validPositionSet = remember(validPositions) { validPositions.toHashSet() }
     val gridColor = Color(0xFF000000).copy(alpha = BoardGridLineAlpha)
-    var scale by remember { mutableFloatStateOf(0.8f) }
 
-    // Initial scroll to center
     LaunchedEffect(Unit) {
-        horizontalScroll.scrollTo(horizontalScroll.maxValue / 2)
-        verticalScroll.scrollTo(verticalScroll.maxValue / 2)
+        if (isFirstLoad) {
+            horizontalScroll.scrollTo(horizontalScroll.maxValue / 2)
+            verticalScroll.scrollTo(verticalScroll.maxValue / 2)
+            isFirstLoad = false
+        } else {
+            horizontalScroll.scrollTo(savedScrollX)
+            verticalScroll.scrollTo(savedScrollY)
+        }
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { horizontalScroll.value }.collect { savedScrollX = it }
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { verticalScroll.value }.collect { savedScrollY = it }
     }
 
     Surface(
@@ -307,15 +335,29 @@ private fun BoardTile(
     onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val drawableName = card?.toCanonicalDrawableName()
-    @Suppress("DiscouragedApi")
-    val imageRes = drawableName?.let {
-        context.resources.getIdentifier(it, "drawable", context.packageName)
-    } ?: 0
+    val scaleAnim = remember { Animatable(1f) }
+    val prevCard = remember { mutableStateOf<TunnelCard?>(card) }
+
+    LaunchedEffect(card) {
+        val wasNull = prevCard.value == null
+        prevCard.value = card
+        if (wasNull && card != null) {
+            scaleAnim.snapTo(0.4f)
+            scaleAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
+            )
+        }
+    }
 
     Card(
         onClick = onClick,
-        modifier = Modifier.size(width = cardWidth, height = cardHeight),
+        modifier = Modifier
+            .size(width = cardWidth, height = cardHeight)
+            .scale(scaleAnim.value),
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
         colors = CardDefaults.cardColors(containerColor = tileColor(card))
@@ -327,19 +369,35 @@ private fun BoardTile(
                 .padding(TileContentPadding),
             contentAlignment = Alignment.Center
         ) {
-            when {
-                card == null -> EmptyTilePattern()
-                card.type == CardType.GOAL && !card.isRevealed -> HiddenGoalCard()
-                imageRes != 0 -> {
-                    Image(
-                        painter = painterResource(id = imageRes),
-                        contentDescription = card.toContentDescription(),
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier.fillMaxSize()
-                            .then(if (card.isRotated) Modifier.rotate(180f) else Modifier)
-                    )
+            AnimatedContent(
+                targetState = card,
+                transitionSpec = {
+                    fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                },
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+                label = "tileContent"
+            ) { displayedCard ->
+                val drawableName = displayedCard?.toCanonicalDrawableName()
+                @Suppress("DiscouragedApi")
+                val imageRes = drawableName?.let {
+                    context.resources.getIdentifier(it, "drawable", context.packageName)
+                } ?: 0
+
+                when {
+                    displayedCard == null -> EmptyTilePattern()
+                    displayedCard.type == CardType.GOAL && !displayedCard.isRevealed -> HiddenGoalCard()
+                    imageRes != 0 -> {
+                        Image(
+                            painter = painterResource(id = imageRes),
+                            contentDescription = displayedCard.toContentDescription(),
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize()
+                                .then(if (displayedCard.isRotated) Modifier.rotate(180f) else Modifier)
+                        )
+                    }
+                    else -> ConnectionPattern(card = displayedCard)
                 }
-                else -> ConnectionPattern(card = card)
             }
         }
     }

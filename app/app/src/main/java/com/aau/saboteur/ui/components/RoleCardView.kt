@@ -17,9 +17,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.aau.saboteur.R
 import com.aau.saboteur.model.Role
 import com.aau.saboteur.ui.theme.GlowGold
 import com.aau.saboteur.ui.theme.MineCoal
@@ -79,7 +81,7 @@ fun RoleCardView(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = role.name,
+                    text = stringResource(if (role == Role.GOLDDIGGER) R.string.role_golddigger else R.string.role_saboteur),
                     color = textColor,
                     style = textStyle,
                     fontWeight = FontWeight.Bold

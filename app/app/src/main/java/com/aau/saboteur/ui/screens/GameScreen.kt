@@ -1,20 +1,39 @@
 package com.aau.saboteur.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aau.saboteur.R
 import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
+
+private val DeckBadgeBackground = Color(0xFF2A2A2A)
+private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
+private val DeckBadgeShape = RoundedCornerShape(12.dp)
+private val DeckBadgeIconShape = RoundedCornerShape(2.dp)
+private const val DeckBadgeBorderAlpha = 0.4f
+private const val DeckBadgeIconBorderAlpha = 0.6f
+private val DeckBadgeIconWidth = 10.dp
+private val DeckBadgeIconHeight = 14.dp
+private val DeckBadgePaddingH = 12.dp
+private val DeckBadgePaddingV = 6.dp
+private val DeckBadgeIconSpacing = 6.dp
 
 private fun isToolBlocked(blockedTools: Set<ToolType>, tool: String): Boolean {
     return blockedTools.any { it.name == tool }
@@ -76,6 +95,9 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
+    var menuOpen by remember { mutableStateOf(false) }
+    var volume by remember { mutableFloatStateOf(0.8f) }
+
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
     var pendingToolSelection by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
@@ -89,17 +111,17 @@ fun GameScreen(
         uiState.lastMapResult?.let { result ->
             AlertDialog(
                 onDismissRequest = { viewModel.dismissMapResult() },
-                title = { Text("Geheim-Information") },
+                title = { Text(stringResource(R.string.secret_info_title)) },
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Du hast die Zielkarte angeschaut:")
+                        Text(stringResource(R.string.peek_goal_card_message))
                         Spacer(modifier = Modifier.height(12.dp))
-                        val cardName = if (result.card.isGoal) "GOLD gefunden! 💰" else "Nur Stein... 🪨"
+                        val cardName = if (result.card.isGoal) stringResource(R.string.gold_found) else stringResource(R.string.only_stone)
                         Text(cardName, style = MaterialTheme.typography.headlineMedium)
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.dismissMapResult() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.dismissMapResult() }) { Text(stringResource(R.string.ok_button)) }
                 }
             )
         }
@@ -121,7 +143,7 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (sortedPlayers.isNotEmpty()) {
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
@@ -132,12 +154,25 @@ fun GameScreen(
                                 )
                             )
                         )
-                        .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                        .padding(top = 16.dp, bottom = 8.dp, start = 8.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerTurnOrderRow(
-                        players = sortedPlayers,
-                        currentPlayerId = uiState.gameState.currentPlayerId
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        PlayerTurnOrderRow(
+                            players = sortedPlayers,
+                            currentPlayerId = uiState.gameState.currentPlayerId
+                        )
+                    }
+                    Box {
+                        MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
+                        LobbyMenu(
+                            expanded = menuOpen,
+                            onDismiss = { menuOpen = false },
+                            volume = volume,
+                            onVolumeChange = { volume = it },
+                            onLeaveGame = onBackToLobby
+                        )
+                    }
                 }
             }
         }
@@ -154,7 +189,7 @@ fun GameScreen(
                     tonalElevation = 4.dp
                 ) {
                     Text(
-                        text = it,
+                        text = localizeServerError(it),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -179,18 +214,29 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                uiState.player?.role?.let { role ->
-                    RoleCardView(role = role, compact = true)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    uiState.player?.role?.let { role ->
+                        RoleCardView(role = role, compact = true)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    DeckBadge(count = uiState.remainingDeckSize)
                 }
                 if (isMyTurn && uiState.selectedCard != null) {
                     Button(
                         onClick = { viewModel.discardSelectedCard() },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
-                        Text("Karte verwerfen", color = MaterialTheme.colorScheme.onErrorContainer)
+                        Text(stringResource(R.string.discard_card_button), color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
                 PlayerHandRow(
+                    modifier = Modifier.fillMaxWidth(),
                     hand = currentHand,
                     selectedCardId = uiState.selectedCard?.id,
                     onCardSelected = { card ->
@@ -266,6 +312,47 @@ fun GameScreen(
 }
 
 @Composable
+private fun DeckBadge(count: Int) {
+    Card(
+        modifier = Modifier.shadow(
+            elevation = 4.dp,
+            shape = DeckBadgeShape,
+            ambientColor = Color.Black,
+            spotColor = Color.Black
+        ),
+        shape = DeckBadgeShape,
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = DeckBadgeBorderAlpha))
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .clip(DeckBadgeShape)
+                .background(DeckBadgeBackground)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = DeckBadgePaddingH, vertical = DeckBadgePaddingV),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = DeckBadgeIconWidth, height = DeckBadgeIconHeight)
+                        .background(DeckBadgeIconBackground, DeckBadgeIconShape)
+                        .border(1.dp, Color.White.copy(alpha = DeckBadgeIconBorderAlpha), DeckBadgeIconShape)
+                )
+                Spacer(modifier = Modifier.width(DeckBadgeIconSpacing))
+                Text(
+                    text = count.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun BlockTargetDialog(
     playerList: List<PlayerTurn>,
     selfPlayerId: String,
@@ -274,12 +361,12 @@ fun BlockTargetDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Wähle einen Spieler") },
+        title = { Text(stringResource(R.string.choose_player_title)) },
         text = {
             Column {
                 playerList.forEach { player ->
                     val label = if (player.playerId == selfPlayerId)
-                        "${player.playerName} (Ich)"
+                        stringResource(R.string.player_name_self, player.playerName)
                     else
                         player.playerName
                     Button(
@@ -294,7 +381,7 @@ fun BlockTargetDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) }
         }
     )
 }
@@ -307,7 +394,7 @@ fun DoubleRepairToolDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Welches Werkzeug reparieren?") },
+        title = { Text(stringResource(R.string.choose_tool_title)) },
         text = {
             Column {
                 tools.forEach { tool ->
@@ -317,9 +404,9 @@ fun DoubleRepairToolDialog(
                     ) {
                         Text(
                             when(tool) {
-                                "LANTERN" -> "Lampe reparieren 🏮"
-                                "PICKAXE" -> "Spitzhacke reparieren ⛏️"
-                                "CART" -> "Lore reparieren 🛒"
+                                "LANTERN" -> stringResource(R.string.repair_lantern)
+                                "PICKAXE" -> stringResource(R.string.repair_pickaxe)
+                                "CART" -> stringResource(R.string.repair_cart)
                                 else -> tool
                             }
                         )
@@ -328,7 +415,7 @@ fun DoubleRepairToolDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) }
         }
     )
 }
@@ -348,9 +435,9 @@ private fun GameSyncOverlay() {
 @Composable
 private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
     val resultText = when (winner) {
-        "DWARVES" -> "Zwerge gewinnen! ⛏️"
-        "SABOTEURS" -> "Saboteure gewinnen! 🪓"
-        else -> "Spiel beendet"
+        "DWARVES" -> stringResource(R.string.dwarves_win)
+        "SABOTEURS" -> stringResource(R.string.saboteurs_win)
+        else -> stringResource(R.string.game_over)
     }
     Box(
         modifier = Modifier
@@ -361,7 +448,13 @@ private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = resultText, style = MaterialTheme.typography.displayMedium, color = Color.White)
             Spacer(modifier = Modifier.height(48.dp))
-            Button(onClick = onBackToLobby) { Text("Zurück zur Lobby") }
+            Button(onClick = onBackToLobby) { Text(stringResource(R.string.back_to_lobby_button)) }
         }
     }
+}
+
+@Composable
+private fun localizeServerError(code: String): String = when (code) {
+    "error.invalid_placement" -> stringResource(R.string.error_invalid_placement)
+    else -> code
 }
