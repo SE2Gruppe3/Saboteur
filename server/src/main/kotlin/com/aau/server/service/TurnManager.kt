@@ -31,7 +31,9 @@ class TurnManager(
         var deckWasEmptied: Boolean = false,
         var passedSinceEmpty: Int = 0,
         var gameState: GameState,
-        var knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> = mutableMapOf()
+        var knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> = mutableMapOf(),
+        var goldDeck: MutableList<GoldCard> = mutableListOf(),
+        var lastPlayerWhoPlayed: String? = null
     )
 
     private val games = ConcurrentHashMap<String, GameInternalState>()
@@ -60,16 +62,24 @@ class TurnManager(
                     mutableMapOf()
                 }
 
-                games[entity.lobbyCode] = GameInternalState(
+                val internal = GameInternalState(
                     hands = hands.mapValues { it.value.toMutableList() },
                     drawPile = drawPile.toMutableList(),
                     discardPile = discardPile.toMutableList(),
                     deckWasEmptied = entity.deckWasEmptied,
                     passedSinceEmpty = entity.passedSinceEmpty,
-                    gameState = GameState(players = playersTurn, currentPlayerId = entity.currentPlayerId, boardPlacements = board, deckSize = drawPile.size),
+                    gameState = GameState(
+                        players = playersTurn,
+                        currentPlayerId = entity.currentPlayerId,
+                        boardPlacements = board,
+                        deckSize = drawPile.size
+                    ),
                     knownGoalsByPlayer = knownGoalsByPlayer
                 )
+
+                games[entity.lobbyCode] = internal
                 gameService.setPlayerData(entity.lobbyCode, playerRoles)
+                updatePlayerGoldValues(entity.lobbyCode, internal)
             } catch (e: Exception) {
                 logger.error("Failed to recover game {}: {}", entity.lobbyCode, e.message, e)
             }
@@ -79,7 +89,13 @@ class TurnManager(
 
     // -- PLAY CARD --
     @Transactional
-    fun playCard(lobbyCode: String, playerId: String, cardId: String, position: BoardPosition, isRotated: Boolean): TurnResult {
+    fun playCard(
+        lobbyCode: String,
+        playerId: String,
+        cardId: String,
+        position: BoardPosition,
+        isRotated: Boolean
+    ): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
         synchronized(internal) {
             val state = internal.gameState
@@ -98,9 +114,17 @@ class TurnManager(
                 internal.passedSinceEmpty = 0
                 val placementsWithCard = state.boardPlacements + PlacedTunnelCard(position, effectiveCard)
                 val newPlacements = revealGoalCards(position, effectiveCard, placementsWithCard)
-                internal.gameState = state.copy(boardPlacements = newPlacements, currentPlayerId = nextPlayerId(state))
+                internal.lastPlayerWhoPlayed = playerId
+                internal.gameState = state.copy(
+                    boardPlacements = newPlacements,
+                    currentPlayerId = nextPlayerId(state)
+                )
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                return TurnResult(
+                    internal.gameState,
+                    internal.hands.mapValues { it.value.toList() },
+                    determineWinner(internal.gameState, internal)
+                )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -125,12 +149,22 @@ class TurnManager(
             try {
                 playerHand.remove(card)
                 internal.discardPile.add(card)
-                val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools + toolToBlock) else it }
-                internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
+                val updatedPlayers = state.players.map {
+                    if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools + toolToBlock) else it
+                }
+                internal.lastPlayerWhoPlayed = playerId
+                internal.gameState = state.copy(
+                    players = updatedPlayers,
+                    currentPlayerId = nextPlayerId(state)
+                )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                return TurnResult(
+                    internal.gameState,
+                    internal.hands.mapValues { it.value.toList() },
+                    determineWinner(internal.gameState, internal)
+                )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -140,7 +174,13 @@ class TurnManager(
 
     // -- PLAY REPAIR CARD --
     @Transactional
-    fun playRepairCard(lobbyCode: String, playerId: String, cardId: String, targetPlayerId: String, tool: ToolType): TurnResult {
+    fun playRepairCard(
+        lobbyCode: String,
+        playerId: String,
+        cardId: String,
+        targetPlayerId: String,
+        tool: ToolType
+    ): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
         synchronized(internal) {
             val state = internal.gameState
@@ -149,18 +189,29 @@ class TurnManager(
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
             require(card.type.isRepairCard()) { "Keine Reparaturkarte." }
             require(tool in card.type.repairableTools()) { "Falsches Werkzeug." }
-            val targetPlayer = state.players.find { it.playerId == targetPlayerId } ?: throw IllegalArgumentException("Ziel nicht gefunden.")
+            val targetPlayer = state.players.find { it.playerId == targetPlayerId }
+                ?: throw IllegalArgumentException("Ziel nicht gefunden.")
             require(tool in targetPlayer.blockedTools) { "Werkzeug ist nicht blockiert." }
 
             try {
                 playerHand.remove(card)
                 internal.discardPile.add(card)
-                val updatedPlayers = state.players.map { if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools - tool) else it }
-                internal.gameState = state.copy(players = updatedPlayers, currentPlayerId = nextPlayerId(state))
+                val updatedPlayers = state.players.map {
+                    if (it.playerId == targetPlayerId) it.copy(blockedTools = it.blockedTools - tool) else it
+                }
+                internal.lastPlayerWhoPlayed = playerId
+                internal.gameState = state.copy(
+                    players = updatedPlayers,
+                    currentPlayerId = nextPlayerId(state)
+                )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                return TurnResult(
+                    internal.gameState,
+                    internal.hands.mapValues { it.value.toList() },
+                    determineWinner(internal.gameState, internal)
+                )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -170,7 +221,12 @@ class TurnManager(
 
     // -- PLAY MAP CARD --
     @Transactional
-    fun playMapCard(lobbyCode: String, playerId: String, cardId: String, targetPosition: BoardPosition): Pair<TurnResult, MapResult> {
+    fun playMapCard(
+        lobbyCode: String,
+        playerId: String,
+        cardId: String,
+        targetPosition: BoardPosition
+    ): Pair<TurnResult, MapResult> {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
         return synchronized(internal) {
             val state = internal.gameState
@@ -178,7 +234,8 @@ class TurnManager(
             val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
             require(card.type.isMapCard()) { "Keine Map-Karte." }
-            val targetPlacement = state.boardPlacements.find { it.position == targetPosition } ?: throw IllegalArgumentException("Keine Karte an Position.")
+            val targetPlacement = state.boardPlacements.find { it.position == targetPosition }
+                ?: throw IllegalArgumentException("Keine Karte an Position.")
             require(targetPlacement.card.type.isGoalCardType()) { "Nur auf Zielkarten möglich." }
 
             try {
@@ -186,10 +243,15 @@ class TurnManager(
                 internal.discardPile.add(card)
                 internal.knownGoalsByPlayer.getOrPut(playerId) { mutableMapOf() }[targetPosition] = targetPlacement.card
                 drawCardForPlayer(internal, playerId)
+                internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
-                val res = TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                val res = TurnResult(
+                    internal.gameState,
+                    internal.hands.mapValues { it.value.toList() },
+                    determineWinner(internal.gameState, internal)
+                )
                 Pair(res, MapResult(targetPosition, targetPlacement.card))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -216,11 +278,19 @@ class TurnManager(
                 internal.discardPile.add(card)
                 internal.discardPile.add(targetPlacement.card)
                 val updatedPlacements = state.boardPlacements.filterNot { it.position == targetPosition }
-                internal.gameState = state.copy(boardPlacements = updatedPlacements, currentPlayerId = nextPlayerId(state))
+                internal.lastPlayerWhoPlayed = playerId
+                internal.gameState = state.copy(
+                    boardPlacements = updatedPlacements,
+                    currentPlayerId = nextPlayerId(state)
+                )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                return TurnResult(
+                    internal.gameState,
+                    internal.hands.mapValues { it.value.toList() },
+                    determineWinner(internal.gameState, internal)
+                )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -242,9 +312,16 @@ class TurnManager(
                 internal.discardPile.add(card)
                 drawCardForPlayer(internal, playerId)
                 if (internal.deckWasEmptied) internal.passedSinceEmpty++
-                internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
+                internal.lastPlayerWhoPlayed = playerId
+                internal.gameState = internal.gameState.copy(
+                    currentPlayerId = nextPlayerId(internal.gameState)
+                )
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(internal.gameState, internal))
+                return TurnResult(
+                    internal.gameState,
+                    internal.hands.mapValues { it.value.toList() },
+                    determineWinner(internal.gameState, internal)
+                )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -288,8 +365,12 @@ class TurnManager(
             hands = distribution.hands.mapValues { it.value.toMutableList() },
             drawPile = distribution.drawPile.toMutableList(),
             gameState = initialGameState,
-            knownGoalsByPlayer = initialGameState.players.associate { it.playerId to mutableMapOf<BoardPosition, TunnelCard>() }.toMutableMap()
+            knownGoalsByPlayer = initialGameState.players
+                .associate { it.playerId to mutableMapOf<BoardPosition, TunnelCard>() }
+                .toMutableMap(),
+            goldDeck = CardDeck.createGoldDeck().shuffled().toMutableList()
         )
+        updatePlayerGoldValues(lobbyCode, internal)
         games[lobbyCode] = internal
         finalizeAndPersist(lobbyCode, internal)
     }
@@ -325,6 +406,208 @@ class TurnManager(
         if (internal.drawPile.isEmpty()) { internal.deckWasEmptied = true; return }
         internal.hands[playerId]?.add(internal.drawPile.removeFirst())
         if (internal.drawPile.isEmpty()) internal.deckWasEmptied = true
+    }
+
+    private fun calculateGoldValue(cards: List<GoldCard>): Int {
+        return cards.sumOf { it.value }
+    }
+
+    private fun updatePlayerGoldValues(lobbyCode: String, internal: GameInternalState) {
+        val playerData = gameService.getAllPlayerData(lobbyCode)
+
+        val updatedPlayers = internal.gameState.players.map { playerTurn ->
+            val player = playerData[playerTurn.playerId]
+            val goldValue = calculateGoldValue(player?.goldCards ?: emptyList())
+            playerTurn.copy(goldValue = goldValue)
+        }
+
+        internal.gameState = internal.gameState.copy(players = updatedPlayers)
+    }
+
+    private fun drawGoldCards(internal: GameInternalState, amount: Int): List<GoldCard> {
+        val drawn = mutableListOf<GoldCard>()
+        repeat(amount) {
+            if (internal.goldDeck.isNotEmpty()) {
+                drawn.add(internal.goldDeck.removeFirst())
+            }
+        }
+        return drawn
+    }
+
+    private fun addGoldToPlayer(lobbyCode: String, playerId: String, goldCards: List<GoldCard>) {
+        if (goldCards.isEmpty()) return
+        val playerData = gameService.getAllPlayerData(lobbyCode).toMutableMap()
+        val player = playerData[playerId] ?: return
+        playerData[playerId] = player.copy(goldCards = player.goldCards + goldCards)
+        gameService.setPlayerData(lobbyCode, playerData)
+    }
+
+    private fun getPlayersByRole(lobbyCode: String, role: Role): List<Player> {
+        return gameService.getAllPlayerData(lobbyCode).values.filter { it.role == role }
+    }
+
+    private fun distributeGoldToGolddiggers(
+        lobbyCode: String,
+        internal: GameInternalState,
+        winningPlayerId: String
+    ): Map<String, List<GoldCard>> {
+        val golddiggers = getPlayersByRole(lobbyCode, Role.GOLDDIGGER)
+            .map { it.id }
+            .sortedBy { playerId ->
+                val playerTurn = internal.gameState.players.find { it.playerId == playerId }
+                playerTurn?.turnOrder ?: Int.MAX_VALUE
+            }
+
+        if (golddiggers.isEmpty()) return emptyMap()
+
+        val startIndex = golddiggers.indexOf(winningPlayerId).let { if (it == -1) 0 else it }
+        val orderedWinners = golddiggers.drop(startIndex) + golddiggers.take(startIndex)
+
+        val distributed = mutableMapOf<String, List<GoldCard>>()
+
+        orderedWinners.forEach { playerId ->
+            val gold = drawGoldCards(internal, 1)
+            if (gold.isNotEmpty()) {
+                addGoldToPlayer(lobbyCode, playerId, gold)
+                distributed[playerId] = gold
+            }
+        }
+
+        return distributed
+    }
+
+    private fun distributeGoldToSaboteurs(
+        lobbyCode: String,
+        internal: GameInternalState
+    ): Map<String, List<GoldCard>> {
+        val saboteurs = getPlayersByRole(lobbyCode, Role.SABOTEUR)
+            .map { it.id }
+            .sortedBy { playerId ->
+                val playerTurn = internal.gameState.players.find { it.playerId == playerId }
+                playerTurn?.turnOrder ?: Int.MAX_VALUE
+            }
+
+        if (saboteurs.isEmpty()) return emptyMap()
+
+        val goldPerSaboteur = when (saboteurs.size) {
+            1 -> 4
+            2, 3 -> 3
+            4 -> 2
+            else -> 0
+        }
+
+        val distributed = mutableMapOf<String, List<GoldCard>>()
+
+        saboteurs.forEach { playerId ->
+            val gold = drawGoldCards(internal, goldPerSaboteur)
+            if (gold.isNotEmpty()) {
+                addGoldToPlayer(lobbyCode, playerId, gold)
+                distributed[playerId] = gold
+            }
+        }
+
+        return distributed
+    }
+
+    private fun buildPlayerGoldTotals(lobbyCode: String): Map<String, Int> {
+        return gameService.getAllPlayerData(lobbyCode).mapValues { (_, player) ->
+            calculateGoldValue(player.goldCards)
+        }
+    }
+
+    private fun buildRevealedRoles(lobbyCode: String): Map<String, Role> {
+        return gameService.getAllPlayerData(lobbyCode)
+            .mapNotNull { (playerId, player) ->
+                player.role?.let { role -> playerId to role }
+            }
+            .toMap()
+    }
+
+    private fun determineNextRoundStartPlayer(internal: GameInternalState): String? {
+        val playersSorted = internal.gameState.players.sortedBy { it.turnOrder }
+        if (playersSorted.isEmpty()) return null
+
+        val lastPlayerId = internal.lastPlayerWhoPlayed
+        if (lastPlayerId == null) return playersSorted.firstOrNull()?.playerId
+
+        val lastIndex = playersSorted.indexOfFirst { it.playerId == lastPlayerId }
+        if (lastIndex == -1) return playersSorted.firstOrNull()?.playerId
+
+        return playersSorted[(lastIndex + 1) % playersSorted.size].playerId
+    }
+
+    private fun resetPlayersForNextRound(players: List<PlayerTurn>): List<PlayerTurn> {
+        return players.map { it.copy(blockedTools = emptySet()) }
+    }
+
+    private fun createNextRoundGameState(
+        previousState: GameState,
+        newPlayers: List<PlayerTurn>,
+        startPlayerId: String,
+        newBoardPlacements: List<PlacedTunnelCard>,
+        newDeckSize: Int
+    ): GameState {
+        return previousState.copy(
+            players = newPlayers,
+            currentPlayerId = startPlayerId,
+            boardPlacements = newBoardPlacements,
+            deckSize = newDeckSize,
+            currentRound = previousState.currentRound + 1,
+            isRoundOver = false,
+            lastRoundResult = previousState.lastRoundResult
+        )
+    }
+
+    private fun startNextRound(lobbyCode: String, internal: GameInternalState) {
+        val playerIds = internal.gameState.players.map { it.playerId }
+        val distribution = CardDistributor.distribute(playerIds)
+
+        val startPlayerId = determineNextRoundStartPlayer(internal)
+            ?: throw IllegalStateException("Kein Startspieler für nächste Runde gefunden")
+
+        val resetPlayers = resetPlayersForNextRound(internal.gameState.players)
+        val newBoardPlacements = gameService.run {
+            val goalCards = CardDeck.createGoalCards().shuffled()
+            listOf(
+                PlacedTunnelCard(
+                    position = BoardPosition(row = 2, column = 10),
+                    card = goalCards[0]
+                ),
+                PlacedTunnelCard(
+                    position = BoardPosition(row = 4, column = 10),
+                    card = goalCards[1]
+                ),
+                PlacedTunnelCard(
+                    position = BoardPosition(row = 6, column = 10),
+                    card = goalCards[2]
+                ),
+                PlacedTunnelCard(
+                    position = BoardPosition(row = 4, column = 2),
+                    card = CardDeck.createStartCard()
+                )
+            )
+        }
+
+        internal.hands = distribution.hands.mapValues { it.value.toMutableList() }
+        internal.drawPile = distribution.drawPile.toMutableList()
+        internal.discardPile = mutableListOf()
+        internal.deckWasEmptied = false
+        internal.passedSinceEmpty = 0
+        internal.knownGoalsByPlayer = playerIds.associateWith {
+            mutableMapOf<BoardPosition, TunnelCard>()
+        }.toMutableMap()
+        internal.lastPlayerWhoPlayed = null
+
+        internal.gameState = createNextRoundGameState(
+            previousState = internal.gameState,
+            newPlayers = resetPlayers,
+            startPlayerId = startPlayerId,
+            newBoardPlacements = newBoardPlacements,
+            newDeckSize = distribution.drawPile.size
+        )
+
+        updatePlayerGoldValues(lobbyCode, internal)
+        finalizeAndPersist(lobbyCode, internal)
     }
 
     private fun nextPlayerId(state: GameState): String? {
@@ -402,9 +685,74 @@ class TurnManager(
     }
 
     private fun determineWinner(state: GameState, internal: GameInternalState): String? {
-        if (isGoalReached(buildGrid(state.boardPlacements))) return "DWARVES"
-        if (internal.deckWasEmptied && internal.passedSinceEmpty >= state.players.size) return "SABOTEURS"
-        return null
+        val lobbyCode = games.entries.find { it.value == internal }?.key ?: return null
+
+        val golddiggerWin = isGoalReached(buildGrid(state.boardPlacements))
+        val saboteurWin = internal.deckWasEmptied && internal.passedSinceEmpty >= state.players.size
+
+        if (!golddiggerWin && !saboteurWin) return null
+
+        val winnerRole = if (golddiggerWin) Role.GOLDDIGGER else Role.SABOTEUR
+        val winningPlayerIds = if (winnerRole == Role.GOLDDIGGER) {
+            getPlayersByRole(lobbyCode, Role.GOLDDIGGER).map { it.id }
+        } else {
+            getPlayersByRole(lobbyCode, Role.SABOTEUR).map { it.id }
+        }
+
+        val distributedGold = if (winnerRole == Role.GOLDDIGGER) {
+            val winningPlayerId = internal.lastPlayerWhoPlayed
+                ?: state.currentPlayerId
+                ?: winningPlayerIds.firstOrNull()
+                ?: ""
+            distributeGoldToGolddiggers(lobbyCode, internal, winningPlayerId)
+        } else {
+            distributeGoldToSaboteurs(lobbyCode, internal)
+        }
+
+        updatePlayerGoldValues(lobbyCode, internal)
+
+        val isGameFinished = state.currentRound >= 3
+        val playerGoldTotals = buildPlayerGoldTotals(lobbyCode)
+
+        val finalWinnerIds = if (isGameFinished) {
+            val maxGold = playerGoldTotals.values.maxOrNull() ?: 0
+            playerGoldTotals
+                .filterValues { it == maxGold }
+                .keys
+                .toList()
+        } else {
+            emptyList()
+        }
+
+        val roundResult = RoundResult(
+            roundNumber = state.currentRound,
+            winnerRole = winnerRole,
+            winningPlayerIds = winningPlayerIds,
+            revealedRoles = buildRevealedRoles(lobbyCode),
+            distributedGold = distributedGold,
+            playerGoldTotals = playerGoldTotals,
+            gameFinished = isGameFinished,
+            finalWinnerIds = finalWinnerIds
+        )
+
+        internal.gameState = internal.gameState.copy(
+            players = internal.gameState.players.map { playerTurn ->
+                playerTurn.copy(
+                    goldValue = playerGoldTotals[playerTurn.playerId] ?: playerTurn.goldValue
+                )
+            },
+            isRoundOver = true,
+            isGameOver = isGameFinished,
+            lastRoundResult = roundResult
+        )
+
+        if (!isGameFinished) {
+            startNextRound(lobbyCode, internal)
+        } else {
+            finalizeAndPersist(lobbyCode, internal)
+        }
+
+        return if (winnerRole == Role.GOLDDIGGER) "DWARVES" else "SABOTEURS"
     }
 
     private fun opposite(d: Direction) = when (d) {

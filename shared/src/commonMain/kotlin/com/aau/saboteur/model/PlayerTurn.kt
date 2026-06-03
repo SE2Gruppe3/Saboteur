@@ -7,5 +7,6 @@ data class PlayerTurn(
     val playerId: String = "",
     val playerName: String = "",
     val turnOrder: Int = 0,
-    val blockedTools: Set<ToolType> = emptySet()
+    val blockedTools: Set<ToolType> = emptySet(),
+    val goldValue: Int = 0
 )

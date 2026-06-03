@@ -8,5 +8,6 @@ data class Player(
     val name: String = "",
     val hand: List<TunnelCard> = emptyList(),
     val role: Role? = null,
-    val blockedTools: Set<ToolType> = emptySet()
+    val blockedTools: Set<ToolType> = emptySet(),
+    val goldCards: List<GoldCard> = emptyList()
 )
