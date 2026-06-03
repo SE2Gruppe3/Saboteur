@@ -1042,4 +1042,161 @@ class TurnManagerTest {
         assertNotNull(freshManager.getGameStateSnapshot("BLANK_GOLD"))
     }
 
+    @Test
+    fun `discardCard when saboteurs win starts next round and distributes gold`() {
+        mockPlayerData(
+            mapOf(
+                p1 to Player(id = p1, name = "Alice", role = Role.SABOTEUR),
+                p2 to Player(id = p2, name = "Bob", role = Role.SABOTEUR),
+                p3 to Player(id = p3, name = "Charlie", role = Role.GOLDDIGGER)
+            )
+        )
+
+        val distribution = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(pathCard("d1")),
+                p2 to mutableListOf(pathCard("d2")),
+                p3 to mutableListOf(pathCard("d3"))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+
+        val state = GameState(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1),
+                PlayerTurn(p2, "Bob", 2, blockedTools = setOf(ToolType.LANTERN)),
+                PlayerTurn(p3, "Charlie", 3)
+            ),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard)),
+            currentRound = 1
+        )
+
+        turnManager.initializeGame("SABO_NEXT_ROUND", distribution, state)
+
+        turnManager.discardCard("SABO_NEXT_ROUND", p1, "d1")
+        turnManager.discardCard("SABO_NEXT_ROUND", p2, "d2")
+        val result = turnManager.discardCard("SABO_NEXT_ROUND", p3, "d3")
+
+        assertEquals("SABOTEURS", result.winner)
+
+        val snapshot = turnManager.getGameStateSnapshot("SABO_NEXT_ROUND")
+        assertEquals(2, snapshot.currentRound)
+        assertFalse(snapshot.isGameOver)
+        assertFalse(snapshot.isRoundOver)
+        assertNotNull(snapshot.lastRoundResult)
+        assertEquals(Role.SABOTEUR, snapshot.lastRoundResult!!.winnerRole)
+        assertTrue(snapshot.lastRoundResult!!.winningPlayerIds.containsAll(listOf(p1, p2)))
+
+        assertEquals(4, snapshot.boardPlacements.size)
+        assertTrue(snapshot.boardPlacements.any { it.card.type == CardType.START })
+        assertTrue(snapshot.currentPlayerId in listOf(p1, p2, p3))
+
+        val p2State = snapshot.players.find { it.playerId == p2 }!!
+        assertTrue(p2State.blockedTools.isEmpty())
+
+        val updatedPlayers = gameService.getAllPlayerData("SABO_NEXT_ROUND")
+
+        assertEquals(3, updatedPlayers[p1]!!.goldCards.size)
+        assertEquals(3, updatedPlayers[p2]!!.goldCards.size)
+
+        val sab1Gold = updatedPlayers[p1]!!.goldCards.sumOf { it.value }
+        val sab2Gold = updatedPlayers[p2]!!.goldCards.sumOf { it.value }
+
+        assertTrue(sab1Gold >= 3)
+        assertTrue(sab2Gold >= 3)
+
+        val p1Snapshot = snapshot.players.find { it.playerId == p1 }!!
+        val p2Snapshot = snapshot.players.find { it.playerId == p2 }!!
+        assertEquals(sab1Gold, p1Snapshot.goldValue)
+        assertEquals(sab2Gold, p2Snapshot.goldValue)
+    }
+
+    @Test
+    fun `discardCard when saboteurs win in round three marks game over and final winners`() {
+        var currentPlayers = mapOf(
+            p1 to Player(
+                id = p1,
+                name = "Alice",
+                role = Role.SABOTEUR,
+                goldCards = listOf(GoldCard("old1", 2))
+            ),
+            p2 to Player(
+                id = p2,
+                name = "Bob",
+                role = Role.SABOTEUR,
+                goldCards = listOf(GoldCard("old2", 1))
+            ),
+            p3 to Player(
+                id = p3,
+                name = "Charlie",
+                role = Role.GOLDDIGGER,
+                goldCards = emptyList()
+            )
+        )
+
+        whenever(gameService.getAllPlayerData(any())).thenAnswer { currentPlayers }
+        doAnswer { invocation ->
+            @Suppress("UNCHECKED_CAST")
+            currentPlayers = invocation.getArgument<Map<String, Player>>(1)
+            null
+        }.whenever(gameService).setPlayerData(any(), any())
+
+        val distribution = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(pathCard("f1")),
+                p2 to mutableListOf(pathCard("f2")),
+                p3 to mutableListOf(pathCard("f3"))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+
+        val state = GameState(
+            players = listOf(
+                PlayerTurn(p1, "Alice", 1, goldValue = 2),
+                PlayerTurn(p2, "Bob", 2, goldValue = 1),
+                PlayerTurn(p3, "Charlie", 3, goldValue = 0)
+            ),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard)),
+            currentRound = 3
+        )
+
+        turnManager.initializeGame("SABO_FINAL", distribution, state)
+
+        turnManager.discardCard("SABO_FINAL", p1, "f1")
+        turnManager.discardCard("SABO_FINAL", p2, "f2")
+        val result = turnManager.discardCard("SABO_FINAL", p3, "f3")
+
+        assertEquals("SABOTEURS", result.winner)
+
+        val snapshot = turnManager.getGameStateSnapshot("SABO_FINAL")
+        assertEquals(3, snapshot.currentRound)
+        assertTrue(snapshot.isGameOver)
+        assertTrue(snapshot.isRoundOver)
+        assertNotNull(snapshot.lastRoundResult)
+        assertTrue(snapshot.lastRoundResult!!.gameFinished)
+        assertEquals(Role.SABOTEUR, snapshot.lastRoundResult!!.winnerRole)
+        assertTrue(snapshot.lastRoundResult!!.winningPlayerIds.containsAll(listOf(p1, p2)))
+        assertTrue(snapshot.lastRoundResult!!.finalWinnerIds.contains(p1))
+
+        assertEquals(4, currentPlayers[p1]!!.goldCards.size)
+        assertEquals(4, currentPlayers[p2]!!.goldCards.size)
+
+        val p1Gold = currentPlayers[p1]!!.goldCards.sumOf { it.value }
+        val p2Gold = currentPlayers[p2]!!.goldCards.sumOf { it.value }
+
+        assertTrue(p1Gold > 2)
+        assertTrue(p2Gold > 1)
+
+        val p1State = snapshot.players.find { it.playerId == p1 }!!
+        val p2State = snapshot.players.find { it.playerId == p2 }!!
+        assertEquals(p1Gold, p1State.goldValue)
+        assertEquals(p2Gold, p2State.goldValue)
+    }
+
 }
