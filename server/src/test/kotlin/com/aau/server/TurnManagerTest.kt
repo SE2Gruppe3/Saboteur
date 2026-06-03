@@ -846,4 +846,200 @@ class TurnManagerTest {
         assertEquals(listOf(p1), snapshot.lastRoundResult!!.finalWinnerIds)
         assertEquals(3, snapshot.players.find { it.playerId == p1 }?.goldValue)
     }
+
+    @Test
+    fun `loadFromDb returns zero when repository is empty`() {
+        whenever(gameRepository.findAll()).thenReturn(emptyList())
+
+        val freshManager = TurnManager(gameRepository, objectMapper, gameService)
+
+        val result = freshManager.loadFromDb()
+
+        assertEquals(0, result)
+    }
+
+    @Test
+    fun `playCard throws when player is not current player`() {
+        setupStandardGame()
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playCard(lobbyCode, p2, "c2", BoardPosition(4, 3), false)
+        }
+    }
+
+    @Test
+    fun `rockfall throws when target position is empty`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(rockfallCard("rf1"))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("ROCK_EMPTY", dist, state)
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRockfallCard("ROCK_EMPTY", p1, "rf1", BoardPosition(9, 9))
+        }
+    }
+
+    @Test
+    fun `playBlockCard throws when target player does not exist`() {
+        val distribution = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(blockCard("b1")),
+                p2 to mutableListOf(pathCard("c2"))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("BLOCK_MISSING", distribution, state)
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playBlockCard("BLOCK_MISSING", p1, "b1", "missing-player")
+        }
+    }
+
+    @Test
+    fun `playRepairCard throws when target player does not exist`() {
+        val distribution = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(repairCard("r1")),
+                p2 to mutableListOf(pathCard("c2"))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("REPAIR_MISSING", distribution, state)
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playRepairCard("REPAIR_MISSING", p1, "r1", "missing-player", ToolType.LANTERN)
+        }
+    }
+
+    @Test
+    fun `map card throws when target position has no card`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(mapCard("m1"))),
+            drawPile = mutableListOf(),
+            goalCards = CardDeck.createGoalCards(),
+            startCard = startCard
+        )
+        val state = GameState(
+            players = listOf(PlayerTurn(p1, "A", 1)),
+            currentPlayerId = p1,
+            boardPlacements = listOf(PlacedTunnelCard(startPos, startCard))
+        )
+        turnManager.initializeGame("MAP_EMPTY", dist, state)
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.playMapCard("MAP_EMPTY", p1, "m1", BoardPosition(9, 9))
+        }
+    }
+
+    @Test
+    fun `loadFromDb restores knownGoalsByPlayer from valid json`() {
+        mockPlayerData(
+            mapOf(
+                p1 to Player(id = p1, name = "Alice", role = Role.GOLDDIGGER)
+            )
+        )
+
+        val players = listOf(PlayerTurn(p1, "Alice", 1))
+        val board = listOf(PlacedTunnelCard(startPos, startCard))
+        val knownGoalsJson = objectMapper.writeValueAsString(
+            mapOf(
+                p1 to mapOf(goalPos.toString() to CardDeck.createGoalCards().first())
+            )
+        )
+
+        val entity = GameEntity(
+            lobbyCode = "KNOWN_GOALS",
+            currentPlayerId = p1,
+            boardJson = objectMapper.writeValueAsString(board),
+            drawPileJson = "[]",
+            discardPileJson = "[]",
+            handsJson = objectMapper.writeValueAsString(mapOf(p1 to listOf(pathCard("h1")))),
+            playersTurnJson = objectMapper.writeValueAsString(players),
+            playerRolesJson = objectMapper.writeValueAsString(
+                mapOf(p1 to Player(id = p1, name = "Alice", role = Role.GOLDDIGGER))
+            ),
+            deckWasEmptied = false,
+            passedSinceEmpty = 0,
+            knownGoalsByPlayerJson = knownGoalsJson,
+            currentRound = 1,
+            isRoundOver = false,
+            isGameOver = false,
+            lastRoundResultJson = "",
+            goldDeckJson = objectMapper.writeValueAsString(CardDeck.createGoldDeck()),
+            lastPlayerWhoPlayed = null
+        )
+
+        whenever(gameRepository.findAll()).thenReturn(listOf(entity))
+
+        val freshManager = TurnManager(gameRepository, objectMapper, gameService)
+        val recovered = freshManager.loadFromDb()
+
+        assertEquals(1, recovered)
+        assertNotNull(freshManager.getGameStateSnapshot("KNOWN_GOALS"))
+    }
+
+    @Test
+    fun `loadFromDb creates fresh gold deck when goldDeckJson is blank`() {
+        mockPlayerData(
+            mapOf(
+                p1 to Player(id = p1, name = "Alice", role = Role.GOLDDIGGER)
+            )
+        )
+
+        val players = listOf(PlayerTurn(p1, "Alice", 1))
+        val board = listOf(PlacedTunnelCard(startPos, startCard))
+
+        val entity = GameEntity(
+            lobbyCode = "BLANK_GOLD",
+            currentPlayerId = p1,
+            boardJson = objectMapper.writeValueAsString(board),
+            drawPileJson = "[]",
+            discardPileJson = "[]",
+            handsJson = objectMapper.writeValueAsString(mapOf(p1 to listOf(pathCard("h1")))),
+            playersTurnJson = objectMapper.writeValueAsString(players),
+            playerRolesJson = objectMapper.writeValueAsString(
+                mapOf(p1 to Player(id = p1, name = "Alice", role = Role.GOLDDIGGER))
+            ),
+            deckWasEmptied = false,
+            passedSinceEmpty = 0,
+            knownGoalsByPlayerJson = "{}",
+            currentRound = 1,
+            isRoundOver = false,
+            isGameOver = false,
+            lastRoundResultJson = "",
+            goldDeckJson = "",
+            lastPlayerWhoPlayed = null
+        )
+
+        whenever(gameRepository.findAll()).thenReturn(listOf(entity))
+
+        val freshManager = TurnManager(gameRepository, objectMapper, gameService)
+        val recovered = freshManager.loadFromDb()
+
+        assertEquals(1, recovered)
+        assertNotNull(freshManager.getGameStateSnapshot("BLANK_GOLD"))
+    }
+
 }
