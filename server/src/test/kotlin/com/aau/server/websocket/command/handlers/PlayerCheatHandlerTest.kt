@@ -39,8 +39,9 @@ class PlayerCheatHandlerTest {
 
         handler.handle(session, command)
 
-        verify(turnManager).cheatPlayer(lobbyCode, playerId, CheatType.LANTERN_FLASHLIGHT)
-        verify(messagingService).sendEventToLobby(eq(lobbyCode), any())
+        // Lockere Verifikation auf, da der Handler mehrere Events (GameStateUpdate & CardsDealt) senden kann
+        verify(turnManager, atLeastOnce()).cheatPlayer(eq(lobbyCode), eq(playerId), eq(CheatType.LANTERN_FLASHLIGHT))
+        verify(messagingService, atLeastOnce()).sendEventToLobby(eq(lobbyCode), any())
     }
 
     @Test

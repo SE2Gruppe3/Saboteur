@@ -517,9 +517,16 @@ class TurnManagerTest {
     }
 
     @Test
+    fun `cheat TEST_REVEAL consumes turn and moves to next player`() {
+        setupStandardGame()
+        val result = turnManager.cheatPlayer(lobbyCode, p1, CheatType.TEST_REVEAL)
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+    }
+
+    @Test
     fun `cheatPlayer throws on unknown cheat type`() {
         assertThrows<IllegalArgumentException> {
-            turnManager.cheatPlayer(lobbyCode, p1, CheatType.TEST_INVALID_CHEAT)
+            turnManager.cheatPlayer(lobbyCode, p1, CheatType.TEST_INVALID_TYPE)
         }
     }
 
