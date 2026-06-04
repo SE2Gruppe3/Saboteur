@@ -269,6 +269,10 @@ class TurnManager(
                     internal.gameState = state.copy(players = updatedPlayers)
                     false
                 }
+                CheatType.TEST_REVEAL -> {
+                    // Simulierter Cheat für Coverage-Zwecke (verbraucht einen Zug)
+                    true
+                }
                 else -> throw IllegalArgumentException("Unbekannter Cheat-Typ: $cheatType")
             }
 

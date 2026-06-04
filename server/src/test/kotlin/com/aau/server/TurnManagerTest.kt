@@ -516,6 +516,20 @@ class TurnManagerTest {
         assertEquals(p1, result.updatedGameState.currentPlayerId)
     }
 
+    @Test
+    fun `cheatPlayer throws on unknown cheat type`() {
+        assertThrows<IllegalArgumentException> {
+            turnManager.cheatPlayer(lobbyCode, p1, CheatType.TEST_INVALID_CHEAT)
+        }
+    }
+
+    @Test
+    fun `cheatPlayer throws when game not found`() {
+        assertThrows<IllegalArgumentException> {
+            turnManager.cheatPlayer("NON_EXISTENT", p1, CheatType.LANTERN_FLASHLIGHT)
+        }
+    }
+
     // ------- EDGE CASES -------
 
     @Test
