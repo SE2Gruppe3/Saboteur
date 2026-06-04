@@ -76,6 +76,7 @@ class LobbyService(
 
     @Transactional
     fun createLobby(playerName: String, playerId: String? = null, visibility: LobbyVisibility = LobbyVisibility.PUBLIC, isGuest: Boolean = true): LobbyState {
+        require(visibility == LobbyVisibility.PUBLIC || visibility == LobbyVisibility.PRIVATE) { "Sichtbarkeit nicht unterstützt" }
         val code = generateUniqueCode()
         val finalPlayerId = playerId ?: UUID.randomUUID().toString()
         val host = Player(id = finalPlayerId, name = playerName, isGuest = isGuest)
@@ -157,10 +158,6 @@ class LobbyService(
     }
 
     fun getPublicLobbies(): List<LobbyState> = lobbies.values.filter { it.visibility == LobbyVisibility.PUBLIC }
-    
-    fun getSharedLobbiesForPlayers(playerIds: List<String>): List<LobbyState> {
-        return lobbies.values.filter { it.visibility == LobbyVisibility.FRIENDS_ONLY && playerIds.contains(it.hostId) }
-    }
 
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
     

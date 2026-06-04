@@ -5,6 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class LobbyVisibility {
     PUBLIC,
-    PRIVATE,
-    FRIENDS_ONLY
+    PRIVATE
 }

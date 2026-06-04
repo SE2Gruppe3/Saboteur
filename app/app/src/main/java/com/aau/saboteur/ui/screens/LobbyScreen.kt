@@ -442,7 +442,7 @@ private fun LobbyPlayerItem(
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
-                    text = "GUEST",
+                    text = stringResource(R.string.player_guest),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline

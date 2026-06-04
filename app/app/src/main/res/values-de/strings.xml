@@ -20,6 +20,7 @@
     <string name="current_selection">Aktuelle Auswahl</string>
     <string name="lobby_code_display">Lobby: %s</string>
     <string name="player_count">%d Spieler</string>
+    <string name="player_guest">Gast</string>
 
     <!-- Active Lobby -->
     <string name="active_lobby_title">Spiellobby</string>

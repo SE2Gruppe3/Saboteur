@@ -23,7 +23,7 @@
     <string name="lobby_visibility_label">Visibility</string>
     <string name="visibility_public">Public</string>
     <string name="visibility_private">Private</string>
-    <string name="visibility_friends">Friends Only</string>
+    <string name="player_guest">Guest</string>
 
     <!-- Active Lobby -->
     <string name="active_lobby_title">Game Lobby</string>
