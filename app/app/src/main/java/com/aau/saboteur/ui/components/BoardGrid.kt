@@ -155,26 +155,29 @@ fun BoardGrid(
                     .fillMaxSize()
                     .pointerInput(Unit) {
                         detectTransformGestures { centroid, pan, zoom, _ ->
-                            // 1. Dämpfung für Zoom anwenden (Sensor-Rauschen filtern)
-                            val smoothedZoom = 1f + (zoom - 1f) * 0.8f
-                            
-                            val oldScale = scale
-                            val newScale = (scale * smoothedZoom).coerceIn(MinBoardZoom, MaxBoardZoom)
-                            
-                            if (oldScale != newScale) {
-                                // 2. Pivot-Berechnung für Zoom:
-                                val scaleFactor = newScale / oldScale
-                                val deltaX = (horizontalScroll.value + centroid.x) * (scaleFactor - 1f)
-                                val deltaY = (verticalScroll.value + centroid.y) * (scaleFactor - 1f)
-                                
-                                scale = newScale
-                                horizontalScroll.dispatchRawDelta(deltaX)
-                                verticalScroll.dispatchRawDelta(deltaY)
-                            }
-
-                            // 3. Pan/Drag Handling
+                            // 1. Pan/Drag Handling (Immer zuerst und unabhängig anwenden)
                             horizontalScroll.dispatchRawDelta(-pan.x)
                             verticalScroll.dispatchRawDelta(-pan.y)
+
+                            // 2. Emulator-Schutz: Ignoriere extreme Zoom-Sprünge (> 20%)
+                            // Verhindert das "Springen", wenn simulierte Finger im Emulator die Seiten wechseln.
+                            if (zoom in 0.8f..1.2f) {
+                                // 3. Dämpfung für Zoom anwenden
+                                val smoothedZoom = 1f + (zoom - 1f) * 0.8f
+                                val oldScale = scale
+                                val newScale = (scale * smoothedZoom).coerceIn(MinBoardZoom, MaxBoardZoom)
+                                
+                                if (oldScale != newScale) {
+                                    // 4. Pivot-Berechnung für Zoom:
+                                    val scaleFactor = newScale / oldScale
+                                    val zoomDeltaX = (horizontalScroll.value + centroid.x) * (scaleFactor - 1f)
+                                    val zoomDeltaY = (verticalScroll.value + centroid.y) * (scaleFactor - 1f)
+                                    
+                                    scale = newScale
+                                    horizontalScroll.dispatchRawDelta(zoomDeltaX)
+                                    verticalScroll.dispatchRawDelta(zoomDeltaY)
+                                }
+                            }
                         }
                     }
                     .verticalScroll(verticalScroll, enabled = false)
