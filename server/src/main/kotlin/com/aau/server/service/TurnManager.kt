@@ -253,22 +253,21 @@ class TurnManager(
     }
 
     @Transactional
-    fun cheatPlayer(lobbyCode: String, playerId: String, cheatType: String, consumeTurn: Boolean): TurnResult {
+    fun cheatPlayer(lobbyCode: String, playerId: String, cheatType: CheatType): TurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
         synchronized(internal) {
             val state = internal.gameState
-
-            when (cheatType) {
-                "LANTERN_FLASHLIGHT" -> {
-                    // Spezifische Validierung für LANTERN_FLASHLIGHT: Muss am Zug sein
+            
+            val consumeTurn = when (cheatType) {
+                CheatType.LANTERN_FLASHLIGHT -> {
                     require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-                    
                     val updatedPlayers = state.players.map { player ->
                         if (player.playerId == playerId) {
                             player.copy(blockedTools = player.blockedTools - ToolType.LANTERN)
                         } else player
                     }
                     internal.gameState = state.copy(players = updatedPlayers)
+                    false
                 }
                 else -> throw IllegalArgumentException("Unbekannter Cheat-Typ: $cheatType")
             }

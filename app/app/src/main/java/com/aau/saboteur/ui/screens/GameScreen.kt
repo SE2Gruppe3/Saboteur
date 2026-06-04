@@ -98,14 +98,15 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
-    // Hardware-Integration (Eigene Taschenlampe)
+    // Hardware-Integration (Eigene Taschenlampe) - Refactored for Lifecycle & Type Safety
     val context = LocalContext.current
     val cameraManager = remember { context.getSystemService(Context.CAMERA_SERVICE) as CameraManager }
-    DisposableEffect(isMyTurn) {
+    val currentIsMyTurn by rememberUpdatedState(isMyTurn)
+    DisposableEffect(Unit) {
         val callback = object : CameraManager.TorchCallback() {
             override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
-                if (enabled && isMyTurn) {
-                    viewModel.triggerCheat("LANTERN_FLASHLIGHT", consumeTurn = false)
+                if (enabled && currentIsMyTurn) {
+                    viewModel.triggerCheat(CheatType.LANTERN_FLASHLIGHT)
                 }
             }
         }

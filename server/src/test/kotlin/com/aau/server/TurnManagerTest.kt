@@ -465,7 +465,7 @@ class TurnManagerTest {
     // ------- CHEAT TESTS -------
 
     @Test
-    fun `cheat LANTERN_FLASHLIGHT with consumeTurn false keeps player active`() {
+    fun `cheat LANTERN_FLASHLIGHT keeps player active`() {
         val blockedPlayer = PlayerTurn(p1, "Alice", 1, blockedTools = setOf(ToolType.LANTERN))
         val dist = CardDistributionResult(
             hands = mapOf(p1 to mutableListOf()),
@@ -475,29 +475,11 @@ class TurnManagerTest {
         )
         turnManager.initializeGame("CHEAT1", dist, GameState(listOf(blockedPlayer, PlayerTurn(p2, "Bob", 2)), p1, emptyList()))
 
-        val result = turnManager.cheatPlayer("CHEAT1", p1, "LANTERN_FLASHLIGHT", consumeTurn = false)
+        val result = turnManager.cheatPlayer("CHEAT1", p1, CheatType.LANTERN_FLASHLIGHT)
 
         val updatedP1 = result.updatedGameState.players.find { it.playerId == p1 }!!
         assertFalse(ToolType.LANTERN in updatedP1.blockedTools)
         assertEquals(p1, result.updatedGameState.currentPlayerId)
-    }
-
-    @Test
-    fun `cheat LANTERN_FLASHLIGHT with consumeTurn true advances turn`() {
-        val blockedPlayer = PlayerTurn(p1, "Alice", 1, blockedTools = setOf(ToolType.LANTERN))
-        val dist = CardDistributionResult(
-            hands = mapOf(p1 to mutableListOf()),
-            drawPile = mutableListOf(),
-            goalCards = emptyList(),
-            startCard = startCard
-        )
-        turnManager.initializeGame("CHEAT2", dist, GameState(listOf(blockedPlayer, PlayerTurn(p2, "Bob", 2)), p1, emptyList()))
-
-        val result = turnManager.cheatPlayer("CHEAT2", p1, "LANTERN_FLASHLIGHT", consumeTurn = true)
-
-        val updatedP1 = result.updatedGameState.players.find { it.playerId == p1 }!!
-        assertFalse(ToolType.LANTERN in updatedP1.blockedTools)
-        assertEquals(p2, result.updatedGameState.currentPlayerId)
     }
 
     @Test
@@ -512,8 +494,26 @@ class TurnManagerTest {
         turnManager.initializeGame("CHEAT3", dist, GameState(listOf(PlayerTurn(p1, "Alice", 1), blockedPlayer), p1, emptyList()))
 
         assertThrows<IllegalArgumentException> {
-            turnManager.cheatPlayer("CHEAT3", p2, "LANTERN_FLASHLIGHT", consumeTurn = false)
+            turnManager.cheatPlayer("CHEAT3", p2, CheatType.LANTERN_FLASHLIGHT)
         }
+    }
+
+    @Test
+    fun `cheat LANTERN_FLASHLIGHT idempotent when not blocked`() {
+        val player = PlayerTurn(p1, "Alice", 1, blockedTools = emptySet())
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame("IDEM", dist, GameState(listOf(player, PlayerTurn(p2, "Bob", 2)), p1, emptyList()))
+
+        val result = turnManager.cheatPlayer("IDEM", p1, CheatType.LANTERN_FLASHLIGHT)
+
+        val updatedP1 = result.updatedGameState.players.find { it.playerId == p1 }!!
+        assertTrue(updatedP1.blockedTools.isEmpty())
+        assertEquals(p1, result.updatedGameState.currentPlayerId)
     }
 
     // ------- EDGE CASES -------

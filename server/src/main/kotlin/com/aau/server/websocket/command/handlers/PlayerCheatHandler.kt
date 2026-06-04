@@ -27,8 +27,7 @@ class PlayerCheatHandler(
             val result = turnManager.cheatPlayer(
                 lobbyCode = command.lobbyCode,
                 playerId = sessionPlayerId,
-                cheatType = command.cheatType,
-                consumeTurn = command.consumeTurn
+                cheatType = command.cheatType
             )
 
             messagingService.sendEventToLobby(command.lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))

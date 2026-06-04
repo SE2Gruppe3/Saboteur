@@ -223,11 +223,10 @@ object GameApi {
         WebSocketManager.sendCommand("PLAY_ROCKFALL_CARD", payload)
     }
 
-    fun triggerCheat(lobbyCode: String, cheatType: String, consumeTurn: Boolean) {
+    fun triggerCheat(lobbyCode: String, cheatType: CheatType) {
         val payload = JSONObject().apply {
             put("lobbyCode", lobbyCode)
-            put("cheatType", cheatType)
-            put("consumeTurn", consumeTurn)
+            put("cheatType", cheatType.name)
         }
         WebSocketManager.sendCommand("PLAYER_CHEAT", payload)
     }
