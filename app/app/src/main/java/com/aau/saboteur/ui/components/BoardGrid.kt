@@ -13,7 +13,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,8 +49,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -66,7 +66,6 @@ import androidx.compose.ui.draw.scale
 import com.aau.saboteur.ui.toCanonicalDrawableName
 import com.aau.saboteur.ui.toContentDescription
 import kotlin.math.cos
-import kotlin.math.hypot
 import kotlin.math.sin
 import kotlin.math.PI
 import kotlin.random.Random
@@ -155,26 +154,27 @@ fun BoardGrid(
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(Unit) {
-                        detectDragGestures { _, dragAmount ->
-                            horizontalScroll.dispatchRawDelta(-dragAmount.x)
-                            verticalScroll.dispatchRawDelta(-dragAmount.y)
-                        }
-                    }
-                    .pointerInput(Unit) {
-                        awaitEachGesture {
-                            do {
-                                val event = awaitPointerEvent()
-                                val pressedChanges = event.changes.filter(PointerInputChange::pressed)
-                                if (pressedChanges.size >= 2) {
-                                    val previousDistance = pressedChanges.pointerDistance(usePreviousPosition = true)
-                                    val currentDistance  = pressedChanges.pointerDistance(usePreviousPosition = false)
-                                    if (previousDistance > 0f) {
-                                        val zoomChange = currentDistance / previousDistance
-                                        scale = (scale * zoomChange).coerceIn(MinBoardZoom, MaxBoardZoom)
-                                    }
-                                    pressedChanges.forEach(PointerInputChange::consume)
-                                }
-                            } while (event.changes.any(PointerInputChange::pressed))
+                        detectTransformGestures { centroid, pan, zoom, _ ->
+                            // 1. Dämpfung für Zoom anwenden (Sensor-Rauschen filtern)
+                            val smoothedZoom = 1f + (zoom - 1f) * 0.8f
+                            
+                            val oldScale = scale
+                            val newScale = (scale * smoothedZoom).coerceIn(MinBoardZoom, MaxBoardZoom)
+                            
+                            if (oldScale != newScale) {
+                                // 2. Pivot-Berechnung für Zoom:
+                                val scaleFactor = newScale / oldScale
+                                val deltaX = (horizontalScroll.value + centroid.x) * (scaleFactor - 1f)
+                                val deltaY = (verticalScroll.value + centroid.y) * (scaleFactor - 1f)
+                                
+                                scale = newScale
+                                horizontalScroll.dispatchRawDelta(deltaX)
+                                verticalScroll.dispatchRawDelta(deltaY)
+                            }
+
+                            // 3. Pan/Drag Handling
+                            horizontalScroll.dispatchRawDelta(-pan.x)
+                            verticalScroll.dispatchRawDelta(-pan.y)
                         }
                     }
                     .verticalScroll(verticalScroll, enabled = false)
@@ -354,10 +354,19 @@ private fun BoardTile(
     }
 
     Card(
-        onClick = onClick,
         modifier = Modifier
             .size(width = cardWidth, height = cardHeight)
-            .scale(scaleAnim.value),
+            .scale(scaleAnim.value)
+            .pointerInput(onClick) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val up = waitForUpOrCancellation()
+                    if (up != null && currentEvent.changes.size == 1) {
+                        onClick()
+                        up.consume()
+                    }
+                }
+            },
         shape = BoardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = TileElevation),
         colors = CardDefaults.cardColors(containerColor = tileColor(card))
@@ -507,14 +516,4 @@ private fun tileBorderColor(card: TunnelCard?): Color = when {
     card.type == CardType.START -> Color(0xFFA7D6A2)
     card.type == CardType.GOAL -> Color(0xFFE7C67A)
     else -> Color(0xFFC8D0DB)
-}
-
-private fun List<PointerInputChange>.pointerDistance(usePreviousPosition: Boolean): Float {
-    require(size >= 2) { "pointerDistance requires at least 2 pointers, got $size" }
-    val firstPosition  = if (usePreviousPosition) this[0].previousPosition else this[0].position
-    val secondPosition = if (usePreviousPosition) this[1].previousPosition else this[1].position
-    return hypot(
-        x = secondPosition.x - firstPosition.x,
-        y = secondPosition.y - firstPosition.y
-    )
 }
