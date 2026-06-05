@@ -21,7 +21,10 @@ class UserEntity(
     var passwordHash: String = "",
 
     @Column(unique = true, nullable = false)
-    var playerId: String = UUID.randomUUID().toString()
+    var playerId: String = UUID.randomUUID().toString(),
+
+    @Column(nullable = false)
+    var isGuest: Boolean = false
 ) {
-    constructor() : this(null, "", "", UUID.randomUUID().toString())
+    constructor() : this(null, "", "", UUID.randomUUID().toString(), false)
 }
