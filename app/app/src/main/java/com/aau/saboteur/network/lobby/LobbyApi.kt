@@ -87,10 +87,10 @@ object LobbyApi {
         }
     }
 
-    fun createLobby(playerName: String, playerId: String? = null) {
+    fun createLobby(playerName: String, playerId: String? = null, visibility: LobbyVisibility = LobbyVisibility.PUBLIC) {
         scope.launch {
             try {
-                val requestBody = json.encodeToString(LobbyCreateRequest(playerName, playerId)).toRequestBody(jsonMediaType)
+                val requestBody = json.encodeToString(LobbyCreateRequest(playerName, playerId, visibility)).toRequestBody(jsonMediaType)
                 val request = Request.Builder()
                     .url("${HttpClient.baseUrl}/api/lobby/create")
                     .post(requestBody)
