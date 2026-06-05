@@ -1105,8 +1105,13 @@ class TurnManagerTest {
         val sab1Gold = updatedPlayers[p1]!!.goldCards.sumOf { it.value }
         val sab2Gold = updatedPlayers[p2]!!.goldCards.sumOf { it.value }
 
-        assertTrue(sab1Gold >= 3)
-        assertTrue(sab2Gold >= 3)
+
+        assertEquals(3, updatedPlayers[p1]!!.goldCards.size, "p1 sollte 3 Goldkarten erhalten")
+        assertEquals(3, updatedPlayers[p2]!!.goldCards.size, "p2 sollte 3 Goldkarten erhalten")
+
+
+        assertTrue(sab1Gold >= 3, "p1 sollte mindestens 3 Gold haben, hat aber $sab1Gold")
+        assertTrue(sab2Gold >= 3, "p2 sollte mindestens 3 Gold haben, hat aber $sab2Gold")
 
         val p1Snapshot = snapshot.players.find { it.playerId == p1 }!!
         val p2Snapshot = snapshot.players.find { it.playerId == p2 }!!

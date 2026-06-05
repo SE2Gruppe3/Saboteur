@@ -32,10 +32,10 @@ class TurnManager(
         const val BOARD_COLUMNS = 13
 
         const val MAX_ROUNDS = 3
-        const val SABOTEUR_GOLD_1 = 4
-        const val SABOTEUR_GOLD_2 = 3
-        const val SABOTEUR_GOLD_3 = 2
-        const val SABOTEUR_GOLD_4 = 1
+        const val SABOTEUR_GOLD_PER_1_PLAYER = 4
+        const val SABOTEUR_GOLD_PER_2_PLAYERS = 3
+        const val SABOTEUR_GOLD_PER_3_PLAYERS = 2
+        const val SABOTEUR_GOLD_PER_4_PLAYERS = 1
 
 
     }
@@ -550,10 +550,10 @@ class TurnManager(
         if (saboteurs.isEmpty()) return emptyMap()
 
         val goldPerSaboteur = when (saboteurs.size) {
-            1 -> SABOTEUR_GOLD_1
-            2 -> SABOTEUR_GOLD_2
-            3 -> SABOTEUR_GOLD_3
-            4 -> SABOTEUR_GOLD_4
+            1 -> SABOTEUR_GOLD_PER_1_PLAYER
+            2 -> SABOTEUR_GOLD_PER_2_PLAYERS
+            3 -> SABOTEUR_GOLD_PER_3_PLAYERS
+            4 -> SABOTEUR_GOLD_PER_4_PLAYERS
             else -> 0
         }
 
@@ -615,6 +615,7 @@ class TurnManager(
             deckSize = newDeckSize,
             currentRound = previousState.currentRound + 1,
             isRoundOver = false,
+            isGameOver = false,
             lastRoundResult = previousState.lastRoundResult
         )
     }
@@ -654,7 +655,6 @@ class TurnManager(
         )
 
         updatePlayerGoldValues(lobbyCode, internal)
-        finalizeAndPersist(lobbyCode, internal)
     }
 
     private fun nextPlayerId(state: GameState): String? {
