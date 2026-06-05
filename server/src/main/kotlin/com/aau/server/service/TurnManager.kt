@@ -11,6 +11,14 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.ConcurrentHashMap
 
+
+
+private val GOAL_POSITION_1 = BoardPosition(row = 2, column = 10)
+private val GOAL_POSITION_2 = BoardPosition(row = 4, column = 10)
+private val GOAL_POSITION_3 = BoardPosition(row = 6, column = 10)
+private val START_POSITION = BoardPosition(row = 4, column = 2)
+
+
 @Service
 class TurnManager(
     private val gameRepository: GameRepository,
@@ -22,6 +30,14 @@ class TurnManager(
     companion object {
         const val BOARD_ROWS = 9
         const val BOARD_COLUMNS = 13
+
+        const val MAX_ROUNDS = 3
+        const val SABOTEUR_GOLD_1 = 4
+        const val SABOTEUR_GOLD_2 = 3
+        const val SABOTEUR_GOLD_3 = 2
+        const val SABOTEUR_GOLD_4 = 1
+
+
     }
 
     private data class GameInternalState(
@@ -149,10 +165,11 @@ class TurnManager(
                     currentPlayerId = nextPlayerId(state)
                 )
                 finalizeAndPersist(lobbyCode, internal)
+                val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
-                    determineWinner(internal.gameState, internal)
+                    winner
                 )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -189,10 +206,11 @@ class TurnManager(
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
+                val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
-                    determineWinner(internal.gameState, internal)
+                    winner
                 )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -236,10 +254,11 @@ class TurnManager(
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
+                val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
-                    determineWinner(internal.gameState, internal)
+                    winner
                 )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -276,10 +295,11 @@ class TurnManager(
                 internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
+                val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 val res = TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
-                    determineWinner(internal.gameState, internal)
+                    winner
                 )
                 Pair(res, MapResult(targetPosition, targetPlacement.card))
             } catch (e: Exception) {
@@ -315,10 +335,11 @@ class TurnManager(
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
                 finalizeAndPersist(lobbyCode, internal)
+                val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
-                    determineWinner(internal.gameState, internal)
+                    winner
                 )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -346,10 +367,11 @@ class TurnManager(
                     currentPlayerId = nextPlayerId(internal.gameState)
                 )
                 finalizeAndPersist(lobbyCode, internal)
+                val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
-                    determineWinner(internal.gameState, internal)
+                    winner
                 )
             } catch (e: Exception) {
                 games.remove(lobbyCode)
@@ -449,16 +471,13 @@ class TurnManager(
         if (internal.drawPile.isEmpty()) internal.deckWasEmptied = true
     }
 
-    private fun calculateGoldValue(cards: List<GoldCard>): Int {
-        return cards.sumOf { it.value }
-    }
 
     private fun updatePlayerGoldValues(lobbyCode: String, internal: GameInternalState) {
         val playerData = gameService.getAllPlayerData(lobbyCode)
 
         val updatedPlayers = internal.gameState.players.map { playerTurn ->
             val player = playerData[playerTurn.playerId]
-            val goldValue = calculateGoldValue(player?.goldCards ?: emptyList())
+            val goldValue = (player?.goldCards ?: emptyList()).sumOf { it.value }
             playerTurn.copy(goldValue = goldValue)
         }
 
@@ -531,9 +550,10 @@ class TurnManager(
         if (saboteurs.isEmpty()) return emptyMap()
 
         val goldPerSaboteur = when (saboteurs.size) {
-            1 -> 4
-            2, 3 -> 3
-            4 -> 2
+            1 -> SABOTEUR_GOLD_1
+            2 -> SABOTEUR_GOLD_2
+            3 -> SABOTEUR_GOLD_3
+            4 -> SABOTEUR_GOLD_4
             else -> 0
         }
 
@@ -552,7 +572,7 @@ class TurnManager(
 
     private fun buildPlayerGoldTotals(lobbyCode: String): Map<String, Int> {
         return gameService.getAllPlayerData(lobbyCode).mapValues { (_, player) ->
-            calculateGoldValue(player.goldCards)
+            player.goldCards.sumOf { it.value }
         }
     }
 
@@ -607,27 +627,13 @@ class TurnManager(
             ?: throw IllegalStateException("Kein Startspieler für nächste Runde gefunden")
 
         val resetPlayers = resetPlayersForNextRound(internal.gameState.players)
-        val newBoardPlacements = gameService.run {
-            val goalCards = CardDeck.createGoalCards().shuffled()
-            listOf(
-                PlacedTunnelCard(
-                    position = BoardPosition(row = 2, column = 10),
-                    card = goalCards[0]
-                ),
-                PlacedTunnelCard(
-                    position = BoardPosition(row = 4, column = 10),
-                    card = goalCards[1]
-                ),
-                PlacedTunnelCard(
-                    position = BoardPosition(row = 6, column = 10),
-                    card = goalCards[2]
-                ),
-                PlacedTunnelCard(
-                    position = BoardPosition(row = 4, column = 2),
-                    card = CardDeck.createStartCard()
-                )
-            )
-        }
+        val goalCards = CardDeck.createGoalCards().shuffled()
+        val newBoardPlacements = listOf(
+            PlacedTunnelCard(position = GOAL_POSITION_1, card = goalCards[0]),
+            PlacedTunnelCard(position = GOAL_POSITION_2, card = goalCards[1]),
+            PlacedTunnelCard(position = GOAL_POSITION_3, card = goalCards[2]),
+            PlacedTunnelCard(position = START_POSITION, card = CardDeck.createStartCard())
+        )
 
         internal.hands = distribution.hands.mapValues { it.value.toMutableList() }
         internal.drawPile = distribution.drawPile.toMutableList()
@@ -725,8 +731,8 @@ class TurnManager(
         return pl.map { grid.getValue(it.position) }
     }
 
-    private fun determineWinner(state: GameState, internal: GameInternalState): String? {
-        val lobbyCode = games.entries.find { it.value == internal }?.key ?: return null
+    private fun determineWinner(lobbyCode: String, state: GameState, internal: GameInternalState): String? {
+
 
         val golddiggerWin = isGoalReached(buildGrid(state.boardPlacements))
         val saboteurWin = internal.deckWasEmptied && internal.passedSinceEmpty >= state.players.size
@@ -752,7 +758,7 @@ class TurnManager(
 
         updatePlayerGoldValues(lobbyCode, internal)
 
-        val isGameFinished = state.currentRound >= 3
+        val isGameFinished = state.currentRound >= MAX_ROUNDS
         val playerGoldTotals = buildPlayerGoldTotals(lobbyCode)
 
         val finalWinnerIds = if (isGameFinished) {
