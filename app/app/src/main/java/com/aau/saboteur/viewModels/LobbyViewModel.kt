@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aau.saboteur.data.repository.SessionRepository
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.network.lobby.LobbyApi
@@ -151,28 +152,24 @@ class LobbyViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createLobby(playerName: String) {
-        // Nur Lobby-spezifische Daten löschen, Identität behalten!
+    fun createLobby(playerName: String, visibility: LobbyVisibility = LobbyVisibility.PUBLIC) {
         val currentPid = _playerId.value 
         sessionRepository.clearLobby()
         
         WebSocketManager.disconnect()
-        // WebSocketManager.reset() // NICHT resetten, sonst verlieren wir savedPlayerId
 
         _errorMessage.value = null
         _isSyncing.value = true
         _username.value = playerName
         isInitialAutoReconnect = false
-        LobbyApi.createLobby(playerName, currentPid)
+        LobbyApi.createLobby(playerName, currentPid, visibility)
     }
 
     fun joinLobby(lobbyCode: String, playerName: String) {
-        // Nur Lobby-spezifische Daten löschen, Identität behalten!
         val currentPid = _playerId.value
         sessionRepository.clearLobby()
         
         WebSocketManager.disconnect()
-        // WebSocketManager.reset() // NICHT resetten
 
         _errorMessage.value = null
         _isSyncing.value = true
@@ -188,10 +185,9 @@ class LobbyViewModel(application: Application) : AndroidViewModel(application) {
         isInitialAutoReconnect = false
         LobbyApi.leaveLobby(currentState.lobbyCode, currentPlayerId)
         _lobbyState.value = null
-        sessionRepository.clearLobby() // Nur Lobby löschen beim Verlassen
+        sessionRepository.clearLobby() 
         WebSocketManager.disconnect()
         WebSocketManager.reset()
-        // Reconnect as fresh guest to see lobbies
         WebSocketManager.connect()
     }
 
@@ -224,7 +220,6 @@ class LobbyViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun saveIdentity(pid: String, name: String) {
-        // Bei explizitem Login/Identity-Save ebenfalls Alt-Lasten aufräumen
         if (_playerId.value != pid) {
             sessionRepository.clearLobby()
         }
