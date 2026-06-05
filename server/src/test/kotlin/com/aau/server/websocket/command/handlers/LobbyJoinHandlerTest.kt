@@ -31,11 +31,12 @@ class LobbyJoinHandlerTest {
         val player = Player("p2", playerName)
         val lobbyState = LobbyState(lobbyCode, "p1", listOf(Player("p1", "Alice"), player), false)
 
-        whenever(lobbyService.joinLobby(eq(lobbyCode), eq(playerName), isNull())).thenReturn(lobbyState)
+        // Using explicit values instead of any() for precision
+        whenever(lobbyService.joinLobby(eq(lobbyCode), eq(playerName), isNull(), eq(true))).thenReturn(lobbyState)
 
         handler.handle(session, command)
 
-        verify(lobbyService).joinLobby(eq(lobbyCode), eq(playerName), isNull())
+        verify(lobbyService).joinLobby(eq(lobbyCode), eq(playerName), isNull(), eq(true))
         verify(messagingService).registerPlayer("session-1", "p2")
         verify(messagingService).joinLobbyGroup("session-1", lobbyCode)
     }

@@ -17,4 +17,5 @@ data class Player(
     val role: Role? = null,
     val blockedTools: Set<ToolType> = emptySet(),
     val goldCards: List<GoldCard> = emptyList()
+    val isGuest: Boolean = true
 )

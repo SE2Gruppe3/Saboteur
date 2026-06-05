@@ -1,6 +1,7 @@
 package com.aau.server.websocket.command.handlers
 
 import com.aau.saboteur.model.LobbyState
+import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.model.Player
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
@@ -29,11 +30,12 @@ class LobbyCreateHandlerTest {
         val command = LobbyCreateCommand(playerName)
         val lobbyState = LobbyState("1234", "p1", listOf(Player("p1", playerName)), false)
 
-        whenever(lobbyService.createLobby(eq(playerName), isNull())).thenReturn(lobbyState)
+        // Using explicit values instead of any() for precision
+        whenever(lobbyService.createLobby(eq(playerName), isNull(), eq(LobbyVisibility.PUBLIC), eq(true))).thenReturn(lobbyState)
 
         handler.handle(session, command)
 
-        verify(lobbyService).createLobby(eq(playerName), isNull())
+        verify(lobbyService).createLobby(eq(playerName), isNull(), eq(LobbyVisibility.PUBLIC), eq(true))
         verify(messagingService).registerPlayer("session-1", "p1")
         verify(messagingService).joinLobbyGroup("session-1", "1234")
     }
