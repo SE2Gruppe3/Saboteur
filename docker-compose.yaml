@@ -7,11 +7,10 @@ services:
     ports:
       - "53207:8080"
 
-    env_file:
-      - /home/grp-3/.env
 
     volumes:
       - saboteur_data:/data
+      - /home/grp-3/.env:/app/.env
 
 volumes:
   saboteur_data:
