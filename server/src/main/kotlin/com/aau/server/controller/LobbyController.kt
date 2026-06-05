@@ -1,6 +1,7 @@
 package com.aau.server.controller
 
 import com.aau.saboteur.model.*
+import com.aau.server.repository.UserRepository
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.TurnManager
@@ -13,12 +14,22 @@ import org.springframework.web.bind.annotation.*
 class LobbyController(
     private val lobbyService: LobbyService,
     private val gameService: GameService,
-    private val turnManager: TurnManager
+    private val turnManager: TurnManager,
+    private val userRepository: UserRepository
 ) {
 
     @PostMapping("/create")
     fun createSession(@RequestBody request: LobbyCreateRequest): ResponseEntity<ReconnectResponse> {
-        val lobby = lobbyService.createLobby(request.playerName, request.playerId)
+        val isGuest = request.playerId?.let { pid ->
+            userRepository.findByPlayerId(pid)?.isGuest ?: true
+        } ?: true
+
+        val lobby = lobbyService.createLobby(
+            playerName = request.playerName,
+            playerId = request.playerId,
+            visibility = request.visibility,
+            isGuest = isGuest
+        )
         return ResponseEntity.ok(ReconnectResponse(
             myPlayerId = lobby.hostId,
             lobbyState = lobby
@@ -27,9 +38,23 @@ class LobbyController(
 
     @PostMapping("/join")
     fun joinSession(@RequestBody request: LobbyJoinRequest): ResponseEntity<ReconnectResponse> {
-        val lobby = lobbyService.joinLobby(request.lobbyCode, request.playerName, request.playerId)
+        val isGuest = request.playerId?.let { pid ->
+            userRepository.findByPlayerId(pid)?.isGuest ?: true
+        } ?: true
+
+        val lobby = lobbyService.joinLobby(
+            lobbyCode = request.lobbyCode,
+            playerName = request.playerName,
+            playerId = request.playerId,
+            isGuest = isGuest
+        )
         val finalPlayerId = request.playerId ?: lobby.players.last().id
         return buildReconnectResponse(finalPlayerId, lobby)
+    }
+
+    @GetMapping("/list")
+    fun listPublicLobbies(): ResponseEntity<List<LobbyState>> {
+        return ResponseEntity.ok(lobbyService.getPublicLobbies())
     }
 
     @PostMapping("/reconnect")

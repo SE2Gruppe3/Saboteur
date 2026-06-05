@@ -3,7 +3,11 @@ package com.aau.saboteur.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class LobbyCreateRequest(val playerName: String, val playerId: String? = null)
+data class LobbyCreateRequest(
+    val playerName: String,
+    val playerId: String? = null,
+    val visibility: LobbyVisibility = LobbyVisibility.PUBLIC
+)
 
 @Serializable
 data class LobbyJoinRequest(val lobbyCode: String, val playerName: String, val playerId: String? = null)
