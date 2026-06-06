@@ -23,7 +23,7 @@ class UserEntity(
     @Column(unique = true, nullable = false)
     var playerId: String = UUID.randomUUID().toString(),
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default false")
     var isGuest: Boolean = false
 ) {
     constructor() : this(null, "", "", UUID.randomUUID().toString(), false)
