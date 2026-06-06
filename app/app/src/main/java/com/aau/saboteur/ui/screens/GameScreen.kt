@@ -1,5 +1,6 @@
 package com.aau.saboteur.ui.screens
 
+import android.media.MediaPlayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -97,6 +99,11 @@ fun GameScreen(
 
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
+
+    GameBackgroundMusic(
+        volume = volume,
+        enabled = gameOverWinner == null
+    )
 
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
@@ -308,6 +315,47 @@ fun GameScreen(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun GameBackgroundMusic(
+    volume: Float,
+    enabled: Boolean
+) {
+    val context = LocalContext.current
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    val clampedVolume = volume.coerceIn(0f, 1f)
+
+    DisposableEffect(context, enabled) {
+        if (!enabled) {
+            mediaPlayer?.release()
+            mediaPlayer = null
+            return@DisposableEffect onDispose { }
+        }
+
+        val musicResourceId = context.resources.getIdentifier(
+            "game_background_music",
+            "raw",
+            context.packageName
+        )
+
+        if (musicResourceId != 0) {
+            mediaPlayer = MediaPlayer.create(context, musicResourceId)?.apply {
+                isLooping = true
+                setVolume(clampedVolume, clampedVolume)
+                start()
+            }
+        }
+
+        onDispose {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+    }
+
+    LaunchedEffect(clampedVolume, mediaPlayer) {
+        mediaPlayer?.setVolume(clampedVolume, clampedVolume)
     }
 }
 
