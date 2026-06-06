@@ -164,8 +164,9 @@ class TurnManager(
                     boardPlacements = newPlacements,
                     currentPlayerId = nextPlayerId(state)
                 )
-                finalizeAndPersist(lobbyCode, internal)
+
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
@@ -205,8 +206,8 @@ class TurnManager(
                 )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
-                finalizeAndPersist(lobbyCode, internal)
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
@@ -253,8 +254,8 @@ class TurnManager(
                 )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
-                finalizeAndPersist(lobbyCode, internal)
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
@@ -294,8 +295,8 @@ class TurnManager(
                 internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
                 internal.passedSinceEmpty = 0
-                finalizeAndPersist(lobbyCode, internal)
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
+                finalizeAndPersist(lobbyCode, internal)
                 val res = TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
@@ -334,8 +335,8 @@ class TurnManager(
                 )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
-                finalizeAndPersist(lobbyCode, internal)
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
@@ -366,8 +367,8 @@ class TurnManager(
                 internal.gameState = internal.gameState.copy(
                     currentPlayerId = nextPlayerId(internal.gameState)
                 )
-                finalizeAndPersist(lobbyCode, internal)
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
+                finalizeAndPersist(lobbyCode, internal)
                 return TurnResult(
                     internal.gameState,
                     internal.hands.mapValues { it.value.toList() },
