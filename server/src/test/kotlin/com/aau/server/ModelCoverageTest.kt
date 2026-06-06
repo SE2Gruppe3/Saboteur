@@ -71,4 +71,68 @@ class ModelCoverageTest {
         assertEquals(true, g1.deckWasEmptied)
         assertEquals(5, g1.passedSinceEmpty)
     }
+
+    @Test
+    fun `exercise LobbyEntity default constructor`() {
+        val entity = LobbyEntity()
+
+        assertEquals("", entity.lobbyCode)
+        assertEquals("", entity.hostId)
+        assertEquals(false, entity.gameStarted)
+        assertEquals("", entity.playersJson)
+        assertNotNull(entity.lastActivity)
+    }
+
+    @Test
+    fun `exercise UserEntity default constructor and generated playerId`() {
+        val entity = UserEntity()
+
+        assertEquals(null, entity.id)
+        assertEquals("", entity.username)
+        assertEquals("", entity.passwordHash)
+        assertNotNull(entity.playerId)
+        assertNotEquals("", entity.playerId)
+    }
+
+    @Test
+    fun `exercise UserEntity full constructor including playerId`() {
+        val entity = UserEntity(
+            id = 42L,
+            username = "basti",
+            passwordHash = "hash",
+            playerId = "player-123"
+        )
+
+        assertEquals(42L, entity.id)
+        assertEquals("basti", entity.username)
+        assertEquals("hash", entity.passwordHash)
+        assertEquals("player-123", entity.playerId)
+    }
+
+    @Test
+    fun `exercise TurnResult with explicit winner`() {
+        val state = GameState()
+        val hands = emptyMap<String, List<TunnelCard>>()
+
+        val result = TurnResult(
+            updatedGameState = state,
+            updatedHands = hands,
+            winner = "DWARVES"
+        )
+
+        assertEquals(state, result.updatedGameState)
+        assertEquals(hands, result.updatedHands)
+        assertEquals("DWARVES", result.winner)
+        assertNotNull(result.toString())
+    }
+
+    @Test
+    fun `exercise TurnResult default winner null`() {
+        val result = TurnResult(
+            updatedGameState = GameState(),
+            updatedHands = emptyMap()
+        )
+
+        assertEquals(null, result.winner)
+    }
 }
