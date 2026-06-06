@@ -2,6 +2,7 @@ package com.aau.server.game
 
 import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
+import com.aau.saboteur.model.GoldCard
 import com.aau.saboteur.model.TunnelCard
 
 object CardDeck {
@@ -84,6 +85,18 @@ object CardDeck {
         repeat(3) { cards.add(TunnelCard("mapcard_${index++}", CardType.MAPCARD, emptySet())) }
 
         return cards
+    }
+
+    /**
+     * Gold deck for round scoring.
+     * 16x value 1, 8x value 2, 4x value 3
+     */
+    fun createGoldDeck(): List<GoldCard> = buildList {
+        var index = 0
+
+        repeat(16) { add(GoldCard(id = "gold_${index++}", value = 1)) }
+        repeat(8) { add(GoldCard(id = "gold_${index++}", value = 2)) }
+        repeat(4) { add(GoldCard(id = "gold_${index++}", value = 3)) }
     }
 
     /**

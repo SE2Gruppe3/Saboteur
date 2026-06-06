@@ -59,10 +59,29 @@ class TurnManagerTest {
         turnManager.initializeGame(lobbyCode, distribution, initialState)
     }
 
-    private fun pathCard(id: String, conns: Set<Direction> = emptySet()) = TunnelCard(id, CardType.PATH, conns)
-    private fun blockCard(id: String, type: CardType = CardType.LANTERN_RED) = TunnelCard(id, type, emptySet())
-    private fun repairCard(id: String, type: CardType = CardType.LANTERN_GREEN) = TunnelCard(id, type, emptySet())
-    private fun doubleRepairCard(id: String, type: CardType = CardType.DOUBLE_LANTERN_CART) = TunnelCard(id, type, emptySet())
+    private fun mockPlayerData(players: Map<String, Player>) {
+        var currentPlayers = players
+
+        whenever(gameService.getAllPlayerData(any())).thenAnswer { currentPlayers }
+        doAnswer { invocation ->
+            @Suppress("UNCHECKED_CAST")
+            currentPlayers = invocation.getArgument<Map<String, Player>>(1)
+            null
+        }.whenever(gameService).setPlayerData(any(), any())
+    }
+
+    private fun pathCard(id: String, conns: Set<Direction> = emptySet()) =
+        TunnelCard(id, CardType.PATH, conns)
+
+    private fun blockCard(id: String, type: CardType = CardType.LANTERN_RED) =
+        TunnelCard(id, type, emptySet())
+
+    private fun repairCard(id: String, type: CardType = CardType.LANTERN_GREEN) =
+        TunnelCard(id, type, emptySet())
+
+    private fun doubleRepairCard(id: String, type: CardType = CardType.DOUBLE_LANTERN_CART) =
+        TunnelCard(id, type, emptySet())
+
     private fun mapCard(id: String) = TunnelCard(id, CardType.MAPCARD, emptySet())
     private fun rockfallCard(id: String) = TunnelCard(id, CardType.ROCKFALL, emptySet())
 
@@ -81,12 +100,24 @@ class TurnManagerTest {
     @Test
     fun `playBlockCard blocks target tool and advances turn`() {
         val distribution = CardDistributionResult(
-            hands = mapOf(p1 to mutableListOf(blockCard("b1")), p2 to mutableListOf(pathCard("c2")), p3 to mutableListOf(pathCard("c3"))),
+            hands = mapOf(
+                p1 to mutableListOf(blockCard("b1")),
+                p2 to mutableListOf(pathCard("c2")),
+                p3 to mutableListOf(pathCard("c3"))
+            ),
             drawPile = mutableListOf(),
             goalCards = emptyList(),
             startCard = startCard
         )
-        turnManager.initializeGame("BLOCK", distribution, GameState(listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)), p1, listOf(PlacedTunnelCard(startPos, startCard))))
+        turnManager.initializeGame(
+            "BLOCK",
+            distribution,
+            GameState(
+                listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)),
+                p1,
+                listOf(PlacedTunnelCard(startPos, startCard))
+            )
+        )
 
         val result = turnManager.playBlockCard("BLOCK", p1, "b1", p2)
 
@@ -97,14 +128,24 @@ class TurnManagerTest {
 
     @Test
     fun `playRepairCard removes blocked tool and advances turn`() {
-        val players = listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2, blockedTools = setOf(ToolType.LANTERN)))
+        val players = listOf(
+            PlayerTurn(p1, "A", 1),
+            PlayerTurn(p2, "B", 2, blockedTools = setOf(ToolType.LANTERN))
+        )
         val distribution = CardDistributionResult(
-            hands = mapOf(p1 to mutableListOf(repairCard("r1")), p2 to mutableListOf(pathCard("c2"))),
+            hands = mapOf(
+                p1 to mutableListOf(repairCard("r1")),
+                p2 to mutableListOf(pathCard("c2"))
+            ),
             drawPile = mutableListOf(),
             goalCards = emptyList(),
             startCard = startCard
         )
-        turnManager.initializeGame("REPAIR", distribution, GameState(players, p1, listOf(PlacedTunnelCard(startPos, startCard))))
+        turnManager.initializeGame(
+            "REPAIR",
+            distribution,
+            GameState(players, p1, listOf(PlacedTunnelCard(startPos, startCard)))
+        )
 
         val result = turnManager.playRepairCard("REPAIR", p1, "r1", p2, ToolType.LANTERN)
 
@@ -121,7 +162,14 @@ class TurnManagerTest {
             goalCards = listOf(targetGoal),
             startCard = startCard
         )
-        val state = GameState(listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)), p1, listOf(PlacedTunnelCard(startPos, startCard), PlacedTunnelCard(goalPos, targetGoal)))
+        val state = GameState(
+            listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)),
+            p1,
+            listOf(
+                PlacedTunnelCard(startPos, startCard),
+                PlacedTunnelCard(goalPos, targetGoal)
+            )
+        )
         turnManager.initializeGame("MAP", distribution, state)
 
         val (_, mapResult) = turnManager.playMapCard("MAP", p1, "m1", goalPos)
@@ -140,7 +188,14 @@ class TurnManagerTest {
             goalCards = emptyList(),
             startCard = startCard
         )
-        val state = GameState(listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)), p1, listOf(PlacedTunnelCard(startPos, startCard), PlacedTunnelCard(targetPos, pCard)))
+        val state = GameState(
+            listOf(PlayerTurn(p1, "A", 1), PlayerTurn(p2, "B", 2)),
+            p1,
+            listOf(
+                PlacedTunnelCard(startPos, startCard),
+                PlacedTunnelCard(targetPos, pCard)
+            )
+        )
         turnManager.initializeGame("ROCK", distribution, state)
 
         val result = turnManager.playRockfallCard("ROCK", p1, "rf1", targetPos)
