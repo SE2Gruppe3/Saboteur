@@ -12,22 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.aau.saboteur.R
-import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.GameState
-import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.network.game.MapResult
-
-private enum class GameSoundEffect {
-    TunnelDig,
-    LanternBreak,
-    PickaxeBreak,
-    CartBreak,
-    ToolRepair,
-    Map,
-    Explosion,
-    GoalFlip,
-    CoalFlip
-}
 
 @Composable
 fun GameAudio(
@@ -131,8 +117,7 @@ private fun GameSoundEffects(
     LaunchedEffect(gameState, enabled) {
         val previous = previousGameState
         if (enabled && previous != null) {
-            playBoardSounds(previous, gameState, ::play)
-            playToolSounds(previous, gameState, ::play)
+            detectGameSoundEffects(previous, gameState).forEach(::play)
         }
         previousGameState = gameState
     }
@@ -140,63 +125,6 @@ private fun GameSoundEffects(
     LaunchedEffect(mapResult, enabled) {
         if (enabled && mapResult != null) {
             play(GameSoundEffect.Map)
-        }
-    }
-}
-
-private fun playBoardSounds(
-    previous: GameState,
-    current: GameState,
-    play: (GameSoundEffect) -> Unit
-) {
-    val previousPlacements = previous.boardPlacements.associateBy { it.position }
-    val currentPlacements = current.boardPlacements.associateBy { it.position }
-
-    val removedPositions = previousPlacements.keys - currentPlacements.keys
-    if (removedPositions.isNotEmpty()) {
-        play(GameSoundEffect.Explosion)
-    }
-
-    currentPlacements.forEach { (position, placement) ->
-        val previousPlacement = previousPlacements[position]
-        if (previousPlacement == null) {
-            if (placement.card.type == CardType.PATH || placement.card.type == CardType.DEAD_END) {
-                play(GameSoundEffect.TunnelDig)
-            }
-        } else if (
-            previousPlacement.card.type == CardType.GOAL &&
-            !previousPlacement.card.isRevealed &&
-            placement.card.isRevealed
-        ) {
-            if (placement.card.isGoal) {
-                play(GameSoundEffect.GoalFlip)
-            } else {
-                play(GameSoundEffect.CoalFlip)
-            }
-        }
-    }
-}
-
-private fun playToolSounds(
-    previous: GameState,
-    current: GameState,
-    play: (GameSoundEffect) -> Unit
-) {
-    val previousPlayers = previous.players.associateBy { it.playerId }
-    current.players.forEach { player ->
-        val previousBlockedTools = previousPlayers[player.playerId]?.blockedTools ?: return@forEach
-        val newlyBlockedTools = player.blockedTools - previousBlockedTools
-        val repairedTools = previousBlockedTools - player.blockedTools
-
-        newlyBlockedTools.forEach { tool ->
-            when (tool) {
-                ToolType.LANTERN -> play(GameSoundEffect.LanternBreak)
-                ToolType.PICKAXE -> play(GameSoundEffect.PickaxeBreak)
-                ToolType.CART -> play(GameSoundEffect.CartBreak)
-            }
-        }
-        if (repairedTools.isNotEmpty()) {
-            play(GameSoundEffect.ToolRepair)
         }
     }
 }
