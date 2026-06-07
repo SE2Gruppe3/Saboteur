@@ -223,6 +223,14 @@ object GameApi {
         WebSocketManager.sendCommand("PLAY_ROCKFALL_CARD", payload)
     }
 
+    fun triggerCheat(lobbyCode: String, cheatType: CheatType) {
+        val payload = JSONObject().apply {
+            put("lobbyCode", lobbyCode)
+            put("cheatType", cheatType.name)
+        }
+        WebSocketManager.sendCommand("PLAYER_CHEAT", payload)
+    }
+
     internal fun clearValidPositions() {
         _validPositionsUpdates.tryEmit(emptyList())
     }
