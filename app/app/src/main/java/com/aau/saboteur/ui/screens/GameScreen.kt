@@ -1,5 +1,7 @@
 package com.aau.saboteur.ui.screens
 
+import android.content.Context
+import android.hardware.camera2.CameraManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -94,6 +97,24 @@ fun GameScreen(
     val isMyTurn = uiState.localPlayerId != null &&
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
+
+    // Hardware-Integration (Eigene Taschenlampe) - Refactored for Lifecycle & Type Safety
+    val context = LocalContext.current
+    val cameraManager = remember { context.getSystemService(Context.CAMERA_SERVICE) as CameraManager }
+    val currentIsMyTurn by rememberUpdatedState(isMyTurn)
+    DisposableEffect(Unit) {
+        val callback = object : CameraManager.TorchCallback() {
+            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+                if (enabled && currentIsMyTurn) {
+                    viewModel.triggerCheat(CheatType.LANTERN_FLASHLIGHT)
+                }
+            }
+        }
+        cameraManager.registerTorchCallback(callback, null)
+        onDispose {
+            cameraManager.unregisterTorchCallback(callback)
+        }
+    }
 
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }

@@ -282,6 +282,14 @@ class GameViewModel : ViewModel() {
         GameApi.playRepairCard(lobbyCode, playerId, card.id, targetPlayerId, tool)
         _uiState.update { it.copy(selectedCard = null, pendingSpecialCard = null) }
     }
+
+    fun triggerCheat(cheatType: CheatType) {
+        val state = _uiState.value
+        val lobbyCode = state.lobbyCode ?: return
+        if (state.isSyncing) return
+        GameApi.triggerCheat(lobbyCode, cheatType)
+    }
+
     fun dismissMapResult() {
         _uiState.update { it.copy(lastMapResult = null) }
     }
