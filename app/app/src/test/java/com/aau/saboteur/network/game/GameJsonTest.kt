@@ -9,7 +9,6 @@ import com.aau.saboteur.model.PlayCardRequest
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.PlayerTurn
 import com.aau.saboteur.model.Role
-import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -95,7 +94,6 @@ class GameJsonTest {
               "name": "Lukas",
               "hand": [{"id":"c1","type":"PATH","connections":["TOP","BOTTOM"]}],
               "role": "SABOTEUR",
-              "blockedTools": ["PICKAXE"],
               "isGuest": false
             }
         """.trimIndent()
@@ -105,7 +103,6 @@ class GameJsonTest {
         assertEquals(1, player.hand.size)
         assertEquals(CardType.PATH, player.hand[0].type)
         assertEquals(setOf(Direction.TOP, Direction.BOTTOM), player.hand[0].connections)
-        assertEquals(setOf(ToolType.PICKAXE), player.blockedTools)
     }
 
     @Test
