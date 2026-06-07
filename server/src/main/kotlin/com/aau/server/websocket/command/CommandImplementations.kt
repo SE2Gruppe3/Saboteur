@@ -4,6 +4,7 @@ import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
+import com.aau.saboteur.model.CheatType
 
 data class RegisterCommand(
     val playerId: String, 
@@ -51,6 +52,11 @@ data class PlayRockfallCardCommand(
     val playerId: String,
     val cardId: String,
     val targetPosition: BoardPosition
+) : Command
+
+data class PlayerCheatCommand(
+    val lobbyCode: String,
+    val cheatType: CheatType
 ) : Command
 
 /**
