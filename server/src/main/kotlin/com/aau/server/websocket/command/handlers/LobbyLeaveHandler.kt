@@ -20,16 +20,24 @@ class LobbyLeaveHandler(
     override val commandClass: KClass<LobbyLeaveCommand> = LobbyLeaveCommand::class
 
     override fun handle(session: WebSocketSession, command: LobbyLeaveCommand) {
-        // Sequential processing per lobby
         messagingService.getLobbyLock(command.lobbyCode).withLock {
+            val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
+                ?: throw IllegalArgumentException("Session nicht mit Spieler verknüpft / Session not linked to player")
+
+            val lobby = lobbyService.getLobby(command.lobbyCode)
+
+            val isSelf = sessionPlayerId == command.playerId
+            val isHost = sessionPlayerId == lobby.hostId
+
+            require(isSelf || isHost) {
+                "Nicht autorisiert: Nur der Spieler selbst oder der Host darf einen Spieler entfernen / " +
+                "Unauthorized: Only the player themselves or the host may remove a player"
+            }
+
             lobbyService.leaveLobby(command.lobbyCode, command.playerId)
-            
-            // Clean up session mappings
+
             messagingService.leaveLobbyGroup(session.id, command.lobbyCode)
             messagingService.sendEventToSession(session.id, GameEvent.LobbyLeft())
-            
-            // Note: LobbyService.deleteLobbyInternal or persist handles the 
-            // state update broadcasts for other players.
         }
     }
 }
