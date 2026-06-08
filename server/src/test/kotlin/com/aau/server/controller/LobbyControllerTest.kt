@@ -105,14 +105,16 @@ class LobbyControllerTest {
     }
 
     @Test
-    fun `reconnect returns 404 when lobby not found`() {
+    fun `reconnect returns 400 when lobby not found`() {
         val request = ReconnectRequest("p1", "9999")
         whenever(lobbyService.getLobby("9999")).thenThrow(IllegalArgumentException("Lobby nicht gefunden"))
 
         mockMvc.perform(post("/api/lobby/reconnect")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isNotFound)
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+            .andExpect(jsonPath("$.message").value("Lobby nicht gefunden"))
     }
 
     @Test
