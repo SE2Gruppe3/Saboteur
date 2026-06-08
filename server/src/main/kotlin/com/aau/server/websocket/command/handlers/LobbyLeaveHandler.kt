@@ -24,14 +24,9 @@ class LobbyLeaveHandler(
             val sessionPlayerId = messagingService.getPlayerIdForSession(session.id)
                 ?: throw IllegalArgumentException("Session nicht mit Spieler verknüpft / Session not linked to player")
 
-            val lobby = lobbyService.getLobby(command.lobbyCode)
-
-            val isSelf = sessionPlayerId == command.playerId
-            val isHost = sessionPlayerId == lobby.hostId
-
-            require(isSelf || isHost) {
-                "Nicht autorisiert: Nur der Spieler selbst oder der Host darf einen Spieler entfernen / " +
-                "Unauthorized: Only the player themselves or the host may remove a player"
+            require(sessionPlayerId == command.playerId) {
+                "Nicht autorisiert: Nur du selbst kannst die Lobby verlassen / " +
+                "Unauthorized: Only you can leave the lobby yourself"
             }
 
             lobbyService.leaveLobby(command.lobbyCode, command.playerId)
