@@ -63,4 +63,16 @@ class LobbyLeaveHandlerTest {
 
         verify(lobbyService, never()).leaveLobby(any(), any())
     }
+
+    @Test
+    fun `unlinked session throws IllegalArgumentException`() {
+        whenever(messagingService.getPlayerIdForSession("session-1")).thenReturn(null)
+        val command = LobbyLeaveCommand(lobbyCode, hostId)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            handler.handle(session, command)
+        }
+
+        verify(lobbyService, never()).leaveLobby(any(), any())
+    }
 }
