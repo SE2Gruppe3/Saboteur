@@ -3,6 +3,7 @@ package com.aau.saboteur.viewModels
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.aau.saboteur.R
 import com.aau.saboteur.data.repository.SessionRepository
 import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.LobbyVisibility
@@ -125,6 +126,18 @@ class LobbyViewModel(application: Application) : AndroidViewModel(application) {
                 WebSocketManager.reset()
             }
         }
+        viewModelScope.launch {
+            LobbyApi.playerKicked.collect { kickedId ->
+                if (kickedId == _playerId.value) {
+                    _errorMessage.value = getApplication<Application>().getString(R.string.player_kicked_msg)
+                    _lobbyState.value = null
+                    sessionRepository.clearLobby()
+                    WebSocketManager.disconnect()
+                    WebSocketManager.reset()
+                    WebSocketManager.connect()
+                }
+            }
+        }
     }
 
     private fun observeReconnectData() {
@@ -189,6 +202,14 @@ class LobbyViewModel(application: Application) : AndroidViewModel(application) {
         WebSocketManager.disconnect()
         WebSocketManager.reset()
         WebSocketManager.connect()
+    }
+
+    fun kickPlayer(targetPlayerId: String) {
+        val currentState = _lobbyState.value ?: return
+        val currentPlayerId = _playerId.value ?: return
+        if (currentState.hostId == currentPlayerId) {
+            LobbyApi.kickPlayer(currentState.lobbyCode, currentPlayerId, targetPlayerId)
+        }
     }
 
     fun resetLobby() {

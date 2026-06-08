@@ -36,6 +36,9 @@ object LobbyApi {
     private val _lobbyNotFound = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 10)
     val lobbyNotFound: SharedFlow<String> = _lobbyNotFound.asSharedFlow()
 
+    private val _playerKicked = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 10)
+    val playerKicked: SharedFlow<String> = _playerKicked.asSharedFlow()
+
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -55,6 +58,18 @@ object LobbyApi {
 
         WebSocketManager.onEvent("LOBBY_LEFT") {
             _lobbyStateUpdates.tryEmit(null)
+        }
+
+        WebSocketManager.onEvent("PLAYER_KICKED") { data ->
+            try {
+                val jsonBody = JSONObject(data)
+                val kickedId = jsonBody.getString("playerId")
+                _playerKicked.tryEmit(kickedId)
+                _lobbyStateUpdates.tryEmit(null)
+            } catch (e: Exception) {
+                // Fallback if structure differs
+                _lobbyStateUpdates.tryEmit(null)
+            }
         }
 
         WebSocketManager.onEvent("LOBBY_LIST_UPDATE") { data ->
@@ -169,6 +184,11 @@ object LobbyApi {
     fun leaveLobby(lobbyCode: String, playerId: String) {
         val request = LobbyLeaveRequest(lobbyCode, playerId)
         WebSocketManager.sendCommand("LOBBY_LEAVE", JSONObject(json.encodeToString(request)))
+    }
+
+    fun kickPlayer(lobbyCode: String, hostId: String, targetPlayerId: String) {
+        val request = LobbyKickRequest(lobbyCode, hostId, targetPlayerId)
+        WebSocketManager.sendCommand("LOBBY_KICK", JSONObject(json.encodeToString(request)))
     }
 
     fun fetchAllLobbies() {

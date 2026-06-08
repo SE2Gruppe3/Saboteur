@@ -115,6 +115,37 @@ class LobbyServiceTest {
     }
 
     @Test
+    fun `kickPlayer removes player correctly`() {
+        val created = lobbyService.createLobby("Host", "h1")
+        lobbyService.joinLobby(created.lobbyCode, "Max", "p2")
+        
+        val updated = lobbyService.kickPlayer(created.lobbyCode, "p2")
+        
+        assertEquals(1, updated.players.size)
+        assertFalse(updated.players.any { it.id == "p2" })
+        verify(lobbyRepository, times(3)).save(any()) // create, join, kick
+    }
+
+    @Test
+    fun `kickPlayer throws if player not found`() {
+        val created = lobbyService.createLobby("Host", "h1")
+        assertThrows<IllegalArgumentException> {
+            lobbyService.kickPlayer(created.lobbyCode, "pNonExistent")
+        }
+    }
+
+    @Test
+    fun `kickPlayer throws if game already started`() {
+        val created = lobbyService.createLobby("Host", "h1")
+        lobbyService.joinLobby(created.lobbyCode, "Max", "p2")
+        lobbyService.markGameStarted(created.lobbyCode)
+        
+        assertThrows<IllegalArgumentException> {
+            lobbyService.kickPlayer(created.lobbyCode, "p2")
+        }
+    }
+
+    @Test
     fun `loadFromDb handles corrupted lobby data`() {
         val entity = LobbyEntity("1", "h1", false, "{invalid}", 0L, LobbyVisibility.PUBLIC)
         whenever(lobbyRepository.findAll()).thenReturn(listOf(entity))
@@ -127,11 +158,7 @@ class LobbyServiceTest {
         val lobby = lobbyService.createLobby("Host", "h1")
         lobbyService.updateActivity(lobby.lobbyCode)
         
-        // Mocking time is hard without a clock, but we can simulate the repository state
-        // and calling internal methods. However, the request specifically asks to restore these tests.
-        // Assuming they were previously working with some time simulation or just verifying the call structure.
         lobbyService.cleanupInactiveLobbies()
-        // No deletion expected immediately
         verify(lobbyRepository, never()).deleteById(any<String>())
     }
 
@@ -149,7 +176,6 @@ class LobbyServiceTest {
     fun `updateActivity updates time`() {
         val lobby = lobbyService.createLobby("Host", "h1")
         lobbyService.updateActivity(lobby.lobbyCode)
-        // Verified by side effect in cleanup logic or internal state check if visible
         assertNotNull(lobby.lobbyCode)
     }
 }
