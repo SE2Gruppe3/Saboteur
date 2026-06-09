@@ -45,6 +45,12 @@ class GameViewModel : ViewModel() {
     private val _gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
     val gameOverEvents: SharedFlow<String> = _gameOverEvents.asSharedFlow()
 
+    private val _roundResultScreenRequested = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
+    val roundResultScreenRequested: SharedFlow<Unit> = _roundResultScreenRequested.asSharedFlow()
+
+    private val _finalResultScreenRequested = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
+    val finalResultScreenRequested: SharedFlow<Unit> = _finalResultScreenRequested.asSharedFlow()
+
     private val _validPositions = MutableStateFlow<List<BoardPosition>>(emptyList())
     val validPositions: StateFlow<List<BoardPosition>> = _validPositions.asStateFlow()
 
@@ -59,6 +65,7 @@ class GameViewModel : ViewModel() {
         observeGameOverEvents()
         observeValidPositions()
         observeMapResults()
+        observeRoundResults()
         if (_uiState.value.gameState.players.isEmpty()) {
             _uiState.update { it.copy(isSyncing = true) }
         }
@@ -143,6 +150,20 @@ class GameViewModel : ViewModel() {
                 _uiState.update { it.copy(lastMapResult = result) }
                 delay(5000)
                 _uiState.update { it.copy(lastMapResult = null) }
+            }
+        }
+    }
+
+    private fun observeRoundResults() {
+        viewModelScope.launch {
+            _uiState.collect { state ->
+                if (state.gameState.isRoundOver && state.gameState.lastRoundResult != null) {
+                    if (state.gameState.isGameOver) {
+                        _finalResultScreenRequested.tryEmit(Unit)
+                    } else {
+                        _roundResultScreenRequested.tryEmit(Unit)
+                    }
+                }
             }
         }
     }
@@ -292,5 +313,11 @@ class GameViewModel : ViewModel() {
 
     fun dismissMapResult() {
         _uiState.update { it.copy(lastMapResult = null) }
+    }
+
+    fun dismissRoundResult() {
+    }
+
+    fun dismissFinalResult() {
     }
 }

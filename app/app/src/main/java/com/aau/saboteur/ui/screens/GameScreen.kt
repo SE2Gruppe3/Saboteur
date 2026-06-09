@@ -25,6 +25,11 @@ import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
+import com.aau.saboteur.ui.screens.RoundResultScreen
+import com.aau.saboteur.ui.screens.FinalResultScreen
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.sp
 
 private val DeckBadgeBackground = Color(0xFF2A2A2A)
 private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
@@ -63,10 +68,26 @@ private fun getRepairToolsFromCard(type: CardType): List<String> = when(type) {
 
 @Composable
 private fun ToolIcons(blockedTools: Set<ToolType>) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (blockedTools.any { it.name == "PICKAXE" }) Text("⛏️")
-        if (blockedTools.any { it.name == "LANTERN" }) Text("🏮")
-        if (blockedTools.any { it.name == "CART" }) Text("🛒")
+    if (blockedTools.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            blockedTools.forEach { tool ->
+                val emoji = when (tool.name) {
+                    "PICKAXE" -> "⛏️"
+                    "LANTERN" -> "🏮"
+                    "CART" -> "🛒"
+                    else -> ""
+                }
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .border(2.dp, Color.Red, MaterialTheme.shapes.small),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emoji, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+        }
     }
 }
 
@@ -82,10 +103,25 @@ fun GameScreen(
     val lobbyCode = lobbyState?.lobbyCode
     val validPositions by viewModel.validPositions.collectAsState()
     var gameOverWinner by remember { mutableStateOf<String?>(null) }
+    var showRoundResult by remember { mutableStateOf(false) }
+    var showFinalResult by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.gameOverEvents.collect { winner -> gameOverWinner = winner }
     }
+
+    LaunchedEffect(Unit) {
+        viewModel.roundResultScreenRequested.collect {
+            showRoundResult = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.finalResultScreenRequested.collect {
+            showFinalResult = true
+        }
+    }
+
     LaunchedEffect(localPlayerId, lobbyCode) {
         if (localPlayerId != null && lobbyCode != null) {
             viewModel.initGameSession(lobbyCode, localPlayerId!!)
@@ -98,7 +134,6 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
-    // Hardware-Integration (Eigene Taschenlampe) - Refactored for Lifecycle & Type Safety
     val context = LocalContext.current
     val cameraManager = remember { context.getSystemService(Context.CAMERA_SERVICE) as CameraManager }
     val currentIsMyTurn by rememberUpdatedState(isMyTurn)
@@ -326,6 +361,32 @@ fun GameScreen(
                 onDismiss = {
                     showToolDialog = false
                     pendingToolSelection = null
+                }
+            )
+        }
+
+        if (showRoundResult && uiState.gameState.lastRoundResult != null) {
+            RoundResultScreen(
+                roundResult = uiState.gameState.lastRoundResult!!,
+                players = uiState.gameState.players,
+                onNextRound = {
+                    showRoundResult = false
+                }
+            )
+        }
+
+        if (showFinalResult && uiState.gameState.lastRoundResult != null) {
+            FinalResultScreen(
+                roundResult = uiState.gameState.lastRoundResult!!,
+                players = uiState.gameState.players,
+                onNewGame = {
+                    showFinalResult = false
+                    onBackToLobby()
+                },
+                onLeaveGame = {
+                    showFinalResult = false
+                    lobbyViewModel.leaveLobby()
+                    onBackToLobby()
                 }
             )
         }
