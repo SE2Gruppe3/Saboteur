@@ -56,13 +56,13 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
 
     LaunchedEffect(fileName) {
         try {
-            val tf = withContext(Dispatchers.IO) {
+            val (tf, parcel, renderer) = withContext(Dispatchers.IO) {
                 val f = File.createTempFile("spielregeln", ".pdf", context.cacheDir)
                 context.assets.open(fileName).use { input -> f.outputStream().use { input.copyTo(it) } }
-                f
+                val p = ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY)
+                val r = PdfRenderer(p)
+                Triple(f, p, r)
             }
-            val parcel = ParcelFileDescriptor.open(tf, ParcelFileDescriptor.MODE_READ_ONLY)
-            val renderer = PdfRenderer(parcel)
             parcelFd = parcel
             tempFile = tf
             pdfRenderer = renderer
