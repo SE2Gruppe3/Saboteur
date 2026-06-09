@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -85,8 +86,14 @@ fun LobbyMenu(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.spielregeln_button)) },
                 onClick = {
-                    onDismiss()
                     onShowSpielregeln?.invoke()
+                    onDismiss()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                        contentDescription = null
+                    )
                 }
             )
 
