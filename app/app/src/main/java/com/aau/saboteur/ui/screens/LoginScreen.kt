@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.aau.saboteur.R
 import com.aau.saboteur.ui.components.LobbyMenu
 import com.aau.saboteur.ui.components.MenuButton
+import com.aau.saboteur.ui.components.SpielregelnDialog
 
 @Composable
 private fun localizeLoginError(code: String): String = when (code) {
@@ -30,6 +31,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
+    var showSpielregeln by remember { mutableStateOf(false) }
 
     val trimmedUsername = username.trim()
     val isUsernameValid = trimmedUsername.length >= 3
@@ -144,8 +146,13 @@ fun LoginScreen(
                     onDismiss = { menuOpen = false },
                     volume = volume,
                     onVolumeChange = { volume = it },
-                    showLeaveGame = false
+                    showLeaveGame = false,
+                    onShowSpielregeln = { showSpielregeln = true }
                 )
+            }
+
+            if (showSpielregeln) {
+                SpielregelnDialog(onDismiss = { showSpielregeln = false })
             }
         }
     }

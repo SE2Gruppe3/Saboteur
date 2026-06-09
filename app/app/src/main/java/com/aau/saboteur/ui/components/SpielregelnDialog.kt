@@ -33,10 +33,8 @@ import com.aau.saboteur.R
 @Composable
 fun SpielregelnDialog(onDismiss: () -> Unit) {
     val lang = LocalConfiguration.current.locales[0].language
-
     val imageRes = if (lang == "de") R.drawable.spielanleitung_saboteur
                    else R.drawable.rulebook_saboteur
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -59,7 +57,6 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
@@ -73,7 +70,6 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                     tint = Color.White
                 )
             }
-
             Text(
                 text = stringResource(R.string.spielregeln_titel),
                 color = Color(0xFFFFD700),
