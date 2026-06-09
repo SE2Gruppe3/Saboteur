@@ -55,17 +55,21 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
     var tempFile by remember { mutableStateOf<File?>(null) }
 
     LaunchedEffect(fileName) {
-        val tf = withContext(Dispatchers.IO) {
-            val f = File.createTempFile("spielregeln", ".pdf", context.cacheDir)
-            context.assets.open(fileName).use { input -> f.outputStream().use { input.copyTo(it) } }
-            f
+        try {
+            val tf = withContext(Dispatchers.IO) {
+                val f = File.createTempFile("spielregeln", ".pdf", context.cacheDir)
+                context.assets.open(fileName).use { input -> f.outputStream().use { input.copyTo(it) } }
+                f
+            }
+            val parcel = ParcelFileDescriptor.open(tf, ParcelFileDescriptor.MODE_READ_ONLY)
+            val renderer = PdfRenderer(parcel)
+            parcelFd = parcel
+            tempFile = tf
+            pdfRenderer = renderer
+            pageCount = renderer.pageCount
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        val parcel = ParcelFileDescriptor.open(tf, ParcelFileDescriptor.MODE_READ_ONLY)
-        val renderer = PdfRenderer(parcel)
-        parcelFd = parcel
-        tempFile = tf
-        pdfRenderer = renderer
-        pageCount = renderer.pageCount
     }
 
     DisposableEffect(Unit) {
@@ -78,12 +82,16 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
 
     LaunchedEffect(currentPage, pdfRenderer) {
         val renderer = pdfRenderer ?: return@LaunchedEffect
-        bitmap = withContext(Dispatchers.IO) {
-            val page = renderer.openPage(currentPage)
-            val bmp = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
-            page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            page.close()
-            bmp
+        try {
+            bitmap = withContext(Dispatchers.IO) {
+                val page = renderer.openPage(currentPage)
+                val bmp = Bitmap.createBitmap(page.width * 2, page.height * 2, Bitmap.Config.ARGB_8888)
+                page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                page.close()
+                bmp
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
