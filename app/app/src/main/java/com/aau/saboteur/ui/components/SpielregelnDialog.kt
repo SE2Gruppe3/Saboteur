@@ -1,37 +1,41 @@
 package com.aau.saboteur.ui.components
 
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.aau.saboteur.R
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.aau.saboteur.R
 
 @Composable
 fun SpielregelnDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    var isLoaded by remember { mutableStateOf(false) }
+    val lang = LocalConfiguration.current.locales[0].language
+
+    val imageRes = if (lang == "de") R.drawable.spielanleitung_saboteur
+                   else R.drawable.rulebook_saboteur
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -42,27 +46,19 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                 .fillMaxSize()
                 .background(Color(0xFF1A1A1A))
         ) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        settings.javaScriptEnabled = false
-                        settings.builtInZoomControls = true
-                        settings.displayZoomControls = false
-                        settings.loadWithOverviewMode = true
-                        settings.useWideViewPort = true
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                isLoaded = true
-                            }
-                        }
-                        val lang = context.resources.configuration.locales[0].language
-                        val fileName = if (lang == "de") "Spielanleitung_Saboteur.pdf"
-                                       else "Rulebook_Saboteur.pdf"
-                        loadUrl("file:///android_asset/$fileName")
-                    }
-                }
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 48.dp, bottom = 8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Image(
+                    painter = painterResource(id = imageRes),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillWidth,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             IconButton(
                 onClick = onDismiss,
@@ -78,12 +74,15 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                 )
             }
 
-            if (!isLoaded) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFFFFD700)
-                )
-            }
+            Text(
+                text = stringResource(R.string.spielregeln_titel),
+                color = Color(0xFFFFD700),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 16.dp, top = 14.dp)
+            )
         }
     }
 }
