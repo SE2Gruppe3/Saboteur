@@ -60,7 +60,8 @@ fun LobbyMenu(
     volume: Float,
     onVolumeChange: (Float) -> Unit,
     onLeaveGame: (() -> Unit)? = null,
-    showLeaveGame: Boolean = true
+    showLeaveGame: Boolean = true,
+    onShowSpielregeln: (() -> Unit)? = null
 ) {
     val language by LanguageManager.currentLanguage
     val localizedContext = rememberLocalizedContext(language)
@@ -78,6 +79,16 @@ fun LobbyMenu(
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             VolumeSliderRow(volume = volume, onVolumeChange = onVolumeChange)
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.spielregeln_button)) },
+                onClick = {
+                    onDismiss()
+                    onShowSpielregeln?.invoke()
+                }
+            )
 
             if (showLeaveGame && onLeaveGame != null) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

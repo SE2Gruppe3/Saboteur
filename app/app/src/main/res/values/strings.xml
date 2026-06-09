@@ -77,6 +77,12 @@
     <string name="error_connection_failed">Server nicht erreichbar. Bitte Verbindung prüfen.</string>
     <string name="error_login_failed">Login fehlgeschlagen.</string>
 
+    <!-- Spielregeln -->
+    <string name="spielregeln_button">📖 Spielregeln</string>
+    <string name="spielregeln_titel">Spielregeln</string>
+    <string name="seite_x_von_y">Seite %1$d / %2$d</string>
+    <string name="schliessen">Schließen</string>
+
     <!-- Menu actions -->
     <string name="menu_toggle">Menü öffnen/schließen</string>
     <string name="leave_game">Spiel verlassen</string>
