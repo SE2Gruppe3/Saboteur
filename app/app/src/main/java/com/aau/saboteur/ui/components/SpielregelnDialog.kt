@@ -39,7 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -102,7 +104,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
             shape = RectangleShape,
             color = Color(0xFF1A1A1A)
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
 
                 if (bitmap != null) {
                     val scrollState = rememberScrollState()
@@ -127,13 +129,18 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                                     scaleX = scale,
                                     scaleY = scale,
                                     translationX = offsetX,
-                                    translationY = offsetY
+                                    translationY = offsetY,
+                                    transformOrigin = TransformOrigin(0.5f, 0f)
                                 )
                                 .pointerInput(Unit) {
                                     coroutineScope {
                                         launch {
                                             detectTransformGestures { _, pan, zoom, _ ->
                                                 val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                                // Beim Übergang scroll→zoom: Scroll-Offset übernehmen
+                                                if (scale <= 1.01f && newScale > 1.01f) {
+                                                    offsetY = -scrollState.value.toFloat()
+                                                }
                                                 scale = newScale
                                                 if (newScale > 1f) {
                                                     offsetX += pan.x
