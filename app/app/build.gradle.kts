@@ -76,6 +76,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
+    implementation("net.engawapg.lib:zoomable:2.8.0")
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
 
