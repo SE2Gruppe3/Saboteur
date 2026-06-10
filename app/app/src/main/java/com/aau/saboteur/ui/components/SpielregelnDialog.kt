@@ -87,7 +87,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                     onClick = onDismiss,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp)
+                        .padding(top = 48.dp, end = 8.dp)
                         .zIndex(2f)
                         .background(Color(0x99000000), CircleShape)
                 ) {
