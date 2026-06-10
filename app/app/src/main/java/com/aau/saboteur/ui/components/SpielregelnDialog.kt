@@ -3,6 +3,8 @@ package com.aau.saboteur.ui.components
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -85,13 +87,17 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF1A1A1A))
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = RectangleShape,
+            color = Color(0xFF1A1A1A)
         ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (bitmap != null) {
                 Image(
                     painter = BitmapPainter(bitmap!!),
@@ -192,6 +198,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                 )
             }
 
+        }
         }
     }
 }
