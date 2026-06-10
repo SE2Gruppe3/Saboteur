@@ -41,7 +41,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -102,7 +101,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                         .fillMaxWidth()
                         .wrapContentHeight()
                         .align(Alignment.TopCenter)
-                        .padding(top = 48.dp, bottom = 64.dp)
+                        .padding(bottom = 64.dp)
                         .graphicsLayer(
                             scaleX = scale,
                             scaleY = scale,
@@ -183,7 +182,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
+                    .padding(top = 8.dp, end = 8.dp)
                     .background(Color(0xFF2A2A2A), shape = CircleShape)
             ) {
                 Icon(
@@ -193,15 +192,6 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                 )
             }
 
-            Text(
-                text = stringResource(R.string.spielregeln_titel),
-                color = Color(0xFFFFD700),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = 14.dp)
-            )
         }
     }
 }
