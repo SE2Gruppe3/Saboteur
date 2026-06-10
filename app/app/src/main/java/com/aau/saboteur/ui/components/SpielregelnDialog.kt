@@ -6,9 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -104,10 +102,9 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                             painter = BitmapPainter(bmp),
                             contentDescription = null,
                             contentScale = ContentScale.FillWidth,
+                            alignment = Alignment.TopCenter,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(bmp.width.toFloat() / bmp.height.toFloat())
-                                .align(Alignment.TopStart)
+                                .fillMaxSize()
                                 .zoomable(zoomState)
                         )
                     } else {
