@@ -24,15 +24,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
@@ -64,6 +67,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
 
     var currentPage by remember { mutableIntStateOf(0) }
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    var layoutWidth by remember { mutableFloatStateOf(0f) }
     val zoomState = rememberZoomState()
 
     LaunchedEffect(currentPage, lang) {
@@ -75,6 +79,15 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                 ?.asImageBitmap()
             withContext(Dispatchers.Main) { bitmap = bmp }
         }
+    }
+
+    // Set content size in layout coordinates so zoomable knows the full rendered height.
+    // contentScale=FillWidth renders at width=layoutWidth, height=layoutWidth*(bmp.h/bmp.w).
+    LaunchedEffect(bitmap, layoutWidth) {
+        val bmp = bitmap ?: return@LaunchedEffect
+        if (layoutWidth <= 0f) return@LaunchedEffect
+        val renderedHeight = layoutWidth * bmp.height.toFloat() / bmp.width.toFloat()
+        zoomState.setContentSize(Size(layoutWidth, renderedHeight))
     }
 
     Dialog(
@@ -105,6 +118,7 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                             alignment = Alignment.TopCenter,
                             modifier = Modifier
                                 .fillMaxSize()
+                                .onSizeChanged { layoutWidth = it.width.toFloat() }
                                 .zoomable(zoomState)
                         )
                     } else {
