@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -37,9 +35,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
@@ -47,6 +45,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -79,6 +78,11 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
 
+    // Pixel-Größen für Bounds-Berechnung
+    var imageHeightPx by remember { mutableIntStateOf(0) }
+    var containerWidthPx by remember { mutableIntStateOf(0) }
+    var containerHeightPx by remember { mutableIntStateOf(0) }
+
     LaunchedEffect(currentPage) {
         bitmap = null
         scale = 1f
@@ -104,20 +108,17 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
             shape = RectangleShape,
             color = Color(0xFF1A1A1A)
         ) {
-            Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
-
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clipToBounds()
+                    .onSizeChanged {
+                        containerWidthPx = it.width
+                        containerHeightPx = it.height
+                    }
+            ) {
                 if (bitmap != null) {
-                    val scrollState = rememberScrollState()
-                    val isZoomed = scale > 1.01f
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (!isZoomed) Modifier.verticalScroll(scrollState)
-                                else Modifier
-                            )
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Image(
                             painter = BitmapPainter(bitmap!!),
                             contentDescription = null,
@@ -125,11 +126,13 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .wrapContentHeight()
+                                .onSizeChanged { imageHeightPx = it.height }
                                 .graphicsLayer(
                                     scaleX = scale,
                                     scaleY = scale,
                                     translationX = offsetX,
                                     translationY = offsetY,
+                                    // Zoom-Pivot = obere Mitte → kein Ruckler, Bild wächst nach unten
                                     transformOrigin = TransformOrigin(0.5f, 0f)
                                 )
                                 .pointerInput(Unit) {
@@ -137,18 +140,19 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                                         launch {
                                             detectTransformGestures { _, pan, zoom, _ ->
                                                 val newScale = (scale * zoom).coerceIn(1f, 5f)
-                                                // Beim Übergang scroll→zoom: Scroll-Offset übernehmen
-                                                if (scale <= 1.01f && newScale > 1.01f) {
-                                                    offsetY = -scrollState.value.toFloat()
-                                                }
                                                 scale = newScale
-                                                if (newScale > 1f) {
-                                                    offsetX += pan.x
-                                                    offsetY += pan.y
-                                                } else {
-                                                    offsetX = 0f
-                                                    offsetY = 0f
-                                                }
+
+                                                // Y: Bild immer lückenlos von oben bis unten
+                                                val minY = (containerHeightPx - imageHeightPx * newScale)
+                                                    .coerceAtMost(0f)
+                                                offsetY = (offsetY + pan.y).coerceIn(minY, 0f)
+
+                                                // X: bei scale=1 kein seitliches Verschieben,
+                                                //    bei zoom Bild deckt immer volle Breite ab
+                                                val maxX = containerWidthPx * (newScale - 1f) / 2f
+                                                offsetX = if (newScale > 1f)
+                                                    (offsetX + pan.x).coerceIn(-maxX, maxX)
+                                                else 0f
                                             }
                                         }
                                         launch {
