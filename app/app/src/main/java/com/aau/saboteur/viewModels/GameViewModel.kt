@@ -315,9 +315,4 @@ class GameViewModel : ViewModel() {
         _uiState.update { it.copy(lastMapResult = null) }
     }
 
-    fun dismissRoundResult() {
-    }
-
-    fun dismissFinalResult() {
-    }
 }
