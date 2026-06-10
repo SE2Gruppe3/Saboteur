@@ -25,9 +25,6 @@ import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
-import com.aau.saboteur.ui.screens.RoundResultScreen
-import com.aau.saboteur.ui.screens.FinalResultScreen
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.sp
 

@@ -156,15 +156,18 @@ class GameViewModel : ViewModel() {
 
     private fun observeRoundResults() {
         viewModelScope.launch {
-            _uiState.collect { state ->
-                if (state.gameState.isRoundOver && state.gameState.lastRoundResult != null) {
-                    if (state.gameState.isGameOver) {
-                        _finalResultScreenRequested.tryEmit(Unit)
-                    } else {
-                        _roundResultScreenRequested.tryEmit(Unit)
+            _uiState
+                .map { it.gameState }
+                .distinctUntilChanged()
+                .collect { gameState ->
+                    if (gameState.isRoundOver && gameState.lastRoundResult != null) {
+                        if (gameState.isGameOver) {
+                            _finalResultScreenRequested.tryEmit(Unit)
+                        } else {
+                            _roundResultScreenRequested.tryEmit(Unit)
+                        }
                     }
                 }
-            }
         }
     }
 

@@ -119,7 +119,11 @@ fun FinalResultScreen(
                     ) {
                         items(players) { player ->
                             val revealedRole = roundResult.revealedRoles[player.playerId]
-                            val roleIcon = if (revealedRole == Role.GOLDDIGGER) "⛏️" else "🔴"
+                            val roleIcon = when (revealedRole) {
+                                Role.GOLDDIGGER -> "⛏️"
+                                Role.SABOTEUR -> "🔴"
+                                null -> "❓"
+                            }
                             val roleText = if (revealedRole == Role.GOLDDIGGER) "Goldsucher" else "Saboteur"
                             val roleColor = if (revealedRole == Role.GOLDDIGGER)
                                 OreGold else Color(0xFFD32F2F)

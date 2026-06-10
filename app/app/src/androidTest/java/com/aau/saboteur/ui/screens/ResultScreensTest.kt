@@ -71,7 +71,7 @@ class ResultScreensTest {
     }
 
     @Test
-    fun roundResultScreenDisplaysGoldiggerWinner() {
+    fun roundResultScreenDisplaysGolddiggerWinner() {
         composeTestRule.setContent {
             SE2GameTheme {
                 RoundResultScreen(
@@ -163,7 +163,7 @@ class ResultScreensTest {
     }
 
     @Test
-    fun finalResultScreenDisplaysGoldiggerWinner() {
+    fun finalResultScreenDisplaysGolddiggerWinner() {
         composeTestRule.setContent {
             SE2GameTheme {
                 FinalResultScreen(
