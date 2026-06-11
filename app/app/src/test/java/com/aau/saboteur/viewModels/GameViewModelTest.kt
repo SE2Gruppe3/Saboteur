@@ -193,4 +193,299 @@ class GameViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.selectedCard)
     }
+    @Test
+    fun `selectCard with PATH card selects it`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val card = com.aau.saboteur.model.TunnelCard(
+            id = "path1",
+            type = com.aau.saboteur.model.CardType.PATH,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT, com.aau.saboteur.model.Direction.RIGHT)
+        )
+        viewModel.selectCard(card)
+        advanceUntilIdle()
+
+        assertEquals(card, viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `selectCard deselects when same card clicked again`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val card = com.aau.saboteur.model.TunnelCard(
+            id = "path1",
+            type = com.aau.saboteur.model.CardType.PATH,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT, com.aau.saboteur.model.Direction.RIGHT)
+        )
+
+        viewModel.selectCard(card)
+        advanceUntilIdle()
+        assertEquals(card, viewModel.uiState.value.selectedCard)
+
+        viewModel.selectCard(card)
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `selectCard with BLOCK card sets pending special card`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val blockCard = com.aau.saboteur.model.TunnelCard(
+            id = "block1",
+            type = com.aau.saboteur.model.CardType.CART_RED,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        viewModel.selectCard(blockCard)
+        advanceUntilIdle()
+
+        assertEquals(com.aau.saboteur.model.CardType.CART_RED, viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `selectCard with REPAIR card sets pending special card`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val repairCard = com.aau.saboteur.model.TunnelCard(
+            id = "repair1",
+            type = com.aau.saboteur.model.CardType.CART_GREEN,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        viewModel.selectCard(repairCard)
+        advanceUntilIdle()
+
+        assertEquals(com.aau.saboteur.model.CardType.CART_GREEN, viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `selectCard with MAP card sets pending special card`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val mapCard = com.aau.saboteur.model.TunnelCard(
+            id = "map1",
+            type = com.aau.saboteur.model.CardType.MAPCARD,
+            connections = emptySet()
+        )
+        viewModel.selectCard(mapCard)
+        advanceUntilIdle()
+
+        assertEquals(com.aau.saboteur.model.CardType.MAPCARD, viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `selectCard with ROCKFALL card sets pending special card`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val rockfallCard = com.aau.saboteur.model.TunnelCard(
+            id = "rockfall1",
+            type = com.aau.saboteur.model.CardType.ROCKFALL,
+            connections = emptySet()
+        )
+        viewModel.selectCard(rockfallCard)
+        advanceUntilIdle()
+
+        assertEquals(com.aau.saboteur.model.CardType.ROCKFALL, viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `onCardRotated updates rotation state`() = runTest {
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(GameState(players = emptyList(), currentPlayerId = "p1"))
+
+        val card = com.aau.saboteur.model.TunnelCard(
+            id = "card1",
+            type = com.aau.saboteur.model.CardType.PATH,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+
+        viewModel.onCardRotated(card, true)
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.cardRotations[card.id])
+    }
+
+    @Test
+    fun `onBoardCellClicked plays PATH card`() = runTest {
+        val card = com.aau.saboteur.model.TunnelCard(
+            id = "path1",
+            type = com.aau.saboteur.model.CardType.PATH,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        val gameState = GameState(
+            players = listOf(com.aau.saboteur.model.PlayerTurn("p1", "Player1", 1)),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(card)
+        advanceUntilIdle()
+
+        val position = com.aau.saboteur.model.BoardPosition(4, 5)
+        viewModel.onBoardCellClicked(position)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked with blocked player shows error`() = runTest {
+        val card = com.aau.saboteur.model.TunnelCard(
+            id = "path1",
+            type = com.aau.saboteur.model.CardType.PATH,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        val gameState = GameState(
+            players = listOf(
+                com.aau.saboteur.model.PlayerTurn(
+                    "p1",
+                    "Player1",
+                    1,
+                    blockedTools = setOf(com.aau.saboteur.model.ToolType.PICKAXE)
+                )
+            ),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(card)
+        advanceUntilIdle()
+
+        val position = com.aau.saboteur.model.BoardPosition(4, 5)
+        viewModel.onBoardCellClicked(position)
+        advanceUntilIdle()
+
+        assertEquals("Du bist blockiert und kannst keine Tunnel legen.", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `onBoardCellClicked with MAP card plays it`() = runTest {
+        val mapCard = com.aau.saboteur.model.TunnelCard(
+            id = "map1",
+            type = com.aau.saboteur.model.CardType.MAPCARD,
+            connections = emptySet()
+        )
+        val gameState = GameState(
+            players = listOf(com.aau.saboteur.model.PlayerTurn("p1", "Player1", 1)),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(mapCard)
+        advanceUntilIdle()
+
+        val position = com.aau.saboteur.model.BoardPosition(4, 5)
+        viewModel.onBoardCellClicked(position)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked with ROCKFALL card plays it`() = runTest {
+        val rockfallCard = com.aau.saboteur.model.TunnelCard(
+            id = "rockfall1",
+            type = com.aau.saboteur.model.CardType.ROCKFALL,
+            connections = emptySet()
+        )
+        val gameState = GameState(
+            players = listOf(com.aau.saboteur.model.PlayerTurn("p1", "Player1", 1)),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(rockfallCard)
+        advanceUntilIdle()
+
+        val position = com.aau.saboteur.model.BoardPosition(4, 5)
+        viewModel.onBoardCellClicked(position)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `discardSelectedCard removes card`() = runTest {
+        val card = com.aau.saboteur.model.TunnelCard(
+            id = "path1",
+            type = com.aau.saboteur.model.CardType.PATH,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        val gameState = GameState(
+            players = listOf(com.aau.saboteur.model.PlayerTurn("p1", "Player1", 1)),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(card)
+        advanceUntilIdle()
+
+        viewModel.discardSelectedCard()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `playBlockCardOnPlayer plays block card`() = runTest {
+        val blockCard = com.aau.saboteur.model.TunnelCard(
+            id = "block1",
+            type = com.aau.saboteur.model.CardType.CART_RED,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        val gameState = GameState(
+            players = listOf(
+                com.aau.saboteur.model.PlayerTurn("p1", "Player1", 1),
+                com.aau.saboteur.model.PlayerTurn("p2", "Player2", 2)
+            ),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(blockCard)
+        advanceUntilIdle()
+
+        viewModel.playBlockCardOnPlayer("p2")
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `playRepairCardOnPlayer plays repair card`() = runTest {
+        val repairCard = com.aau.saboteur.model.TunnelCard(
+            id = "repair1",
+            type = com.aau.saboteur.model.CardType.CART_GREEN,
+            connections = setOf(com.aau.saboteur.model.Direction.LEFT)
+        )
+        val gameState = GameState(
+            players = listOf(
+                com.aau.saboteur.model.PlayerTurn("p1", "Player1", 1),
+                com.aau.saboteur.model.PlayerTurn("p2", "Player2", 2)
+            ),
+            currentPlayerId = "p1"
+        )
+
+        viewModel.initGameSession("LOBBY", "p1")
+        injectGameState(gameState)
+        viewModel.selectCard(repairCard)
+        advanceUntilIdle()
+
+        viewModel.playRepairCardOnPlayer("p2", "PICKAXE")
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
 }
