@@ -154,4 +154,43 @@ class GameViewModelTest {
         field.isAccessible = true
         (field.get(GameApi) as MutableStateFlow<GameState>).value = gameState
     }
+
+    @Test
+    fun `setLocalPlayerId updates state correctly`() {
+        viewModel.setLocalPlayerId("player123")
+        assertEquals("player123", viewModel.uiState.value.localPlayerId)
+    }
+
+    @Test
+    fun `initGameSession sets both lobbyCode and playerId`() {
+        viewModel.initGameSession("CODE456", "playerXYZ")
+        val state = viewModel.uiState.value
+        assertEquals("CODE456", state.lobbyCode)
+        assertEquals("playerXYZ", state.localPlayerId)
+    }
+
+    @Test
+    fun `setError stores error message in state`() {
+        val errorMsg = "Connection failed"
+        viewModel.setError(errorMsg)
+        assertEquals(errorMsg, viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `dismissMapResult clears lastMapResult from state`() {
+        viewModel.dismissMapResult()
+        assertNull(viewModel.uiState.value.lastMapResult)
+    }
+
+    @Test
+    fun `initial state has no errors`() {
+        val state = viewModel.uiState.value
+        assertNull(state.errorMessage)
+    }
+
+    @Test
+    fun `initial state has selectedCard as null`() {
+        val state = viewModel.uiState.value
+        assertNull(state.selectedCard)
+    }
 }
