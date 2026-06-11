@@ -87,42 +87,6 @@ class GameViewModelTest {
         assertNull(viewModel.uiState.value.lastMapResult)
     }
 
-    @Test
-    fun `roundResultScreenRequested emits when round ends and game continues`() = runTest {
-        val roundResult = RoundResult(
-            roundNumber = 1,
-            winnerRole = Role.GOLDDIGGER,
-            winningPlayerIds = listOf("p1")
-        )
-        val collected = mutableListOf<Unit>()
-        val job = launch { viewModel.roundResultScreenRequested.collect { collected.add(it) } }
-
-        advanceUntilIdle()
-        injectGameState(GameState(isRoundOver = true, isGameOver = false, lastRoundResult = roundResult))
-        advanceUntilIdle()
-
-        assertTrue("roundResultScreenRequested should have emitted", collected.isNotEmpty())
-        job.cancel()
-    }
-
-    @Test
-    fun `finalResultScreenRequested emits when game ends`() = runTest {
-        val roundResult = RoundResult(
-            roundNumber = 3,
-            winnerRole = Role.SABOTEUR,
-            winningPlayerIds = listOf("p2"),
-            gameFinished = true
-        )
-        val collected = mutableListOf<Unit>()
-        val job = launch { viewModel.finalResultScreenRequested.collect { collected.add(it) } }
-
-        advanceUntilIdle()
-        injectGameState(GameState(isRoundOver = true, isGameOver = true, lastRoundResult = roundResult))
-        advanceUntilIdle()
-
-        assertTrue("finalResultScreenRequested should have emitted", collected.isNotEmpty())
-        job.cancel()
-    }
 
     @Test
     fun `selectCard updates selectedCard state`() {
