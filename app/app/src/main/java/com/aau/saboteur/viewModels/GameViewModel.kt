@@ -63,7 +63,6 @@ class GameViewModel : ViewModel() {
         observeGameOverEvents()
         observeValidPositions()
         observeMapResults()
-        observeRoundResults()
         if (_uiState.value.gameState.players.isEmpty()) {
             _uiState.update { it.copy(isSyncing = true) }
         }
@@ -156,23 +155,6 @@ class GameViewModel : ViewModel() {
                 delay(5000)
                 _uiState.update { it.copy(lastMapResult = null) }
             }
-        }
-    }
-
-    private fun observeRoundResults() {
-        viewModelScope.launch {
-            _uiState
-                .map { it.gameState }
-                .distinctUntilChanged()
-                .collect { gameState ->
-                    if (gameState.lastRoundResult != null) {
-                        if (gameState.isGameOver) {
-                            _finalResultScreenRequested.tryEmit(Unit)
-                        } else {
-                            _roundResultScreenRequested.tryEmit(Unit)
-                        }
-                    }
-                }
         }
     }
 

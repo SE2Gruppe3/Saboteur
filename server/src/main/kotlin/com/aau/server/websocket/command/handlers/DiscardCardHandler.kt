@@ -41,11 +41,12 @@ class DiscardCardHandler(
 
             messagingService.sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
             messagingService.sendEventToLobby(lobbyCode, GameEvent.CardsDealt(result.updatedHands))
-            
+
             if (result.winner != null) {
                 messagingService.sendEventToLobby(lobbyCode, GameEvent.GameOver(result.winner))
-                // Clean up lobby after game over so players aren't "pulled back" into a finished game
-                lobbyService.deleteLobbyInternal(lobbyCode, "game_over")
+                if (result.updatedGameState.isGameOver) {
+                    lobbyService.deleteLobbyInternal(lobbyCode, "game_over")
+                }
             }
         }
     }
