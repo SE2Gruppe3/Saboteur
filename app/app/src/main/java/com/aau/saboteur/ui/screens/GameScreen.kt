@@ -2,7 +2,6 @@ package com.aau.saboteur.ui.screens
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,14 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.R
 import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
 
 private val DeckBadgeBackground = Color(0xFF2A2A2A)
 private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
@@ -99,13 +98,10 @@ fun GameScreen(
     val lobbyState by lobbyViewModel.lobbyState.collectAsState()
     val lobbyCode = lobbyState?.lobbyCode
     val validPositions by viewModel.validPositions.collectAsState()
-    var gameOverWinner by remember { mutableStateOf<String?>(null) }
     var showRoundResult by remember { mutableStateOf(false) }
     var showFinalResult by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.gameOverEvents.collect { winner -> gameOverWinner = winner }
-    }
+
 
     LaunchedEffect(Unit) {
         viewModel.roundResultScreenRequested.collect {
@@ -302,9 +298,7 @@ fun GameScreen(
                 )
             }
         }
-        gameOverWinner?.let { winner ->
-            GameOverDialog(winner = winner, onBackToLobby = onBackToLobby)
-        }
+
         if (uiState.isSyncing) {
             GameSyncOverlay()
         }
@@ -511,26 +505,6 @@ private fun GameSyncOverlay() {
     }
 }
 
-@Composable
-private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
-    val resultText = when (winner) {
-        "DWARVES" -> stringResource(R.string.dwarves_win)
-        "SABOTEURS" -> stringResource(R.string.saboteurs_win)
-        else -> stringResource(R.string.game_over)
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = resultText, style = MaterialTheme.typography.displayMedium, color = Color.White)
-            Spacer(modifier = Modifier.height(48.dp))
-            Button(onClick = onBackToLobby) { Text(stringResource(R.string.back_to_lobby_button)) }
-        }
-    }
-}
 
 @Composable
 private fun localizeServerError(code: String): String = when (code) {

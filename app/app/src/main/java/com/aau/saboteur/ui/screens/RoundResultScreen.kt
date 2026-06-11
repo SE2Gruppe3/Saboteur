@@ -111,10 +111,21 @@ fun RoundResultScreen(
 
                     players.forEach { player ->
                         val revealedRole = roundResult.revealedRoles[player.playerId]
-                        val roleIcon = if (revealedRole == Role.GOLDDIGGER) "⛏️" else "🔴"
-                        val roleText = if (revealedRole == Role.GOLDDIGGER) "Goldsucher" else "Saboteur"
-                        val roleColor = if (revealedRole == Role.GOLDDIGGER)
-                            OreGold else Color(0xFFD32F2F)
+                        val roleIcon = when (revealedRole) {
+                            Role.GOLDDIGGER -> "⛏️"
+                            Role.SABOTEUR -> "🔴"
+                            null -> "❓"
+                        }
+                        val roleText = when (revealedRole) {
+                            Role.GOLDDIGGER -> "Goldsucher"
+                            Role.SABOTEUR -> "Saboteur"
+                            null -> "Unbekannt"
+                        }
+                        val roleColor = when (revealedRole) {
+                            Role.GOLDDIGGER -> OreGold
+                            Role.SABOTEUR -> Color(0xFFD32F2F)
+                            null -> Color.Gray
+                        }
 
                         Surface(
                             modifier = Modifier.fillMaxWidth(),

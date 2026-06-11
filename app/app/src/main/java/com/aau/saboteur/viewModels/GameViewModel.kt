@@ -42,8 +42,6 @@ class GameViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
-    private val _gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
-    val gameOverEvents: SharedFlow<String> = _gameOverEvents.asSharedFlow()
 
     private val _roundResultScreenRequested = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
     val roundResultScreenRequested: SharedFlow<Unit> = _roundResultScreenRequested.asSharedFlow()
@@ -131,7 +129,14 @@ class GameViewModel : ViewModel() {
     private fun observeGameOverEvents() {
         viewModelScope.launch {
             GameApi.gameOverEvents.collect { winner ->
-                _gameOverEvents.tryEmit(winner)
+                val gameState = _uiState.value.gameState
+                if (gameState.lastRoundResult != null) {
+                    if (gameState.isGameOver) {
+                        _finalResultScreenRequested.tryEmit(Unit)
+                    } else {
+                        _roundResultScreenRequested.tryEmit(Unit)
+                    }
+                }
             }
         }
     }
@@ -160,7 +165,7 @@ class GameViewModel : ViewModel() {
                 .map { it.gameState }
                 .distinctUntilChanged()
                 .collect { gameState ->
-                    if (gameState.isRoundOver && gameState.lastRoundResult != null) {
+                    if (gameState.lastRoundResult != null) {
                         if (gameState.isGameOver) {
                             _finalResultScreenRequested.tryEmit(Unit)
                         } else {
