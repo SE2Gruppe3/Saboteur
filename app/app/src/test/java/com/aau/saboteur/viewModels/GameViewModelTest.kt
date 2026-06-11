@@ -16,6 +16,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -629,6 +630,64 @@ class GameViewModelTest {
             "Diese Karte kann hier nicht auf das Feld gespielt werden.",
             viewModel.uiState.value.errorMessage
         )
+    }
+
+    @Test
+    fun `observeGameOverEvents emits roundResultScreenRequested on GAME_OVER when round is not final`() = runTest {
+        val roundResult = RoundResult(roundNumber = 1, winnerRole = Role.GOLDDIGGER, winningPlayerIds = listOf("p1"))
+        injectGameState(GameState(isRoundOver = true, isGameOver = false, lastRoundResult = roundResult))
+
+        val collected = mutableListOf<Unit>()
+        val job = launch { viewModel.roundResultScreenRequested.collect { collected.add(it) } }
+
+        advanceUntilIdle()
+        injectGameOverEvent("DWARVES")
+        advanceUntilIdle()
+
+        assertTrue("roundResultScreenRequested should emit on GAME_OVER with non-final round", collected.isNotEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun `observeGameOverEvents emits finalResultScreenRequested on GAME_OVER when game is over`() = runTest {
+        val roundResult = RoundResult(roundNumber = 3, winnerRole = Role.GOLDDIGGER, gameFinished = true)
+        injectGameState(GameState(isRoundOver = true, isGameOver = true, lastRoundResult = roundResult))
+
+        val collected = mutableListOf<Unit>()
+        val job = launch { viewModel.finalResultScreenRequested.collect { collected.add(it) } }
+
+        advanceUntilIdle()
+        injectGameOverEvent("DWARVES")
+        advanceUntilIdle()
+
+        assertTrue("finalResultScreenRequested should emit on GAME_OVER when isGameOver=true", collected.isNotEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun `observeGameOverEvents does nothing on GAME_OVER when lastRoundResult is null`() = runTest {
+        injectGameState(GameState(isRoundOver = true, isGameOver = false, lastRoundResult = null))
+
+        val roundCollected = mutableListOf<Unit>()
+        val finalCollected = mutableListOf<Unit>()
+        val job1 = launch { viewModel.roundResultScreenRequested.collect { roundCollected.add(it) } }
+        val job2 = launch { viewModel.finalResultScreenRequested.collect { finalCollected.add(it) } }
+
+        advanceUntilIdle()
+        injectGameOverEvent("DWARVES")
+        advanceUntilIdle()
+
+        assertTrue("No screen should be requested when lastRoundResult is null", roundCollected.isEmpty())
+        assertTrue("No screen should be requested when lastRoundResult is null", finalCollected.isEmpty())
+        job1.cancel()
+        job2.cancel()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun injectGameOverEvent(winner: String) {
+        val field = GameApi::class.java.getDeclaredField("_gameOverEvents")
+        field.isAccessible = true
+        (field.get(GameApi) as MutableSharedFlow<String>).tryEmit(winner)
     }
 
 }
