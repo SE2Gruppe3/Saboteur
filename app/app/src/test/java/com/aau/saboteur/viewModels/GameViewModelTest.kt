@@ -572,4 +572,63 @@ class GameViewModelTest {
         assertEquals(card, viewModel.uiState.value.selectedCard)
     }
 
+    @Test
+    fun `onBoardCellClicked does nothing while syncing`() {
+        viewModel.initGameSession("LOBBY123", "p1")
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onBoardCellClicked(BoardPosition(0, 0))
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `discardSelectedCard does nothing while syncing`() {
+        viewModel.initGameSession("LOBBY123", "p1")
+
+        viewModel.discardSelectedCard()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `triggerCheat does nothing without lobbyCode`() {
+        viewModel.triggerCheat(CheatType.LANTERN_FLASHLIGHT)
+
+        assertNull(viewModel.uiState.value.lobbyCode)
+    }
+
+    @Test
+    fun `onBoardCellClicked with repair card on board shows error`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "repair1",
+            type = CardType.CART_GREEN,
+            connections = emptySet()
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onBoardCellClicked(BoardPosition(0, 0))
+
+        assertEquals(
+            "Diese Karte kann hier nicht auf das Feld gespielt werden.",
+            viewModel.uiState.value.errorMessage
+        )
+    }
+
 }
