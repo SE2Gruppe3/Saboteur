@@ -128,7 +128,7 @@ class GameViewModel : ViewModel() {
 
     private fun observeGameOverEvents() {
         viewModelScope.launch {
-            GameApi.gameOverEvents.collect { winner ->
+            GameApi.gameOverEvents.collect {
                 val gameState = _uiState.value.gameState
                 if (gameState.lastRoundResult != null) {
                     if (gameState.isGameOver) {
