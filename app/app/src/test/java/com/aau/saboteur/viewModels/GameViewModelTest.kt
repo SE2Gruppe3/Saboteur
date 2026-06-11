@@ -228,4 +228,348 @@ class GameViewModelTest {
     fun `valid positions state is initialized empty`() {
         assertTrue(viewModel.validPositions.value.isEmpty())
     }
+
+    @Test
+    fun `game state update sets remaining deck size and clears syncing`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1",
+                deckSize = 24
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(24, viewModel.uiState.value.remainingDeckSize)
+        assertEquals("p1", viewModel.uiState.value.gameState.currentPlayerId)
+    }
+
+    @Test
+    fun `selectCard does nothing when no lobbyCode is set`() {
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `selectCard does nothing while syncing`() {
+        viewModel.initGameSession("LOBBY123", "p1")
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `onCardRotated updates selectedCardRotated when selected card is rotated`() {
+        setupActiveSession()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onCardRotated(card, true)
+
+        assertEquals(true, viewModel.uiState.value.selectedCardRotated)
+    }
+
+    @Test
+    fun `selectCard uses saved rotation when card is selected again`() {
+        setupActiveSession()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.onCardRotated(card, true)
+        viewModel.selectCard(card)
+
+        assertEquals(true, viewModel.uiState.value.selectedCardRotated)
+    }
+
+    @Test
+    fun `discardSelectedCard clears selected card when it is current players turn`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.discardSelectedCard()
+
+        assertNull(viewModel.uiState.value.selectedCard)
+        assertNull(viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `discardSelectedCard does nothing when it is not current players turn`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p2"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.discardSelectedCard()
+
+        assertEquals(card, viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked clears selected card after playing path card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onBoardCellClicked(BoardPosition(0, 0))
+
+        assertNull(viewModel.uiState.value.selectedCard)
+        assertNull(viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked does nothing when no selected card exists`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onBoardCellClicked(BoardPosition(0, 0))
+
+        assertNull(viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked with map card clears selected card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "map1",
+            type = CardType.MAPCARD,
+            connections = emptySet()
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onBoardCellClicked(BoardPosition(1, 1))
+
+        assertNull(viewModel.uiState.value.selectedCard)
+        assertNull(viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked with rockfall card clears selected card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "rockfall1",
+            type = CardType.ROCKFALL,
+            connections = emptySet()
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onBoardCellClicked(BoardPosition(1, 1))
+
+        assertNull(viewModel.uiState.value.selectedCard)
+        assertNull(viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `onBoardCellClicked with block card on board shows error`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "block1",
+            type = CardType.CART_RED,
+            connections = emptySet()
+        )
+
+        viewModel.selectCard(card)
+        viewModel.onBoardCellClicked(BoardPosition(0, 0))
+
+        assertEquals(
+            "Diese Karte kann hier nicht auf das Feld gespielt werden.",
+            viewModel.uiState.value.errorMessage
+        )
+    }
+
+    @Test
+    fun `playBlockCardOnPlayer clears selected block card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "block1",
+            type = CardType.CART_RED,
+            connections = emptySet()
+        )
+
+        viewModel.selectCard(card)
+        viewModel.playBlockCardOnPlayer("p2")
+
+        assertNull(viewModel.uiState.value.selectedCard)
+        assertNull(viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `playRepairCardOnPlayer clears selected repair card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "repair1",
+            type = CardType.CART_GREEN,
+            connections = emptySet()
+        )
+
+        viewModel.selectCard(card)
+        viewModel.playRepairCardOnPlayer("p2", "cart")
+
+        assertNull(viewModel.uiState.value.selectedCard)
+        assertNull(viewModel.uiState.value.pendingSpecialCard)
+    }
+
+    @Test
+    fun `playBlockCardOnPlayer does nothing with non block card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.playBlockCardOnPlayer("p2")
+
+        assertEquals(card, viewModel.uiState.value.selectedCard)
+    }
+
+    @Test
+    fun `playRepairCardOnPlayer does nothing with non repair card`() {
+        setupActiveSession()
+
+        injectGameState(
+            GameState(
+                players = listOf(PlayerTurn("p1", "Alice", 1)),
+                currentPlayerId = "p1"
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val card = TunnelCard(
+            id = "path1",
+            type = CardType.PATH,
+            connections = setOf(Direction.LEFT)
+        )
+
+        viewModel.selectCard(card)
+        viewModel.playRepairCardOnPlayer("p2", "cart")
+
+        assertEquals(card, viewModel.uiState.value.selectedCard)
+    }
+
 }
