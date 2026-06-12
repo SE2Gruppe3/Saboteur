@@ -76,7 +76,7 @@
     <string name="error_invalid_placement">Invalid placement</string>
     <string name="error_connection_failed">Server unreachable. Please check your connection.</string>
     <string name="error_login_failed">Login failed.</string>
-    <string name="error_lobby_leave_unauthorized">Unauthorized: Only you or the host can remove a player.</string>
+    <string name="error_lobby_leave_unauthorized">Unauthorized: Only you can leave your lobby.</string>
 
     <!-- Menu actions -->
     <string name="menu_toggle">Open/close menu</string>
