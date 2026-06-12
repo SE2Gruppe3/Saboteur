@@ -29,6 +29,7 @@ import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.AvailableLobbies
 import com.aau.saboteur.ui.components.LobbyMenu
 import com.aau.saboteur.ui.components.MenuButton
+import com.aau.saboteur.ui.components.SpielregelnDialog
 import com.aau.saboteur.ui.theme.OreGold
 import com.aau.saboteur.ui.theme.Steel
 import com.aau.saboteur.viewModels.LobbyViewModel
@@ -48,6 +49,7 @@ fun LobbyScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
     var selectedVisibility by remember { mutableStateOf(LobbyVisibility.PUBLIC) }
+    var showSpielregeln by remember { mutableStateOf(false) }
 
     HandleLobbyNavigation(
         currentState = lobbyState,
@@ -82,7 +84,8 @@ fun LobbyScreen(
                         onDismiss = { menuOpen = false },
                         volume = volume,
                         onVolumeChange = { volume = it },
-                        showLeaveGame = false
+                        showLeaveGame = false,
+                        onShowSpielregeln = { showSpielregeln = true }
                     )
                 }
             }
@@ -130,6 +133,10 @@ fun LobbyScreen(
                 onLobbySelected = { lobbyCodeInput = it },
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        if (showSpielregeln) {
+            SpielregelnDialog(onDismiss = { showSpielregeln = false })
         }
     }
 }
