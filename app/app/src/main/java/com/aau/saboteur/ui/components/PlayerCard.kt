@@ -2,12 +2,14 @@ package com.aau.saboteur.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aau.saboteur.ui.theme.GlowGold
 import com.aau.saboteur.ui.theme.MineCoal
 import com.aau.saboteur.ui.theme.MineSlate
@@ -46,11 +49,6 @@ fun PlayerCard(
         Brush.linearGradient(
             colors = listOf(MineCoal, MineSlate)
         )
-    }
-    val toolEmojis = buildString {
-        if (player.blockedTools.any { it.name == "PICKAXE" }) append("⛏️")
-        if (player.blockedTools.any { it.name == "LANTERN" }) append("🏮")
-        if (player.blockedTools.any { it.name == "CART" }) append("🛒")
     }
 
     Card(
@@ -94,13 +92,27 @@ fun PlayerCard(
                         fontWeight = FontWeight.SemiBold,
                         color = if (isCurrentPlayer) MineCoal else Quartz
                     )
-                    if (toolEmojis.isNotEmpty()) {
+                    if (player.blockedTools.isNotEmpty()) {
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = toolEmojis,
-                            color = if (isCurrentPlayer) MineCoal else Quartz,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            player.blockedTools.forEach { tool ->
+                                val emoji = when (tool.name) {
+                                    "PICKAXE" -> "⛏️"
+                                    "LANTERN" -> "🏮"
+                                    "CART" -> "🛒"
+                                    else -> ""
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .border(2.dp, Color.Red, MaterialTheme.shapes.small),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(emoji, fontSize = 14.sp)
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                        }
                     }
                 }
             }
