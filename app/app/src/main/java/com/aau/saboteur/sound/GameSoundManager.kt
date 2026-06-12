@@ -9,10 +9,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.aau.saboteur.R
 import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.Player
 import com.aau.saboteur.network.game.MapResult
 
 @Composable
@@ -20,7 +25,9 @@ fun GameAudio(
     gameState: GameState,
     mapResult: MapResult?,
     volume: Float,
-    enabled: Boolean
+    enabled: Boolean,
+    localPlayer: Player? = null,
+    soundEffectsEnabled: Boolean = enabled
 ) {
     GameBackgroundMusic(
         volume = volume,
@@ -29,8 +36,9 @@ fun GameAudio(
     GameSoundEffects(
         gameState = gameState,
         mapResult = mapResult,
+        localPlayer = localPlayer,
         volume = volume,
-        enabled = enabled
+        enabled = soundEffectsEnabled
     )
 }
 
@@ -40,8 +48,10 @@ private fun GameBackgroundMusic(
     enabled: Boolean
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     val clampedVolume = volume.coerceIn(0f, 1f)
+    val currentEnabled by rememberUpdatedState(enabled)
 
     DisposableEffect(context, enabled) {
         if (!enabled) {
@@ -65,12 +75,28 @@ private fun GameBackgroundMusic(
     LaunchedEffect(clampedVolume, mediaPlayer) {
         mediaPlayer?.setVolume(clampedVolume, clampedVolume)
     }
+
+    DisposableEffect(lifecycleOwner, mediaPlayer) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> mediaPlayer?.pause()
+                Lifecycle.Event.ON_RESUME -> if (currentEnabled) mediaPlayer?.start()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 }
 
 @Composable
 private fun GameSoundEffects(
     gameState: GameState,
     mapResult: MapResult?,
+    localPlayer: Player?,
     volume: Float,
     enabled: Boolean
 ) {
@@ -117,7 +143,7 @@ private fun GameSoundEffects(
     LaunchedEffect(gameState, enabled) {
         val previous = previousGameState
         if (enabled && previous != null) {
-            detectGameSoundEffects(previous, gameState).forEach(::play)
+            detectGameSoundEffects(previous, gameState, localPlayer).forEach(::play)
         }
         previousGameState = gameState
     }

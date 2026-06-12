@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
@@ -37,14 +38,16 @@ class GameAudioTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+    private lateinit var mediaPlayer: MediaPlayer
+
     @Before
     fun setup() {
         // Robolectric's ShadowMediaPlayer makes MediaPlayer.create return null, which skips
         // the ?.apply { isLooping / setVolume / start } block. Mock the static factory so the
         // apply block fires and we cover the inner setup path.
         mockkStatic(MediaPlayer::class)
-        val player = mockk<MediaPlayer>(relaxed = true)
-        every { MediaPlayer.create(any(), any<Int>()) } returns player
+        mediaPlayer = mockk(relaxed = true)
+        every { MediaPlayer.create(any(), any<Int>()) } returns mediaPlayer
     }
 
     @After
@@ -165,6 +168,31 @@ class GameAudioTest {
         // Toggle back on → recreate path
         enabled = true
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun gameAudio_lifecyclePauseAndResume_pausesAndRestartsBackgroundMusic() {
+        composeTestRule.setContent {
+            GameAudio(
+                gameState = GameState(),
+                mapResult = null,
+                volume = 0.5f,
+                enabled = true
+            )
+        }
+        composeTestRule.waitForIdle()
+        clearMocks(mediaPlayer, answers = false)
+
+        composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        composeTestRule.waitForIdle()
+
+        verify { mediaPlayer.pause() }
+
+        clearMocks(mediaPlayer, answers = false)
+        composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        composeTestRule.waitForIdle()
+
+        verify { mediaPlayer.start() }
     }
 
     @Test

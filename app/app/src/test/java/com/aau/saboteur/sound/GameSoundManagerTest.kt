@@ -5,7 +5,10 @@ import com.aau.saboteur.model.CardType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.PlacedTunnelCard
+import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.PlayerTurn
+import com.aau.saboteur.model.Role
+import com.aau.saboteur.model.RoundResult
 import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
 import org.junit.Assert.assertEquals
@@ -134,6 +137,81 @@ class GameSoundManagerTest {
     }
 
     @Test
+    fun `detectGameSoundEffects returns win sound when gold digger wins for gold digger player`() {
+        assertEquals(
+            listOf(GameSoundEffect.GoalFlip),
+            detectGameSoundEffects(
+                previous = GameState(),
+                current = roundEndState(Role.GOLDDIGGER),
+                localPlayer = localPlayer(Role.GOLDDIGGER)
+            )
+        )
+    }
+
+    @Test
+    fun `detectGameSoundEffects returns loss sound when gold digger wins for saboteur player`() {
+        assertEquals(
+            listOf(GameSoundEffect.CoalFlip),
+            detectGameSoundEffects(
+                previous = GameState(),
+                current = roundEndState(Role.GOLDDIGGER),
+                localPlayer = localPlayer(Role.SABOTEUR)
+            )
+        )
+    }
+
+    @Test
+    fun `detectGameSoundEffects returns win sound when saboteur wins for saboteur player`() {
+        assertEquals(
+            listOf(GameSoundEffect.GoalFlip),
+            detectGameSoundEffects(
+                previous = GameState(),
+                current = roundEndState(Role.SABOTEUR),
+                localPlayer = localPlayer(Role.SABOTEUR)
+            )
+        )
+    }
+
+    @Test
+    fun `detectGameSoundEffects returns loss sound when saboteur wins for gold digger player`() {
+        assertEquals(
+            listOf(GameSoundEffect.CoalFlip),
+            detectGameSoundEffects(
+                previous = GameState(),
+                current = roundEndState(Role.SABOTEUR),
+                localPlayer = localPlayer(Role.GOLDDIGGER)
+            )
+        )
+    }
+
+    @Test
+    fun `detectGameSoundEffects ignores already announced round winner`() {
+        assertTrue(
+            detectGameSoundEffects(
+                previous = roundEndState(Role.GOLDDIGGER),
+                current = roundEndState(Role.GOLDDIGGER),
+                localPlayer = localPlayer(Role.GOLDDIGGER)
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun `detectGameSoundEffects uses role based round sound instead of duplicate goal reveal sound`() {
+        val position = BoardPosition(0, 0)
+        val previous = GameState(
+            boardPlacements = listOf(goalPlacement(position, isRevealed = false, isGoal = true))
+        )
+        val current = roundEndState(Role.GOLDDIGGER).copy(
+            boardPlacements = listOf(goalPlacement(position, isRevealed = true, isGoal = true))
+        )
+
+        assertEquals(
+            listOf(GameSoundEffect.CoalFlip),
+            detectGameSoundEffects(previous, current, localPlayer(Role.SABOTEUR))
+        )
+    }
+
+    @Test
     fun `detectGameSoundEffects returns specific break sounds for newly blocked tools`() {
         val previous = GameState(
             players = listOf(player(blockedTools = emptySet()))
@@ -235,6 +313,16 @@ class GameSoundManagerTest {
             playerId = "P1",
             playerName = "Lukas",
             blockedTools = blockedTools
+        )
+    }
+
+    private fun localPlayer(role: Role): Player {
+        return Player(id = "P1", name = "Lukas", role = role)
+    }
+
+    private fun roundEndState(winnerRole: Role): GameState {
+        return GameState(
+            lastRoundResult = RoundResult(roundNumber = 1, winnerRole = winnerRole)
         )
     }
 }

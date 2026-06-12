@@ -154,7 +154,9 @@ fun GameScreen(
         gameState = uiState.gameState,
         mapResult = uiState.lastMapResult,
         volume = volume,
-        enabled = !uiState.gameState.isGameOver
+        enabled = !uiState.gameState.isGameOver,
+        localPlayer = uiState.player,
+        soundEffectsEnabled = true
     )
 
     var showBlockDialog by remember { mutableStateOf(false) }
