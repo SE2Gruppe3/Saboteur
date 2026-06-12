@@ -9,7 +9,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.TestScope
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -42,15 +44,12 @@ class GameApiTest {
         mockkObject(LobbyApi)
         every { LobbyApi.reconnectData } returns reconnectData
 
-        // Re-invoke observation methods to bind to mocked flows/handlers
-        val methods = listOf("observeEvents", "observeConnectionErrors", "observeLobbyReconnects")
-        methods.forEach { methodName ->
-            val method = GameApi::class.java.getDeclaredMethod(methodName)
-            method.isAccessible = true
-            method.invoke(GameApi)
-        }
-
         GameApi.reset()
+
+        // Re-invoke observation methods to bind to mocked flows/handlers
+        val method = GameApi::class.java.getDeclaredMethod("observeEvents")
+        method.isAccessible = true
+        method.invoke(GameApi)
     }
 
     @After
@@ -161,6 +160,18 @@ class GameApiTest {
             })
         }
     }
+
+    @Test
+    fun `triggerCheat sends PLAYER_CHEAT with lobbyCode and cheatType`() {
+        GameApi.triggerCheat("L1", CheatType.LANTERN_FLASHLIGHT)
+
+        verify {
+            WebSocketManager.sendCommand("PLAYER_CHEAT", match<JSONObject> { json ->
+                json.getString("lobbyCode") == "L1" &&
+                    json.getString("cheatType") == CheatType.LANTERN_FLASHLIGHT.name
+            })
+        }
+    }
     // endregion
 
     // region inbound event handlers
@@ -258,23 +269,18 @@ class GameApiTest {
 
     @Test
     fun `connection errors from WebSocketManager are forwarded to errorMessages`() = runTest {
-        // Since GameApi collects on IO dispatcher, we need to wait a bit for it to start
-        // or ensure it's bound. Re-binding in setup should have launched it.
-        val msgDeferred = async { GameApi.errorMessages.first() }
-        
-        // Wait for the collector to be ready
-        var attempts = 0
-        while (attempts < 5) {
-            wsErrors.emit("Connection lost")
-            val result = withTimeoutOrNull(200) { msgDeferred.await() }
-            if (result == "Connection lost") break
-            attempts++
-        }
+        bindGameApiObserversToTestScope()
+        val msgDeferred = async(UnconfinedTestDispatcher(testScheduler)) { GameApi.errorMessages.first() }
+
+        wsErrors.emit("Connection lost")
+        advanceUntilIdle()
+
         assertEquals("Connection lost", msgDeferred.await())
     }
 
     @Test
     fun `LobbyApi reconnectData updates GameApi state`() = runTest {
+        bindGameApiObserversToTestScope()
         val mockLobbyState = LobbyState(
             lobbyCode = "L1",
             hostId = "P1",
@@ -290,15 +296,7 @@ class GameApiTest {
         )
 
         reconnectData.emit(mockReconnectResponse)
-
-        // The flow collection happens on IO, so we may need a small wait
-        var lastState: GameState? = null
-        withTimeout(2000) {
-            while (lastState?.currentPlayerId != "P1") {
-                lastState = GameApi.gameStateUpdates.value
-                delay(10)
-            }
-        }
+        advanceUntilIdle()
 
         assertEquals("P1", GameApi.gameStateUpdates.value.currentPlayerId)
         assertEquals(10, GameApi.gameStateUpdates.value.deckSize)
@@ -328,4 +326,8 @@ class GameApiTest {
         assertEquals(emptyList<BoardPosition>(), positions)
     }
     // endregion
+
+    private fun TestScope.bindGameApiObserversToTestScope() {
+        GameApi.resetObserversForTesting(UnconfinedTestDispatcher(testScheduler))
+    }
 }
