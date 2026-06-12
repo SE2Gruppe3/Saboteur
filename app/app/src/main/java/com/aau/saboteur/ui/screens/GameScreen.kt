@@ -91,6 +91,7 @@ private fun ToolIcons(blockedTools: Set<ToolType>) {
 fun GameScreen(
     lobbyViewModel: LobbyViewModel,
     onBackToLobby: () -> Unit = {},
+    onBackToActiveLobby: () -> Unit = {},
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -370,14 +371,9 @@ fun GameScreen(
             FinalResultScreen(
                 roundResult = uiState.gameState.lastRoundResult!!,
                 players = uiState.gameState.players,
-                onNewGame = {
+                onBackToLobby = {
                     showFinalResult = false
-                    onBackToLobby()
-                },
-                onLeaveGame = {
-                    showFinalResult = false
-                    lobbyViewModel.leaveLobby()
-                    onBackToLobby()
+                    onBackToActiveLobby()
                 }
             )
         }

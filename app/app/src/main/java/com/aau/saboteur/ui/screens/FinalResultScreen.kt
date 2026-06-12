@@ -25,8 +25,7 @@ import com.aau.saboteur.ui.theme.OreGold
 fun FinalResultScreen(
     roundResult: RoundResult,
     players: List<PlayerTurn>,
-    onNewGame: () -> Unit,
-    onLeaveGame: () -> Unit
+    onBackToLobby: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -275,51 +274,24 @@ fun FinalResultScreen(
                 }
             }
 
-            Row(
+            Button(
+                onClick = onBackToLobby,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentHeight(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Button(
-                    onClick = onNewGame,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                Text(
+                    "Zurück zur Lobby",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.SansSerif
                     )
-                ) {
-                    Text(
-                        "Neues Spiel",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.SansSerif
-                        )
-                    )
-                }
-
-                Button(
-                    onClick = onLeaveGame,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
-                    )
-                ) {
-                    Text(
-                        "Beenden",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.SansSerif
-                        )
-                    )
-                }
+                )
             }
         }
     }

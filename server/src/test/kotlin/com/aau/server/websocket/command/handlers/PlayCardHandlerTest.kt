@@ -69,7 +69,7 @@ class PlayCardHandlerTest {
         playCardHandler.handle(session, command)
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
-        verify(lobbyService).deleteLobbyInternal(eq(lobbyCode), any())
+        verify(lobbyService).resetAfterGame(eq(lobbyCode))
     }
 
     @Test
@@ -91,7 +91,7 @@ class PlayCardHandlerTest {
         playCardHandler.handle(session, command)
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
-        verify(lobbyService, never()).deleteLobbyInternal(eq(lobbyCode), any())
+        verify(lobbyService, never()).resetAfterGame(eq(lobbyCode))
     }
 
     @Test

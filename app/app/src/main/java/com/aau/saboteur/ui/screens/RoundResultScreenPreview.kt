@@ -70,8 +70,7 @@ fun FinalResultScreenPreview() {
         FinalResultScreen(
             roundResult = mockRoundResult,
             players = mockPlayers,
-            onNewGame = {},
-            onLeaveGame = {}
+            onBackToLobby = {}
         )
     }
 }

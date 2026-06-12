@@ -51,7 +51,7 @@ class PlayCardHandler(
             if (result.winner != null) {
                 messagingService.sendEventToLobby(lobbyCode, GameEvent.GameOver(result.winner))
                 if (result.updatedGameState.isGameOver) {
-                    lobbyService.deleteLobbyInternal(lobbyCode, "game_over")
+                    lobbyService.resetAfterGame(lobbyCode)
                 }
             }
         }

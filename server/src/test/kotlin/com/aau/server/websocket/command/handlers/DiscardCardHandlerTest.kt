@@ -64,7 +64,7 @@ class DiscardCardHandlerTest {
         handler.handle(session, command)
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
-        verify(lobbyService).deleteLobbyInternal(lobbyCode, "game_over")
+        verify(lobbyService).resetAfterGame(lobbyCode)
     }
 
     @Test
@@ -86,7 +86,7 @@ class DiscardCardHandlerTest {
         handler.handle(session, command)
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
-        verify(lobbyService, never()).deleteLobbyInternal(lobbyCode, "game_over")
+        verify(lobbyService, never()).resetAfterGame(lobbyCode)
     }
 
     @Test
