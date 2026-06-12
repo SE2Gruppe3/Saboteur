@@ -3,8 +3,8 @@ package com.aau.saboteur.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,7 +50,7 @@ private val FlagChipSize = 36.dp
 private val FlagTextSize = 20.sp
 private val SelectorPaddingH = 12.dp
 private val SelectorPaddingV = 6.dp
-private val FlagChipSpacing = 4.dp
+private val FlagChipSpacingH = 8.dp
 private val VolumeIconSpacing = 8.dp
 
 @Composable
@@ -129,16 +128,19 @@ fun LanguageSelector() {
     val alternativeFlag = if (selectedLanguage == LanguageManager.LANG_DE) "🇬🇧" else "🇩🇪"
     val alternativeLang = if (selectedLanguage == LanguageManager.LANG_DE) LanguageManager.LANG_EN else LanguageManager.LANG_DE
 
-    Column(modifier = Modifier.padding(horizontal = SelectorPaddingH, vertical = SelectorPaddingV)) {
+    Row(
+        modifier = Modifier.padding(horizontal = SelectorPaddingH, vertical = SelectorPaddingV),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         FlagChip(flag = currentFlag, onClick = { showAlternative = !showAlternative })
 
         AnimatedVisibility(
             visible = showAlternative,
-            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+            enter = slideInHorizontally(initialOffsetX = { -it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
         ) {
-            Column {
-                Spacer(modifier = Modifier.height(FlagChipSpacing))
+            Row {
+                Spacer(modifier = Modifier.width(FlagChipSpacingH))
                 FlagChip(
                     flag = alternativeFlag,
                     onClick = {
