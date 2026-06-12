@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -60,7 +61,8 @@ fun LobbyMenu(
     volume: Float,
     onVolumeChange: (Float) -> Unit,
     onLeaveGame: (() -> Unit)? = null,
-    showLeaveGame: Boolean = true
+    showLeaveGame: Boolean = true,
+    onShowSpielregeln: (() -> Unit)? = null
 ) {
     val language by LanguageManager.currentLanguage
     val localizedContext = rememberLocalizedContext(language)
@@ -78,6 +80,22 @@ fun LobbyMenu(
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             VolumeSliderRow(volume = volume, onVolumeChange = onVolumeChange)
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.spielregeln_button)) },
+                onClick = {
+                    onShowSpielregeln?.invoke()
+                    onDismiss()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                        contentDescription = null
+                    )
+                }
+            )
 
             if (showLeaveGame && onLeaveGame != null) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
