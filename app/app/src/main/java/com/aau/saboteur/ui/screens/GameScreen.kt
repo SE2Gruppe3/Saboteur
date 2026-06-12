@@ -39,6 +39,11 @@ private val DeckBadgeIconHeight = 14.dp
 private val DeckBadgePaddingH = 12.dp
 private val DeckBadgePaddingV = 6.dp
 private val DeckBadgeIconSpacing = 6.dp
+private val GameMenuWidth = 220.dp
+private val GameMenuCornerRadius = 12.dp
+private val GameMenuPaddingH = 12.dp
+private val GameMenuPaddingV = 6.dp
+private val GameMenuIconSpacing = 8.dp
 
 private fun isToolBlocked(blockedTools: Set<ToolType>, tool: String): Boolean {
     return blockedTools.any { it.name == tool }
@@ -52,6 +57,85 @@ private fun isRepairCard(type: CardType) =
             || type == CardType.DOUBLE_LANTERN_CART || type == CardType.DOUBLE_PICKAXE_CART || type == CardType.DOUBLE_PICKAXE_LANTERN
 
 private fun needsTargetDialog(type: CardType) = isBlockCard(type) || isRepairCard(type)
+
+@Composable
+private fun GameOptionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    musicVolume: Float,
+    onMusicVolumeChange: (Float) -> Unit,
+    soundEffectsVolume: Float,
+    onSoundEffectsVolumeChange: (Float) -> Unit,
+    onLeaveGame: () -> Unit,
+    onShowSpielregeln: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .width(GameMenuWidth)
+            .clip(RoundedCornerShape(GameMenuCornerRadius))
+    ) {
+        GameVolumeSliderRow(
+            icon = "🎵",
+            volume = musicVolume,
+            onVolumeChange = onMusicVolumeChange
+        )
+        GameVolumeSliderRow(
+            icon = "🔊",
+            volume = soundEffectsVolume,
+            onVolumeChange = onSoundEffectsVolumeChange
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.spielregeln_button)) },
+            onClick = {
+                onShowSpielregeln()
+                onDismiss()
+            }
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.leave_game), color = MaterialTheme.colorScheme.error) },
+            onClick = {
+                onLeaveGame()
+                onDismiss()
+            }
+        )
+    }
+}
+
+@Composable
+private fun GameVolumeSliderRow(
+    icon: String,
+    volume: Float,
+    onVolumeChange: (Float) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = GameMenuPaddingH, vertical = GameMenuPaddingV)
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = if (volume == 0f) "🔇" else icon,
+            fontSize = 20.sp
+        )
+
+        Spacer(modifier = Modifier.width(GameMenuIconSpacing))
+
+        Slider(
+            value = volume,
+            onValueChange = onVolumeChange,
+            valueRange = 0f..1f,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
 
 private fun getRepairToolsFromCard(type: CardType): List<String> = when(type) {
     CardType.LANTERN_GREEN -> listOf("LANTERN")
@@ -147,13 +231,15 @@ fun GameScreen(
     }
 
     var menuOpen by remember { mutableStateOf(false) }
-    var volume by remember { mutableFloatStateOf(0.8f) }
+    var musicVolume by remember { mutableFloatStateOf(0.8f) }
+    var soundEffectsVolume by remember { mutableFloatStateOf(0.8f) }
     var showSpielregeln by remember { mutableStateOf(false) }
 
     GameAudio(
         gameState = uiState.gameState,
         mapResult = uiState.lastMapResult,
-        volume = volume,
+        musicVolume = musicVolume,
+        soundEffectsVolume = soundEffectsVolume,
         enabled = !uiState.gameState.isGameOver,
         localPlayer = uiState.player,
         soundEffectsEnabled = true
@@ -227,11 +313,13 @@ fun GameScreen(
                     }
                     Box {
                         MenuButton(isOpen = menuOpen, onToggle = { menuOpen = !menuOpen })
-                        LobbyMenu(
+                        GameOptionsMenu(
                             expanded = menuOpen,
                             onDismiss = { menuOpen = false },
-                            volume = volume,
-                            onVolumeChange = { volume = it },
+                            musicVolume = musicVolume,
+                            onMusicVolumeChange = { musicVolume = it },
+                            soundEffectsVolume = soundEffectsVolume,
+                            onSoundEffectsVolumeChange = { soundEffectsVolume = it },
                             onLeaveGame = onBackToLobby,
                             onShowSpielregeln = { showSpielregeln = true }
                         )

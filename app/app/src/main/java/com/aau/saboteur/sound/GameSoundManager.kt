@@ -24,20 +24,21 @@ import com.aau.saboteur.network.game.MapResult
 fun GameAudio(
     gameState: GameState,
     mapResult: MapResult?,
-    volume: Float,
+    musicVolume: Float,
+    soundEffectsVolume: Float = musicVolume,
     enabled: Boolean,
     localPlayer: Player? = null,
     soundEffectsEnabled: Boolean = enabled
 ) {
     GameBackgroundMusic(
-        volume = volume,
+        volume = musicVolume,
         enabled = enabled
     )
     GameSoundEffects(
         gameState = gameState,
         mapResult = mapResult,
         localPlayer = localPlayer,
-        volume = volume,
+        volume = soundEffectsVolume,
         enabled = soundEffectsEnabled
     )
 }

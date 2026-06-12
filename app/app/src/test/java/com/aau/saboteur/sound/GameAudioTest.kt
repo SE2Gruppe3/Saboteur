@@ -86,7 +86,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -99,7 +99,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = false
             )
         }
@@ -112,7 +112,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 2.5f,
+                musicVolume = 2.5f,
                 enabled = true
             )
         }
@@ -125,7 +125,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = -0.3f,
+                musicVolume = -0.3f,
                 enabled = true
             )
         }
@@ -139,12 +139,29 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = volume,
+                musicVolume = volume,
                 enabled = true
             )
         }
         composeTestRule.waitForIdle()
         volume = 0.8f
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun gameAudio_acceptsSeparateMusicAndSoundEffectVolumes() {
+        composeTestRule.setContent {
+            GameAudio(
+                gameState = GameState(),
+                mapResult = MapResult(
+                    position = BoardPosition(2, 3),
+                    card = TunnelCard(id = "g", type = CardType.GOAL, connections = emptySet(), isGoal = true)
+                ),
+                musicVolume = 0.2f,
+                soundEffectsVolume = 0.9f,
+                enabled = true
+            )
+        }
         composeTestRule.waitForIdle()
     }
 
@@ -155,7 +172,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = enabled
             )
         }
@@ -176,7 +193,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -205,7 +222,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = mapResult,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -222,7 +239,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = mapResult,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = false
             )
         }
@@ -236,7 +253,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = state,
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -252,7 +269,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = state,
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -270,7 +287,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = state,
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -286,7 +303,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = state,
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -302,7 +319,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = enabled
             )
         }
@@ -321,7 +338,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = GameState(),
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = true
             )
         }
@@ -335,7 +352,7 @@ class GameAudioTest {
             GameAudio(
                 gameState = state,
                 mapResult = null,
-                volume = 0.5f,
+                musicVolume = 0.5f,
                 enabled = false
             )
         }
