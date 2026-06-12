@@ -147,6 +147,7 @@ fun GameScreen(
 
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
+    var showSpielregeln by remember { mutableStateOf(false) }
 
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
@@ -221,7 +222,8 @@ fun GameScreen(
                             onDismiss = { menuOpen = false },
                             volume = volume,
                             onVolumeChange = { volume = it },
-                            onLeaveGame = onBackToLobby
+                            onLeaveGame = onBackToLobby,
+                            onShowSpielregeln = { showSpielregeln = true }
                         )
                     }
                 }
@@ -356,6 +358,10 @@ fun GameScreen(
                     pendingToolSelection = null
                 }
             )
+        }
+
+        if (showSpielregeln) {
+            SpielregelnDialog(onDismiss = { showSpielregeln = false })
         }
 
         if (showRoundResult && uiState.gameState.lastRoundResult != null) {
