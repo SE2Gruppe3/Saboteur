@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantLock
 
 class PlayCardHandlerTest {
 
-    // Gemeinsame Mocks
+
     private val messagingService: MessagingService = mock()
     private val turnManager: TurnManager = mock()
     private val lobbyService: LobbyService = mock()
@@ -51,11 +51,15 @@ class PlayCardHandlerTest {
     }
 
     @Test
-    fun `handle play card with winner cleans up lobby`() {
+    fun `handle play card with winner cleans up lobby when game over`() {
         val lobbyCode = "1234"
         val playerId = "player-1"
         val command = PlayCardCommand(playerId, "card-1", BoardPosition(0, 0), false)
-        val turnResult = TurnResult(GameState(emptyList(), "next-player"), emptyMap(), "DWARVES")
+        val turnResult = TurnResult(
+            GameState(emptyList(), "next-player", isGameOver = true),
+            emptyMap(),
+            "DWARVES"
+        )
 
         whenever(messagingService.getLobbyCodeForSession("session-1")).thenReturn(lobbyCode)
         whenever(messagingService.getLobbyLock(lobbyCode)).thenReturn(ReentrantLock())
@@ -65,7 +69,29 @@ class PlayCardHandlerTest {
         playCardHandler.handle(session, command)
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
-        verify(lobbyService).deleteLobbyInternal(eq(lobbyCode), any())
+        verify(lobbyService).resetAfterGame(eq(lobbyCode))
+    }
+
+    @Test
+    fun `handle play card with winner in middle round does not clean up lobby`() {
+        val lobbyCode = "1234"
+        val playerId = "player-1"
+        val command = PlayCardCommand(playerId, "card-1", BoardPosition(0, 0), false)
+        val turnResult = TurnResult(
+            GameState(emptyList(), "next-player", isGameOver = false),
+            emptyMap(),
+            "DWARVES"
+        )
+
+        whenever(messagingService.getLobbyCodeForSession("session-1")).thenReturn(lobbyCode)
+        whenever(messagingService.getLobbyLock(lobbyCode)).thenReturn(ReentrantLock())
+        whenever(messagingService.getPlayerIdForSession("session-1")).thenReturn(playerId)
+        whenever(turnManager.playCard(eq(lobbyCode), eq(playerId), eq("card-1"), any(), eq(false))).thenReturn(turnResult)
+
+        playCardHandler.handle(session, command)
+
+        verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
+        verify(lobbyService, never()).resetAfterGame(eq(lobbyCode))
     }
 
     @Test

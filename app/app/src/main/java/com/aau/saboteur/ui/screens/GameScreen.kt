@@ -2,7 +2,6 @@ package com.aau.saboteur.ui.screens
 
 import android.content.Context
 import android.hardware.camera2.CameraManager
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,12 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aau.saboteur.R
 import com.aau.saboteur.model.*
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
+import androidx.compose.foundation.BorderStroke
 
 private val DeckBadgeBackground = Color(0xFF2A2A2A)
 private val DeckBadgeIconBackground = Color(0xFF1A1A1A)
@@ -63,10 +64,26 @@ private fun getRepairToolsFromCard(type: CardType): List<String> = when(type) {
 
 @Composable
 private fun ToolIcons(blockedTools: Set<ToolType>) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (blockedTools.any { it.name == "PICKAXE" }) Text("⛏️")
-        if (blockedTools.any { it.name == "LANTERN" }) Text("🏮")
-        if (blockedTools.any { it.name == "CART" }) Text("🛒")
+    if (blockedTools.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            blockedTools.forEach { tool ->
+                val emoji = when (tool.name) {
+                    "PICKAXE" -> "⛏️"
+                    "LANTERN" -> "🏮"
+                    "CART" -> "🛒"
+                    else -> ""
+                }
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .border(2.dp, Color.Red, MaterialTheme.shapes.small),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emoji, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+        }
     }
 }
 
@@ -74,6 +91,7 @@ private fun ToolIcons(blockedTools: Set<ToolType>) {
 fun GameScreen(
     lobbyViewModel: LobbyViewModel,
     onBackToLobby: () -> Unit = {},
+    onBackToActiveLobby: () -> Unit = {},
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -81,11 +99,23 @@ fun GameScreen(
     val lobbyState by lobbyViewModel.lobbyState.collectAsState()
     val lobbyCode = lobbyState?.lobbyCode
     val validPositions by viewModel.validPositions.collectAsState()
-    var gameOverWinner by remember { mutableStateOf<String?>(null) }
+    var showRoundResult by remember { mutableStateOf(false) }
+    var showFinalResult by remember { mutableStateOf(false) }
+
+
 
     LaunchedEffect(Unit) {
-        viewModel.gameOverEvents.collect { winner -> gameOverWinner = winner }
+        viewModel.roundResultScreenRequested.collect {
+            showRoundResult = true
+        }
     }
+
+    LaunchedEffect(Unit) {
+        viewModel.finalResultScreenRequested.collect {
+            showFinalResult = true
+        }
+    }
+
     LaunchedEffect(localPlayerId, lobbyCode) {
         if (localPlayerId != null && lobbyCode != null) {
             viewModel.initGameSession(lobbyCode, localPlayerId!!)
@@ -98,7 +128,6 @@ fun GameScreen(
             uiState.gameState.currentPlayerId == uiState.localPlayerId &&
             !uiState.isSyncing
 
-    // Hardware-Integration (Eigene Taschenlampe) - Refactored for Lifecycle & Type Safety
     val context = LocalContext.current
     val cameraManager = remember { context.getSystemService(Context.CAMERA_SERVICE) as CameraManager }
     val currentIsMyTurn by rememberUpdatedState(isMyTurn)
@@ -182,7 +211,8 @@ fun GameScreen(
                     Box(modifier = Modifier.weight(1f)) {
                         PlayerTurnOrderRow(
                             players = sortedPlayers,
-                            currentPlayerId = uiState.gameState.currentPlayerId
+                            currentPlayerId = uiState.gameState.currentPlayerId,
+                            localPlayerId = uiState.localPlayerId
                         )
                     }
                     Box {
@@ -272,9 +302,7 @@ fun GameScreen(
                 )
             }
         }
-        gameOverWinner?.let { winner ->
-            GameOverDialog(winner = winner, onBackToLobby = onBackToLobby)
-        }
+
         if (uiState.isSyncing) {
             GameSyncOverlay()
         }
@@ -334,6 +362,27 @@ fun GameScreen(
 
         if (showSpielregeln) {
             SpielregelnDialog(onDismiss = { showSpielregeln = false })
+        }
+
+        if (showRoundResult && uiState.gameState.lastRoundResult != null) {
+            RoundResultScreen(
+                roundResult = uiState.gameState.lastRoundResult!!,
+                players = uiState.gameState.players,
+                onNextRound = {
+                    showRoundResult = false
+                }
+            )
+        }
+
+        if (showFinalResult && uiState.gameState.lastRoundResult != null) {
+            FinalResultScreen(
+                roundResult = uiState.gameState.lastRoundResult!!,
+                players = uiState.gameState.players,
+                onBackToLobby = {
+                    showFinalResult = false
+                    onBackToActiveLobby()
+                }
+            )
         }
     }
 }
@@ -459,26 +508,6 @@ private fun GameSyncOverlay() {
     }
 }
 
-@Composable
-private fun GameOverDialog(winner: String, onBackToLobby: () -> Unit) {
-    val resultText = when (winner) {
-        "DWARVES" -> stringResource(R.string.dwarves_win)
-        "SABOTEURS" -> stringResource(R.string.saboteurs_win)
-        else -> stringResource(R.string.game_over)
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = resultText, style = MaterialTheme.typography.displayMedium, color = Color.White)
-            Spacer(modifier = Modifier.height(48.dp))
-            Button(onClick = onBackToLobby) { Text(stringResource(R.string.back_to_lobby_button)) }
-        }
-    }
-}
 
 @Composable
 private fun localizeServerError(code: String): String = when (code) {
