@@ -210,7 +210,8 @@ fun GameScreen(
                     Box(modifier = Modifier.weight(1f)) {
                         PlayerTurnOrderRow(
                             players = sortedPlayers,
-                            currentPlayerId = uiState.gameState.currentPlayerId
+                            currentPlayerId = uiState.gameState.currentPlayerId,
+                            localPlayerId = uiState.localPlayerId
                         )
                     }
                     Box {

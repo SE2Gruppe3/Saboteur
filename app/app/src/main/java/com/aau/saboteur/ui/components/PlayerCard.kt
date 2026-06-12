@@ -25,7 +25,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aau.saboteur.ui.theme.BoardGreen
 import com.aau.saboteur.ui.theme.GlowGold
+import com.aau.saboteur.ui.theme.GlowGreen
 import com.aau.saboteur.ui.theme.MineCoal
 import com.aau.saboteur.ui.theme.MineSlate
 import com.aau.saboteur.ui.theme.OreCopper
@@ -38,6 +40,7 @@ import com.aau.saboteur.model.PlayerTurn
 fun PlayerCard(
     player: PlayerTurn,
     isCurrentPlayer: Boolean,
+    isLocalPlayer: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(20.dp)
@@ -50,30 +53,33 @@ fun PlayerCard(
             colors = listOf(MineCoal, MineSlate)
         )
     }
+    val borderColor = when {
+        isCurrentPlayer -> GlowGold
+        isLocalPlayer -> BoardGreen
+        else -> Steel.copy(alpha = 0.45f)
+    }
+    val shadowColor = when {
+        isCurrentPlayer -> GlowGold
+        isLocalPlayer -> GlowGreen
+        else -> Color.Black.copy(alpha = 0.2f)
+    }
+    val borderWidth = if (isCurrentPlayer || isLocalPlayer) 2.5.dp else 1.dp
+    val shadowElevation = if (isCurrentPlayer || isLocalPlayer) 16.dp else 8.dp
 
     Card(
         modifier = modifier.then(
-            if (isCurrentPlayer) {
-                Modifier.shadow(
-                    elevation = 16.dp,
-                    shape = shape,
-                    ambientColor = GlowGold,
-                    spotColor = GlowGold
-                )
-            } else {
-                Modifier.shadow(
-                    elevation = 8.dp,
-                    shape = shape,
-                    ambientColor = Color.Black.copy(alpha = 0.2f),
-                    spotColor = Color.Black.copy(alpha = 0.2f)
-                )
-            }
+            Modifier.shadow(
+                elevation = shadowElevation,
+                shape = shape,
+                ambientColor = shadowColor,
+                spotColor = shadowColor
+            )
         ),
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(
-            width = if (isCurrentPlayer) 2.5.dp else 1.dp,
-            color = if (isCurrentPlayer) GlowGold else Steel.copy(alpha = 0.45f)
+            width = borderWidth,
+            color = borderColor
         )
     ) {
         Box(
