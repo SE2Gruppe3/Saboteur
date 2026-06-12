@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class LobbyViewModel(
+class LobbyViewModel @JvmOverloads constructor(
     application: Application,
     private val sessionRepository: SessionRepository = SessionRepository(application)
 ) : AndroidViewModel(application) {

@@ -534,6 +534,14 @@ class GameViewModelTest {
         // Second emit must hit the `errorClearJob?.cancel()` non-null branch
         errorMessages.tryEmit("Second")
         assertEquals("Second", viewModel.uiState.value.errorMessage)
+
+        testDispatcher.scheduler.advanceTimeBy(1999)
+        testDispatcher.scheduler.runCurrent()
+        assertEquals("Second", viewModel.uiState.value.errorMessage)
+
+        testDispatcher.scheduler.advanceTimeBy(2)
+        testDispatcher.scheduler.runCurrent()
+        assertNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test
