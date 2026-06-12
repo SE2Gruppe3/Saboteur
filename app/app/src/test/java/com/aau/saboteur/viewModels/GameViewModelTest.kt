@@ -3,16 +3,19 @@ package com.aau.saboteur.viewModels
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
+import com.aau.saboteur.model.CheatType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.GameState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.PlayerTurn
 import com.aau.saboteur.model.Role
+import com.aau.saboteur.model.RoundResult
 import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
 import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.network.game.MapResult
+import kotlinx.coroutines.launch
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,11 +23,13 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,6 +81,7 @@ class GameViewModelTest {
         every { GameApi.playRepairCard(any(), any(), any(), any(), any()) } just Runs
         every { GameApi.playMapCard(any(), any(), any(), any()) } just Runs
         every { GameApi.playRockfallCard(any(), any(), any(), any()) } just Runs
+        every { GameApi.triggerCheat(any(), any()) } just Runs
 
         viewModel = GameViewModel()
     }
@@ -511,11 +517,6 @@ class GameViewModelTest {
 
     // region branch coverage fillers
     @Test
-    fun `gameOverEvents flow should be exposed`() {
-        assertNotNull(viewModel.gameOverEvents)
-    }
-
-    @Test
     fun `init with non-empty initial players should not force syncing`() {
         gameStateUpdates.value = GameState(
             players = listOf(PlayerTurn("X", "X")),
@@ -700,6 +701,61 @@ class GameViewModelTest {
 
         assertEquals(true, viewModel.uiState.value.cardRotations["other"])
         verify(exactly = 1) { GameApi.requestValidPositions(any(), any(), any()) }
+    }
+
+    @Test
+    fun `triggerCheat without lobbyCode should be a no-op`() {
+        viewModel.triggerCheat(CheatType.LANTERN_FLASHLIGHT)
+
+        verify(exactly = 0) { GameApi.triggerCheat(any(), any()) }
+    }
+
+    @Test
+    fun `gameOverEvents should request round result screen when round is not final`() = runTest(testDispatcher.scheduler) {
+        val roundResult = RoundResult(roundNumber = 1, winnerRole = Role.GOLDDIGGER, winningPlayerIds = listOf("P1"))
+        gameStateUpdates.value = GameState(isRoundOver = true, isGameOver = false, lastRoundResult = roundResult)
+        val collected = mutableListOf<Unit>()
+        val job = launch { viewModel.roundResultScreenRequested.collect { collected.add(it) } }
+
+        testDispatcher.scheduler.runCurrent()
+        gameOverEvents.tryEmit("DWARVES")
+        testDispatcher.scheduler.runCurrent()
+
+        assertTrue(collected.isNotEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun `gameOverEvents should request final result screen when game is over`() = runTest(testDispatcher.scheduler) {
+        val roundResult = RoundResult(roundNumber = 3, winnerRole = Role.GOLDDIGGER, gameFinished = true)
+        gameStateUpdates.value = GameState(isRoundOver = true, isGameOver = true, lastRoundResult = roundResult)
+        val collected = mutableListOf<Unit>()
+        val job = launch { viewModel.finalResultScreenRequested.collect { collected.add(it) } }
+
+        testDispatcher.scheduler.runCurrent()
+        gameOverEvents.tryEmit("DWARVES")
+        testDispatcher.scheduler.runCurrent()
+
+        assertTrue(collected.isNotEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun `gameOverEvents should not request result screens without a round result`() = runTest(testDispatcher.scheduler) {
+        gameStateUpdates.value = GameState(isRoundOver = true, isGameOver = false, lastRoundResult = null)
+        val roundCollected = mutableListOf<Unit>()
+        val finalCollected = mutableListOf<Unit>()
+        val roundJob = launch { viewModel.roundResultScreenRequested.collect { roundCollected.add(it) } }
+        val finalJob = launch { viewModel.finalResultScreenRequested.collect { finalCollected.add(it) } }
+
+        testDispatcher.scheduler.runCurrent()
+        gameOverEvents.tryEmit("DWARVES")
+        testDispatcher.scheduler.runCurrent()
+
+        assertTrue(roundCollected.isEmpty())
+        assertTrue(finalCollected.isEmpty())
+        roundJob.cancel()
+        finalJob.cancel()
     }
     // endregion
 }
