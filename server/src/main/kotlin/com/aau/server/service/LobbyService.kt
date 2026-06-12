@@ -140,6 +140,17 @@ class LobbyService(
     }
 
     @Transactional
+    fun resetAfterGame(code: String) {
+        logger.info("Resetting lobby after game: {}", code)
+        val lobby = lobbies[code] ?: return
+        val updatedLobby = lobby.copy(gameStarted = false)
+        lobbies[code] = updatedLobby
+        turnManager.removeGame(code)
+        gameService.removePlayerData(code)
+        persist(updatedLobby)
+    }
+
+    @Transactional
     fun deleteLobbyInternal(code: String, reason: String) {
         logger.info("Cleaning up {} lobby: {}", reason, code)
 

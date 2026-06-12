@@ -46,11 +46,15 @@ class DiscardCardHandlerTest {
     }
 
     @Test
-    fun `handle discard card with winner cleans up lobby`() {
+    fun `handle discard card with winner cleans up lobby when game over`() {
         val lobbyCode = "1234"
         val playerId = "player-1"
         val command = DiscardCardCommand(playerId, "card-1")
-        val turnResult = TurnResult(GameState(emptyList(), "next-player"), emptyMap(), "SABOTEURS")
+        val turnResult = TurnResult(
+            GameState(emptyList(), "next-player", isGameOver = true),
+            emptyMap(),
+            "SABOTEURS"
+        )
 
         whenever(messagingService.getLobbyCodeForSession("session-1")).thenReturn(lobbyCode)
         whenever(messagingService.getLobbyLock(lobbyCode)).thenReturn(ReentrantLock())
@@ -60,7 +64,29 @@ class DiscardCardHandlerTest {
         handler.handle(session, command)
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
-        verify(lobbyService).deleteLobbyInternal(lobbyCode, "game_over")
+        verify(lobbyService).resetAfterGame(lobbyCode)
+    }
+
+    @Test
+    fun `handle discard card with winner in middle round does not clean up lobby`() {
+        val lobbyCode = "1234"
+        val playerId = "player-1"
+        val command = DiscardCardCommand(playerId, "card-1")
+        val turnResult = TurnResult(
+            GameState(emptyList(), "next-player", isGameOver = false),
+            emptyMap(),
+            "SABOTEURS"
+        )
+
+        whenever(messagingService.getLobbyCodeForSession("session-1")).thenReturn(lobbyCode)
+        whenever(messagingService.getLobbyLock(lobbyCode)).thenReturn(ReentrantLock())
+        whenever(messagingService.getPlayerIdForSession("session-1")).thenReturn(playerId)
+        whenever(turnManager.discardCard(lobbyCode, playerId, "card-1")).thenReturn(turnResult)
+
+        handler.handle(session, command)
+
+        verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
+        verify(lobbyService, never()).resetAfterGame(lobbyCode)
     }
 
     @Test

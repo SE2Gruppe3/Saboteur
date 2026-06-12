@@ -106,11 +106,15 @@ fun AppNavHost(
                     lobbyViewModel = lobbyViewModel,
                     onBackToLobby = {
                         val username = lobbyViewModel.username.value
-                        // WICHTIG: Lobby- und Game-State lokal komplett zurücksetzen
                         lobbyViewModel.resetLobby()
-                        
                         navController.navigate("lobby/$username") {
-                            // Gesamten Backstack löschen um "Zurück-Springen" ins Spiel zu verhindern
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onBackToActiveLobby = {
+                        val username = lobbyViewModel.username.value
+                        GameApi.reset()
+                        navController.navigate("activeLobby/$username") {
                             popUpTo(0) { inclusive = true }
                         }
                     }
