@@ -30,6 +30,7 @@ import com.aau.saboteur.model.LobbyState
 import com.aau.saboteur.model.Player
 import com.aau.saboteur.ui.components.LobbyMenu
 import com.aau.saboteur.ui.components.MenuButton
+import com.aau.saboteur.ui.components.SpielregelnDialog
 import com.aau.saboteur.viewModels.LobbyViewModel
 
 private const val MIN_PLAYERS = 3
@@ -54,6 +55,7 @@ fun ActiveLobbyScreen(
 
     var menuOpen by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(0.8f) }
+    var showSpielregeln by remember { mutableStateOf(false) }
 
     HandleActiveLobbyEffects(
         currentState = currentState,
@@ -95,7 +97,8 @@ fun ActiveLobbyScreen(
                             onDismiss = { menuOpen = false },
                             volume = volume,
                             onVolumeChange = { volume = it },
-                            onLeaveGame = viewModel::leaveLobby
+                            onLeaveGame = viewModel::leaveLobby,
+                            onShowSpielregeln = { showSpielregeln = true }
                         )
                     }
                 }
@@ -119,6 +122,10 @@ fun ActiveLobbyScreen(
 
             if (isSyncing) {
                 SyncOverlay()
+            }
+
+            if (showSpielregeln) {
+                SpielregelnDialog(onDismiss = { showSpielregeln = false })
             }
         }
     }

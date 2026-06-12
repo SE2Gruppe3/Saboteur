@@ -178,4 +178,26 @@ class LobbyServiceTest {
         lobbyService.updateActivity(lobby.lobbyCode)
         assertNotNull(lobby.lobbyCode)
     }
+
+    @Test
+    fun `resetAfterGame resets gameStarted to false and cleans game data`() {
+        val lobby = lobbyService.createLobby("Host", "h1")
+        lobbyService.markGameStarted(lobby.lobbyCode)
+
+        lobbyService.resetAfterGame(lobby.lobbyCode)
+
+        val reset = lobbyService.getLobby(lobby.lobbyCode)
+        assertFalse(reset.gameStarted)
+        verify(turnManager).removeGame(lobby.lobbyCode)
+        verify(gameService).removePlayerData(lobby.lobbyCode)
+        verify(lobbyRepository, atLeast(2)).save(any())
+    }
+
+    @Test
+    fun `resetAfterGame does nothing when lobby not found`() {
+        lobbyService.resetAfterGame("nonexistent")
+
+        verify(turnManager, never()).removeGame(any())
+        verify(gameService, never()).removePlayerData(any())
+    }
 }
