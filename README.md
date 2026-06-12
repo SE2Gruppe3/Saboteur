@@ -150,3 +150,13 @@ Weitere Details: [MONITORING_AND_HEALTH.md](https://github.com/SE2Gruppe3/Sabote
 - Spielbeitritt über **Session-ID**
 - Keine KI-Gegner
 - Gerätesensor-Cheat-Funktion folgt in Sprint 3
+
+---
+
+## Dokumentation / Documentation
+
+- [Deployment & Release (DE)](docs/DEPLOYMENT.md)
+- [Deployment & Release (EN)](docs/DEPLOYMENT_EN.md)
+- [Monitoring & Health Checks](docs/MONITORING_AND_HEALTH.md)
+- [Session & WebSocket-Architektur](docs/SESSION_AND_WEBSOCKET_ARCHITECTURE.md)
+- [Reconnect-Protokoll](docs/RECONNECT_PROTOCOL.md)
