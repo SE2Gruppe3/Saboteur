@@ -14,8 +14,7 @@ okhttp = "4.12.0"
 serialization = "1.7.3"
 robolectricVersion = "4.15"
 mockk = "1.13.12"
-kotlinxCoroutinesTest = "1.9.0"
-coroutines = "1.8.1"
+kotlinxCoroutinesTest = "1.8.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,7 +40,6 @@ mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", versio
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectricVersion" }
-kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
