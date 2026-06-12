@@ -13,7 +13,8 @@ import com.aau.saboteur.model.PlayerTurn
 @Composable
 fun PlayerTurnOrderRow(
     players: List<PlayerTurn>,
-    currentPlayerId: String?
+    currentPlayerId: String?,
+    localPlayerId: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -24,7 +25,8 @@ fun PlayerTurnOrderRow(
         players.forEach { player ->
             PlayerCard(
                 player = player,
-                isCurrentPlayer = player.playerId == currentPlayerId
+                isCurrentPlayer = player.playerId == currentPlayerId,
+                isLocalPlayer = player.playerId == localPlayerId
             )
         }
     }
