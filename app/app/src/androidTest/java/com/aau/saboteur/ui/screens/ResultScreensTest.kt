@@ -154,8 +154,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -169,8 +168,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -184,8 +182,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -199,8 +196,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -214,8 +210,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -231,8 +226,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -240,37 +234,20 @@ class ResultScreensTest {
     }
 
     @Test
-    fun finalResultScreenNewGameButtonTriggersCallback() {
-        var newGameClicked = false
+    fun finalResultScreenBackToLobbyButtonTriggersCallback() {
+        var backToLobbyClicked = false
         composeTestRule.setContent {
             SE2GameTheme {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = { newGameClicked = true },
-                    onLeaveGame = {}
+                    onBackToLobby = { backToLobbyClicked = true }
                 )
             }
         }
-        composeTestRule.onNodeWithText("Neues Spiel").performClick()
-        assert(newGameClicked)
-    }
-
-    @Test
-    fun finalResultScreenLeaveGameButtonTriggersCallback() {
-        var leaveGameClicked = false
-        composeTestRule.setContent {
-            SE2GameTheme {
-                FinalResultScreen(
-                    roundResult = mockFinalResult,
-                    players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = { leaveGameClicked = true }
-                )
-            }
-        }
-        composeTestRule.onNodeWithText("Beenden").performClick()
-        assert(leaveGameClicked)
+        // Hinweis: Falls euer Button im UI anders heißt (z.B. "Zurück zur Lobby"), passe den Text hier an
+        composeTestRule.onNodeWithText("Zurück zur Lobby").performClick()
+        assert(backToLobbyClicked)
     }
 
     @Test
@@ -281,8 +258,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = saboteurFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -296,8 +272,7 @@ class ResultScreensTest {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
@@ -305,18 +280,17 @@ class ResultScreensTest {
     }
 
     @Test
-    fun finalResultScreenDisplaysTwoButtons() {
+    fun finalResultScreenDisplaysBackToLobbyButton() {
         composeTestRule.setContent {
             SE2GameTheme {
                 FinalResultScreen(
                     roundResult = mockFinalResult,
                     players = mockPlayers,
-                    onNewGame = {},
-                    onLeaveGame = {}
+                    onBackToLobby = {}
                 )
             }
         }
-        composeTestRule.onNodeWithText("Neues Spiel").assertExists()
-        composeTestRule.onNodeWithText("Beenden").assertExists()
+        // Überprüft, ob der neue Haupt-Button im Screen existiert
+        composeTestRule.onNodeWithText("Zurück zur Lobby").assertExists()
     }
 }
