@@ -420,6 +420,9 @@ class LobbyViewModelTest {
         val kickedMsg = "Kicked from lobby"
         every { application.getString(R.string.player_kicked_msg) } returns kickedMsg
 
+        // Clear call history from ViewModel init before observing kick behaviour
+        io.mockk.clearMocks(WebSocketManager, sessionRepository, answers = false, recordedCalls = true)
+
         playerKicked.emit("ME")
 
         assertEquals(kickedMsg, viewModel.errorMessage.value)
