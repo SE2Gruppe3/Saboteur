@@ -2,11 +2,9 @@ package com.aau.saboteur.viewModels
 
 import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.aau.saboteur.R
 import com.aau.saboteur.data.repository.SessionRepository
-import com.aau.saboteur.model.LobbyState
-import com.aau.saboteur.model.LobbyVisibility
-import com.aau.saboteur.model.Player
-import com.aau.saboteur.model.ReconnectResponse
+import com.aau.saboteur.model.*
 import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.game.GameApi
 import com.aau.saboteur.network.lobby.LobbyApi
@@ -17,7 +15,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.*
 import org.junit.After
-import org.junit.Assert.assertEquals
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,6 +38,7 @@ class LobbyViewModelTest {
     private val errorMessages = MutableSharedFlow<String?>(replay = 1)
     private val lobbyNotFound = MutableSharedFlow<String>(replay = 1)
     private val reconnectData = MutableSharedFlow<ReconnectResponse>(replay = 1)
+    private val playerKicked = MutableSharedFlow<String>(replay = 1)
     private val connectionStatus = MutableStateFlow(false)
 
     private val eventHandlers = mutableMapOf<String, (String) -> Unit>()
@@ -69,11 +68,13 @@ class LobbyViewModelTest {
         every { LobbyApi.errorMessages } returns errorMessages
         every { LobbyApi.lobbyNotFound } returns lobbyNotFound
         every { LobbyApi.reconnectData } returns reconnectData
+        every { LobbyApi.playerKicked } returns playerKicked
         every { LobbyApi.fetchAllLobbies() } just Runs
         every { LobbyApi.createLobby(any(), any(), any()) } just Runs
         every { LobbyApi.joinLobby(any(), any(), any()) } just Runs
         every { LobbyApi.leaveLobby(any(), any()) } just Runs
         every { LobbyApi.reconnect(any(), any()) } just Runs
+        every { LobbyApi.kickPlayer(any(), any(), any()) } just Runs
 
         // 3. Mock GameApi (Object)
         mockkObject(GameApi)
@@ -367,5 +368,68 @@ class LobbyViewModelTest {
         LobbyViewModel(application, mockRepo)
 
         verify(exactly = 0) { LobbyApi.reconnect(any(), any()) }
+    }
+
+    @Test
+    fun `kickPlayer should call LobbyApi if caller is host`() = runTest {
+        val mockState = mockk<LobbyState>(relaxed = true)
+        every { mockState.lobbyCode } returns "L1"
+        every { mockState.hostId } returns "HOST_ID"
+
+        viewModel.saveIdentity("HOST_ID", "Host")
+        lobbyStateUpdates.emit(mockState)
+
+        viewModel.kickPlayer("TARGET_ID")
+
+        verify { LobbyApi.kickPlayer("L1", "HOST_ID", "TARGET_ID") }
+    }
+
+    @Test
+    fun `kickPlayer should NOT call LobbyApi if caller is NOT host`() = runTest {
+        val mockState = mockk<LobbyState>(relaxed = true)
+        every { mockState.lobbyCode } returns "L1"
+        every { mockState.hostId } returns "OTHER_HOST"
+
+        viewModel.saveIdentity("ME", "NotHost")
+        lobbyStateUpdates.emit(mockState)
+
+        viewModel.kickPlayer("TARGET_ID")
+
+        verify(exactly = 0) { LobbyApi.kickPlayer(any(), any(), any()) }
+    }
+
+    @Test
+    fun `kickPlayer should be a no-op if no lobby state`() {
+        viewModel.kickPlayer("T")
+        verify(exactly = 0) { LobbyApi.kickPlayer(any(), any(), any()) }
+    }
+
+    @Test
+    fun `kickPlayer should be a no-op if no playerId`() = runTest {
+        val mockState = mockk<LobbyState>(relaxed = true)
+        lobbyStateUpdates.emit(mockState)
+        // Initial state has playerId as null
+
+        viewModel.kickPlayer("T")
+        verify(exactly = 0) { LobbyApi.kickPlayer(any(), any(), any()) }
+    }
+
+    @Test
+    fun `playerKicked event for local player should reset everything in order`() = runTest {
+        viewModel.saveIdentity("ME", "MyName")
+        val kickedMsg = "Kicked from lobby"
+        every { application.getString(R.string.player_kicked_msg) } returns kickedMsg
+
+        playerKicked.emit("ME")
+
+        assertEquals(kickedMsg, viewModel.errorMessage.value)
+        assertNull(viewModel.lobbyState.value)
+
+        io.mockk.verifyOrder {
+            sessionRepository.clearLobby()
+            WebSocketManager.disconnect()
+            WebSocketManager.reset()
+            WebSocketManager.connect()
+        }
     }
 }
