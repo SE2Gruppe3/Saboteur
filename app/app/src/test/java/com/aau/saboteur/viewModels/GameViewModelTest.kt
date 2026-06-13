@@ -719,6 +719,19 @@ class GameViewModelTest {
     }
 
     @Test
+    fun `triggerCheat should call GameApi even when it is not local players turn`() {
+        viewModel.initGameSession("L1", "P1")
+        gameStateUpdates.value = GameState(
+            players = listOf(PlayerTurn("P1", "Me"), PlayerTurn("P2", "Other")),
+            currentPlayerId = "P2"
+        )
+
+        viewModel.triggerCheat(CheatType.VOLUME_SEQUENCE_DISCARD)
+
+        verify { GameApi.triggerCheat("L1", CheatType.VOLUME_SEQUENCE_DISCARD) }
+    }
+
+    @Test
     fun `gameOverEvents should request round result screen when round is not final`() = runTest(testDispatcher.scheduler) {
         val roundResult = RoundResult(roundNumber = 1, winnerRole = Role.GOLDDIGGER, winningPlayerIds = listOf("P1"))
         gameStateUpdates.value = GameState(isRoundOver = true, isGameOver = false, lastRoundResult = roundResult)

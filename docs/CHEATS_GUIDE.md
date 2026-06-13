@@ -23,6 +23,7 @@ Füge in der Datei `CheatType.kt` (im `shared`-Modul) einen neuen Enum-Wert hinz
 @Serializable
 enum class CheatType {
     LANTERN_FLASHLIGHT,
+    VOLUME_SEQUENCE_DISCARD,
     MY_NEW_CHEAT // Neuer Cheat hier
 }
 ```
@@ -63,6 +64,12 @@ viewModel.triggerCheat(CheatType.MY_NEW_CHEAT)
 - **Beschreibung:** Hebt die Laternen-Blockade des Spielers auf.
 - **Hardware-Trigger:** Wird in `GameScreen.kt` durch den `CameraManager.TorchCallback` (physische Taschenlampe) ausgelöst.
 - **Bedingung:** Spieler muss am Zug sein (serverseitig validiert).
+- **Runden-Logik:** Verbraucht KEINEN Spielzug (`consumeTurn = false`).
+
+### VOLUME_SEQUENCE_DISCARD
+- **Beschreibung:** Wirft serverseitig eine zufällige Handkarte des Spielers ab und zieht automatisch eine Ersatzkarte, falls der Nachziehstapel noch Karten enthält.
+- **Hardware-Trigger:** Wird in `GameScreen.kt` durch die Sequenz `Lauter, Lauter, Leiser, Leiser` ausgelöst.
+- **Bedingung:** Spieler muss nicht am Zug sein. Eine leere Hand ist ein sicherer No-op.
 - **Runden-Logik:** Verbraucht KEINEN Spielzug (`consumeTurn = false`).
 
 ## Anleitung für Entwickler
