@@ -26,6 +26,7 @@ import com.aau.saboteur.cheat.LocalVolumeKeyCheatHandlerRegistrar
 import com.aau.saboteur.cheat.VolumeKeyCheatDetector
 import com.aau.saboteur.model.*
 import com.aau.saboteur.network.game.MapResult
+import com.aau.saboteur.sound.GameAudio
 import com.aau.saboteur.ui.components.*
 import com.aau.saboteur.viewModels.GameViewModel
 import com.aau.saboteur.viewModels.LobbyViewModel
@@ -41,19 +42,26 @@ private val DeckBadgeIconHeight = 14.dp
 private val DeckBadgePaddingH = 12.dp
 private val DeckBadgePaddingV = 6.dp
 private val DeckBadgeIconSpacing = 6.dp
+private val GameMenuWidth = 220.dp
+private val GameMenuCornerRadius = 12.dp
+private val GameMenuPaddingH = 12.dp
+private val GameMenuPaddingV = 6.dp
+private val GameMenuIconSpacing = 8.dp
 
 private data class TopGameControlsState(
     val players: List<PlayerTurn>,
     val currentPlayerId: String?,
     val localPlayerId: String?,
     val menuOpen: Boolean,
-    val volume: Float
+    val musicVolume: Float,
+    val soundEffectsVolume: Float
 )
 
 private data class TopGameControlsActions(
     val onMenuToggle: () -> Unit,
     val onMenuDismiss: () -> Unit,
-    val onVolumeChange: (Float) -> Unit,
+    val onMusicVolumeChange: (Float) -> Unit,
+    val onSoundEffectsVolumeChange: (Float) -> Unit,
     val onLeaveGame: () -> Unit,
     val onShowSpielregeln: () -> Unit
 )
@@ -101,6 +109,85 @@ private fun isRepairCard(type: CardType) =
             || type == CardType.DOUBLE_LANTERN_CART || type == CardType.DOUBLE_PICKAXE_CART || type == CardType.DOUBLE_PICKAXE_LANTERN
 
 private fun needsTargetDialog(type: CardType) = isBlockCard(type) || isRepairCard(type)
+
+@Composable
+private fun GameOptionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    musicVolume: Float,
+    onMusicVolumeChange: (Float) -> Unit,
+    soundEffectsVolume: Float,
+    onSoundEffectsVolumeChange: (Float) -> Unit,
+    onLeaveGame: () -> Unit,
+    onShowSpielregeln: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .width(GameMenuWidth)
+            .clip(RoundedCornerShape(GameMenuCornerRadius))
+    ) {
+        GameVolumeSliderRow(
+            icon = "🎵",
+            volume = musicVolume,
+            onVolumeChange = onMusicVolumeChange
+        )
+        GameVolumeSliderRow(
+            icon = "🔊",
+            volume = soundEffectsVolume,
+            onVolumeChange = onSoundEffectsVolumeChange
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.spielregeln_button)) },
+            onClick = {
+                onShowSpielregeln()
+                onDismiss()
+            }
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.leave_game), color = MaterialTheme.colorScheme.error) },
+            onClick = {
+                onLeaveGame()
+                onDismiss()
+            }
+        )
+    }
+}
+
+@Composable
+private fun GameVolumeSliderRow(
+    icon: String,
+    volume: Float,
+    onVolumeChange: (Float) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = GameMenuPaddingH, vertical = GameMenuPaddingV)
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = if (volume == 0f) "🔇" else icon,
+            fontSize = 20.sp
+        )
+
+        Spacer(modifier = Modifier.width(GameMenuIconSpacing))
+
+        Slider(
+            value = volume,
+            onValueChange = onVolumeChange,
+            valueRange = 0f..1f,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
 
 private fun getRepairToolsFromCard(type: CardType): List<String> = when(type) {
     CardType.LANTERN_GREEN -> listOf("LANTERN")
@@ -168,8 +255,19 @@ fun GameScreen(
     )
 
     var menuOpen by remember { mutableStateOf(false) }
-    var volume by remember { mutableFloatStateOf(0.8f) }
+    var musicVolume by remember { mutableFloatStateOf(0.8f) }
+    var soundEffectsVolume by remember { mutableFloatStateOf(0.8f) }
     var showSpielregeln by remember { mutableStateOf(false) }
+
+    GameAudio(
+        gameState = uiState.gameState,
+        mapResult = uiState.lastMapResult,
+        musicVolume = musicVolume,
+        soundEffectsVolume = soundEffectsVolume,
+        enabled = !uiState.gameState.isGameOver,
+        localPlayer = uiState.player,
+        soundEffectsEnabled = true
+    )
 
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
@@ -200,12 +298,14 @@ fun GameScreen(
                 currentPlayerId = uiState.gameState.currentPlayerId,
                 localPlayerId = uiState.localPlayerId,
                 menuOpen = menuOpen,
-                volume = volume
+                musicVolume = musicVolume,
+                soundEffectsVolume = soundEffectsVolume
             ),
             actions = TopGameControlsActions(
                 onMenuToggle = { menuOpen = !menuOpen },
                 onMenuDismiss = { menuOpen = false },
-                onVolumeChange = { volume = it },
+                onMusicVolumeChange = { musicVolume = it },
+                onSoundEffectsVolumeChange = { soundEffectsVolume = it },
                 onLeaveGame = onBackToLobby,
                 onShowSpielregeln = { showSpielregeln = true }
             )
@@ -392,11 +492,13 @@ private fun BoxScope.TopGameControls(
             }
             Box {
                 MenuButton(isOpen = state.menuOpen, onToggle = actions.onMenuToggle)
-                LobbyMenu(
+                GameOptionsMenu(
                     expanded = state.menuOpen,
                     onDismiss = actions.onMenuDismiss,
-                    volume = state.volume,
-                    onVolumeChange = actions.onVolumeChange,
+                    musicVolume = state.musicVolume,
+                    onMusicVolumeChange = actions.onMusicVolumeChange,
+                    soundEffectsVolume = state.soundEffectsVolume,
+                    onSoundEffectsVolumeChange = actions.onSoundEffectsVolumeChange,
                     onLeaveGame = actions.onLeaveGame,
                     onShowSpielregeln = actions.onShowSpielregeln
                 )
