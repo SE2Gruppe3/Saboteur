@@ -1,3 +1,6 @@
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+
 plugins {
 	application
 	jacoco
@@ -23,6 +26,7 @@ application {
 
 springBoot {
 	mainClass.set("com.aau.server.ServerApplicationKt")
+	buildInfo()
 }
 
 dependencies {
@@ -77,9 +81,50 @@ sonar {
 		property("sonar.projectName", "saboteur-server")
 		property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
 	}
-
-
 }
+
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 	archiveFileName.set("server.jar")
+}
+
+// Custom Task: Generiert die git.properties - kompatibel mit Local & GitHub Actions
+val generateGitProperties by tasks.registering {
+	val outputFile = layout.buildDirectory.file("resources/main/git.properties")
+	outputs.file(outputFile)
+
+	doLast {
+		// 1. Commit SHA ermitteln (GitHub Actions Variable ODER lokal via Git)
+		val commitId = System.getenv("GITHUB_SHA") ?: try {
+			project.providers.exec {
+				commandLine("git", "rev-parse", "HEAD")
+			}.standardOutput.asText.get().trim()
+		} catch (e: Exception) {
+			"unknown"
+		}
+
+		val shortCommitId = if (commitId != "unknown") commitId.take(7) else "unknown"
+
+		// 2. Branch-Namen ermitteln (GitHub Actions Variable ODER lokal via Git)
+		val branch = System.getenv("GITHUB_REF_NAME") ?: try {
+			project.providers.exec {
+				commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
+			}.standardOutput.asText.get().trim()
+		} catch (e: Exception) {
+			"main"
+		}
+
+		val file = outputFile.get().asFile
+		file.parentFile.mkdirs()
+		file.writeText("""
+            git.branch=$branch
+            git.commit.id.full=$commitId
+            git.commit.id.abbrev=$shortCommitId
+            git.commit.time=${DateTimeFormatter.ISO_INSTANT.format(Instant.now())}
+        """.trimIndent())
+	}
+}
+
+// Verknüpfung mit dem Ressourcen-Prozess
+tasks.processResources {
+	dependsOn(generateGitProperties)
 }
