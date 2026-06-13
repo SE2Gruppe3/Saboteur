@@ -54,7 +54,7 @@ class LobbyCleanupTests {
         // Last player leaves triggers immediate cleanup
         lobbyService.leaveLobby(lobby.lobbyCode, "p1")
 
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(NoSuchElementException::class.java) {
             lobbyService.getLobby(lobby.lobbyCode)
         }
         verify(lobbyRepository).deleteById(lobby.lobbyCode)

@@ -92,7 +92,7 @@ class LobbyService(
     @Transactional
     fun joinLobby(lobbyCode: String, playerName: String, playerId: String? = null, isGuest: Boolean = true): LobbyState {
         return messagingService.getLobbyLock(lobbyCode).withLock {
-            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            val lobby = lobbies[lobbyCode] ?: throw NoSuchElementException(LOBBY_NOT_FOUND)
 
             if (playerId != null && lobby.players.any { it.id == playerId }) {
                 return@withLock lobby
@@ -112,7 +112,7 @@ class LobbyService(
     @Transactional
     fun leaveLobby(lobbyCode: String, playerId: String): LobbyState? {
         return messagingService.getLobbyLock(lobbyCode).withLock {
-            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            val lobby = lobbies[lobbyCode] ?: throw NoSuchElementException(LOBBY_NOT_FOUND)
             val updatedPlayers = lobby.players.filter { it.id != playerId }
 
             if (updatedPlayers.isEmpty()) {
@@ -131,7 +131,7 @@ class LobbyService(
     @Transactional
     fun markGameStarted(lobbyCode: String): LobbyState {
         return messagingService.getLobbyLock(lobbyCode).withLock {
-            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            val lobby = lobbies[lobbyCode] ?: throw NoSuchElementException(LOBBY_NOT_FOUND)
             val updatedLobby = lobby.copy(gameStarted = true)
             lobbies[lobbyCode] = updatedLobby
             persist(updatedLobby)
@@ -172,7 +172,7 @@ class LobbyService(
 
     fun getAllLobbies(): List<LobbyState> = lobbies.values.toList()
     
-    fun getLobby(lobbyCode: String): LobbyState = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+    fun getLobby(lobbyCode: String): LobbyState = lobbies[lobbyCode] ?: throw NoSuchElementException(LOBBY_NOT_FOUND)
 
     private fun generateUniqueCode(): String {
         repeat(50) {

@@ -59,14 +59,10 @@ class LobbyController(
 
     @PostMapping("/reconnect")
     fun reconnect(@RequestBody request: ReconnectRequest): ResponseEntity<ReconnectResponse> {
-        val lobby = try {
-            lobbyService.getLobby(request.lobbyCode)
-        } catch (e: Exception) {
-            return ResponseEntity.notFound().build()
-        }
-        
+        val lobby = lobbyService.getLobby(request.lobbyCode)
+
         if (lobby.players.none { it.id == request.playerId }) {
-            return ResponseEntity.status(403).build()
+            throw SecurityException("Spieler nicht in Lobby / Player not in lobby")
         }
 
         return buildReconnectResponse(request.playerId, lobby)
