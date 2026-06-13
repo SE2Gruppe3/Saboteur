@@ -4,8 +4,10 @@ import com.aau.saboteur.model.*
 import com.aau.saboteur.network.WebSocketManager
 import com.aau.saboteur.network.lobby.LobbyApi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -18,7 +20,8 @@ data class MapResult(
 )
 
 object GameApi {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private var scope = CoroutineScope(SupervisorJob() + dispatcher)
 
     private val _gameStateUpdates = MutableStateFlow(GameState(players = emptyList(), currentPlayerId = null))
     val gameStateUpdates: StateFlow<GameState> = _gameStateUpdates.asStateFlow()
@@ -141,6 +144,14 @@ object GameApi {
                 _cardsDealtUpdates.value = currentHands + (data.myPlayerId to data.playerHand)
             }
         }
+    }
+
+    internal fun resetObserversForTesting(testDispatcher: CoroutineDispatcher) {
+        scope.cancel()
+        dispatcher = testDispatcher
+        scope = CoroutineScope(SupervisorJob() + dispatcher)
+        observeConnectionErrors()
+        observeLobbyReconnects()
     }
 
     fun startGame(lobbyCode: String, players: List<Player>) {
