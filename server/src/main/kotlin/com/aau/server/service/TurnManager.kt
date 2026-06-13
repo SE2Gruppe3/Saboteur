@@ -656,8 +656,16 @@ class TurnManager(
     }
 
     private fun startNextRound(lobbyCode: String, internal: GameInternalState) {
-        val playerIds = internal.gameState.players.map { it.playerId }
+        val playerIds = internal.gameState.players.map { it.playerId }.shuffled()
         val distribution = CardDistributor.distribute(playerIds)
+
+
+        val newRoles = RoleDistributor.distributeRoles(playerIds)
+        val playerDataMap = gameService.getAllPlayerData(lobbyCode).toMutableMap()
+        playerDataMap.forEach { (playerId, player) ->
+            playerDataMap[playerId] = player.copy(role = newRoles[playerId])
+        }
+        gameService.setPlayerData(lobbyCode, playerDataMap)
 
         val startPlayerId = determineNextRoundStartPlayer(internal)
             ?: throw IllegalStateException("Kein Startspieler für nächste Runde gefunden")
