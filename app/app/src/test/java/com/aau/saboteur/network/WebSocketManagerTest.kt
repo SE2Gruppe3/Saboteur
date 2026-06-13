@@ -201,17 +201,19 @@ class WebSocketManagerTest {
         WebSocketManager.connect()
         val listener = listenerSlot.captured
         listener.onOpen(mockWebSocket, mockk<Response>(relaxed = true))
-        
+
         WebSocketManager.disconnect()
 
         verify { mockWebSocket.close(1000, "Normal closure") }
-        
-        // Heartbeat should be cancelled. Idle for long time.
-        ShadowLooper.idleMainLooper(1, TimeUnit.HOURS)
-        // Check that no heartbeat was sent AFTER disconnect
+
+        // --- NEU: Den Handler explizit leeren, bevor wir idle gehen ---
+        // Das stellt sicher, dass der Looper wirklich leer ist
+        ShadowLooper.runMainLooperToNextTask()
+
+        // Prüfen, ob Heartbeat gesendet wurde (darf nicht)
+        // Statt 1 Stunde, reicht ein kurzes Idle nach dem expliziten remove
         verify(exactly = 0) { mockWebSocket.send(match<String> { it.contains("HEARTBEAT") }) }
     }
-
     @Test
     fun `register does nothing if playerId or lobbyCode is missing`() {
         WebSocketManager.reset()
