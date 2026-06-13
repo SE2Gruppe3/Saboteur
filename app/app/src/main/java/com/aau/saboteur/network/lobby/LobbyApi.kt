@@ -1,5 +1,6 @@
 package com.aau.saboteur.network.lobby
 
+import androidx.annotation.VisibleForTesting
 import com.aau.saboteur.model.*
 import com.aau.saboteur.network.HttpClient
 import com.aau.saboteur.network.WebSocketManager
@@ -47,6 +48,12 @@ object LobbyApi {
     }
 
     init {
+        registerEventHandlers()
+    }
+
+    // Extrahiert, damit Tests nach mockkObject() die Handler neu registrieren können.
+    // Der init{}-Block läuft nur einmal pro JVM-Lifetime – der Mock kommt danach zu spät.
+    private fun registerEventHandlers() {
         WebSocketManager.onEvent("LOBBY_STATE_UPDATE") { data ->
             try {
                 val state = json.decodeFromString<LobbyState>(data)
@@ -102,6 +109,11 @@ object LobbyApi {
         }
     }
 
+    @VisibleForTesting
+    fun resetForTest() {
+        registerEventHandlers()
+    }
+
     fun createLobby(playerName: String, playerId: String? = null, visibility: LobbyVisibility = LobbyVisibility.PUBLIC) {
         scope.launch {
             try {
@@ -118,7 +130,7 @@ object LobbyApi {
                         _reconnectData.emit(data)
                         WebSocketManager.connect(data.myPlayerId, data.lobbyState.lobbyCode)
                     } else {
-                         _errorMessages.emit("Lobby-Erstellung fehlgeschlagen (${response.code})")
+                        _errorMessages.emit("Lobby-Erstellung fehlgeschlagen (${response.code})")
                     }
                 }
             } catch (e: Exception) {

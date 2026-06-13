@@ -16,6 +16,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain
@@ -31,8 +32,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.delay
 
 @RunWith(AndroidJUnit4::class)
 @Config(manifest = Config.NONE)
@@ -45,6 +44,8 @@ class LobbyApiTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+
+        // WebSocketManager ZUERST mocken ...
         mockkObject(WebSocketManager)
         every { WebSocketManager.onEvent(any(), any()) } answers {
             eventHandlers[firstArg()] = secondArg()
@@ -52,8 +53,11 @@ class LobbyApiTest {
         every { WebSocketManager.sendCommand(any(), any()) } just Runs
         every { WebSocketManager.connect(any(), any()) } just Runs
 
-        // Initialize LobbyApi and capture handlers
-        LobbyApi.toString()
+        // ... dann Handler neu registrieren lassen.
+        // LobbyApi ist ein Kotlin-Singleton: init{} läuft nur einmal pro JVM-Lifetime,
+        // also BEVOR mockkObject() aktiv ist. resetForTest() ruft registerEventHandlers()
+        // erneut auf, diesmal gegen den aktiven Mock.
+        LobbyApi.resetForTest()
     }
 
     @After
@@ -95,7 +99,6 @@ class LobbyApiTest {
         LobbyApi.createLobby("Tester")
         job.join()
 
-        // Überprüfung, dass überhaupt ein Fehler abgefangen und emittiert wurde
         assertNotNull("Es sollte eine Fehlermeldung emittiert werden", error)
         assertTrue("Fehlermeldung sollte einen Inhalt besitzen", error!!.isNotBlank())
     }
@@ -123,39 +126,27 @@ class LobbyApiTest {
     }
 
     @Test
-    fun `PLAYER_KICKED event updates playerKicked flow and clears lobby state`() = runBlocking {
+    fun `PLAYER_KICKED event updates playerKicked flow and clears lobby state`() = runTest {
         val handler = eventHandlers["PLAYER_KICKED"]
         assertNotNull("Handler für PLAYER_KICKED wurde nicht registriert", handler)
 
         var kickedId: String? = null
-        var lastLobbyState: LobbyState? = mockk() // Startet mit Dummy-Mock, um das Nullen zu prüfen
+        var lastLobbyState: LobbyState? = mockk()
 
-        // Wir sammeln die Werte über echte Hintergrund-Threads, um fit für die CI zu sein
-        val jobKicked = launch(Dispatchers.Default) {
+        val jobKicked = launch(testDispatcher) {
             LobbyApi.playerKicked.collect { kickedId = it }
         }
-        val jobState = launch(Dispatchers.Default) {
+        val jobState = launch(testDispatcher) {
             LobbyApi.lobbyStateUpdates.collect { lastLobbyState = it }
         }
 
-        // Kurz warten, bis die Registrierung der Collectors aktiv ist
-        delay(100)
+        handler!!.invoke("""{"playerId":"KICKED_ID"}""")
 
-        // Event abfeuern
-        val jsonPayload = """{"playerId":"KICKED_ID"}"""
-        handler?.invoke(jsonPayload)
+        advanceUntilIdle()
 
-        // Robustes Echtzeit-Polling (max. 3 Sekunden): Wir warten, bis die Werte korrekt gesetzt wurden
-        val startTime = System.currentTimeMillis()
-        while ((kickedId != "KICKED_ID" || lastLobbyState != null) && (System.currentTimeMillis() - startTime) < 3000) {
-            delay(20)
-        }
-
-        // Hintergrund-Jobs sauber beenden
         jobKicked.cancel()
         jobState.cancel()
 
-        // Finale Absicherung
         assertEquals("KICKED_ID", kickedId)
         assertNull("Der Lobby-State hätte genullt werden müssen", lastLobbyState)
     }
