@@ -93,7 +93,7 @@ class LobbyServiceTest {
     fun `joinLobby throws when lobby does not exist`() {
         whenever(messagingService.getLobbyLock("MISSING")).thenReturn(ReentrantLock())
 
-        assertThrows<IllegalArgumentException> {
+        assertThrows<NoSuchElementException> {
             lobbyService.joinLobby("MISSING", "Alice")
         }
     }
@@ -142,7 +142,7 @@ class LobbyServiceTest {
     fun `leaveLobby throws when lobby does not exist`() {
         whenever(messagingService.getLobbyLock("UNKNOWN")).thenReturn(ReentrantLock())
 
-        assertThrows<IllegalArgumentException> {
+        assertThrows<NoSuchElementException> {
             lobbyService.leaveLobby("UNKNOWN", "p1")
         }
     }
@@ -160,14 +160,14 @@ class LobbyServiceTest {
     fun `markGameStarted throws when lobby does not exist`() {
         whenever(messagingService.getLobbyLock("NOPE")).thenReturn(ReentrantLock())
 
-        assertThrows<IllegalArgumentException> {
+        assertThrows<NoSuchElementException> {
             lobbyService.markGameStarted("NOPE")
         }
     }
 
     @Test
     fun `getLobby throws when lobby does not exist`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows<NoSuchElementException> {
             lobbyService.getLobby("DOES_NOT_EXIST")
         }
     }
