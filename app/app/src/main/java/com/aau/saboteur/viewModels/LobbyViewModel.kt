@@ -134,8 +134,6 @@ class LobbyViewModel @JvmOverloads constructor(
                     _lobbyState.value = null
                     sessionRepository.clearLobby()
                     WebSocketManager.disconnect()
-                    WebSocketManager.reset()
-                    WebSocketManager.connect()
                 }
             }
         }

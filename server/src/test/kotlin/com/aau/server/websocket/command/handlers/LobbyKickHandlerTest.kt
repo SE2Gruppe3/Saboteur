@@ -74,4 +74,22 @@ class LobbyKickHandlerTest {
         verify(lobbyService, never()).kickPlayer(any(), any())
         verify(messagingService).sendEventToSession(eq("session-host"), any<GameEvent.ErrorEvent>())
     }
+
+    @Test
+    fun `handle kick fails if game has already started`() {
+        val lobbyCode = "1234"
+        val hostId = "host-1"
+        val targetId = "target-1"
+        val command = LobbyKickCommand(lobbyCode, hostId, targetId)
+        val lobby = LobbyState(lobbyCode, hostId, listOf(Player(hostId, "Host"), Player(targetId, "Target")))
+
+        whenever(lobbyService.getLobby(lobbyCode)).thenReturn(lobby)
+        whenever(lobbyService.kickPlayer(lobbyCode, targetId))
+            .thenThrow(IllegalArgumentException("Spieler können nicht während eines laufenden Spiels gekickt werden"))
+
+        handler.handle(session, command)
+
+        verify(messagingService).sendEventToSession(eq("session-host"), any<GameEvent.ErrorEvent>())
+        verify(messagingService, never()).sendEventToPlayer(any(), any())
+    }
 }

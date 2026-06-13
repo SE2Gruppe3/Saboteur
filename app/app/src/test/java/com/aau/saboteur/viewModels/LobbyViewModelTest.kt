@@ -428,8 +428,8 @@ class LobbyViewModelTest {
         io.mockk.verifyOrder {
             sessionRepository.clearLobby()
             WebSocketManager.disconnect()
-            WebSocketManager.reset()
-            WebSocketManager.connect()
         }
+        verify(exactly = 0) { WebSocketManager.reset() }
+        verify(exactly = 0) { WebSocketManager.connect() }
     }
 }
