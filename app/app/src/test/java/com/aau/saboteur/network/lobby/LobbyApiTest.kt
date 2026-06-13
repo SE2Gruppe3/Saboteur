@@ -126,21 +126,21 @@ class LobbyApiTest {
         assertNotNull("Handler für PLAYER_KICKED wurde nicht registriert", handler)
 
         var kickedId: String? = null
-        var lastLobbyState: LobbyState? = mockk() // Startet mit Dummy-Mock, um das Clear (null) zu prüfen
+        var lastLobbyState: LobbyState? = mockk() // Startet mit Dummy-Mock, um das Nullen zu prüfen
 
-        val jobId = backgroundScope.launch(testDispatcher) {
-            kickedId = LobbyApi.playerKicked.first()
+        // Wir sammeln kontinuierlich im Hintergrund alle Werte, die reinkommen
+        backgroundScope.launch(testDispatcher) {
+            LobbyApi.playerKicked.collect { kickedId = it }
         }
-        val jobState = backgroundScope.launch(testDispatcher) {
-            lastLobbyState = LobbyApi.lobbyStateUpdates.first()
+        backgroundScope.launch(testDispatcher) {
+            LobbyApi.lobbyStateUpdates.collect { lastLobbyState = it }
         }
 
+        // Event abfeuern
         val jsonPayload = """{"playerId":"KICKED_ID"}"""
         handler?.invoke(jsonPayload)
 
-        jobId.join()
-        jobState.join()
-
+        // Dank UnconfinedTestDispatcher stehen die neuen Werte JETZT sofort in den Variablen
         assertEquals("KICKED_ID", kickedId)
         assertNull("Der Lobby-State hätte genullt werden müssen", lastLobbyState)
     }
