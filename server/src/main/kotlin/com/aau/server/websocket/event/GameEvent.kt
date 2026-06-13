@@ -13,6 +13,7 @@ sealed class GameEvent(val type: String, val payload: Any) {
     data class ValidPositions(val positions: List<BoardPosition>) : GameEvent("VALID_POSITIONS", mapOf("positions" to positions))
     data class MapResultEvent(val result: MapResult) : GameEvent("MAP_RESULT", result)
     data class LobbyLeft(val dummy: String = "") : GameEvent("LOBBY_LEFT", dummy)
+    data class PlayerKicked(val playerId: String) : GameEvent("PLAYER_KICKED", mapOf("playerId" to playerId))
     data class SyncComplete(val dummy: String = "") : GameEvent("SYNC_COMPLETE", dummy)
     data class ReconnectSnapshotEvent(val snapshot: ReconnectSnapshot) : GameEvent("RECONNECT_SNAPSHOT", snapshot)
     data class LobbyNotFound(val message: String = "Lobby nach Serverneustart abgelaufen") : GameEvent("LOBBY_NOT_FOUND", message)

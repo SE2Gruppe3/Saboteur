@@ -23,6 +23,7 @@ data class PlayCardCommand(
 
 data class DiscardCardCommand(val playerId: String, val cardId: String) : Command
 data class LobbyLeaveCommand(val lobbyCode: String, val playerId: String) : Command
+data class LobbyKickCommand(val lobbyCode: String, val hostId: String, val targetPlayerId: String) : Command
 data class GetValidPositionsCommand(val cardId: String, val isRotated: Boolean) : Command
 class LobbyListFetchCommand : Command
 data class LobbyCreateCommand(val playerName: String) : Command

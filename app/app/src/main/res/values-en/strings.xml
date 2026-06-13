@@ -36,6 +36,8 @@
     <string name="syncing_state">Syncing state…</string>
     <string name="no_active_lobby">No active lobby selected.</string>
     <string name="error_message">Error: %s</string>
+    <string name="kick_player_desc">Kick player</string>
+    <string name="player_kicked_msg">You have been kicked from the lobby.</string>
 
     <!-- Available Lobbies -->
     <string name="available_lobbies_title">Available Lobbies</string>
