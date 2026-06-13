@@ -31,6 +31,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 
 @RunWith(AndroidJUnit4::class)
 @Config(manifest = Config.NONE)
@@ -121,26 +123,39 @@ class LobbyApiTest {
     }
 
     @Test
-    fun `PLAYER_KICKED event updates playerKicked flow and clears lobby state`() = runTest {
+    fun `PLAYER_KICKED event updates playerKicked flow and clears lobby state`() = runBlocking {
         val handler = eventHandlers["PLAYER_KICKED"]
         assertNotNull("Handler für PLAYER_KICKED wurde nicht registriert", handler)
 
         var kickedId: String? = null
         var lastLobbyState: LobbyState? = mockk() // Startet mit Dummy-Mock, um das Nullen zu prüfen
 
-        // Wir sammeln kontinuierlich im Hintergrund alle Werte, die reinkommen
-        backgroundScope.launch(testDispatcher) {
+        // Wir sammeln die Werte über echte Hintergrund-Threads, um fit für die CI zu sein
+        val jobKicked = launch(Dispatchers.Default) {
             LobbyApi.playerKicked.collect { kickedId = it }
         }
-        backgroundScope.launch(testDispatcher) {
+        val jobState = launch(Dispatchers.Default) {
             LobbyApi.lobbyStateUpdates.collect { lastLobbyState = it }
         }
+
+        // Kurz warten, bis die Registrierung der Collectors aktiv ist
+        delay(100)
 
         // Event abfeuern
         val jsonPayload = """{"playerId":"KICKED_ID"}"""
         handler?.invoke(jsonPayload)
 
-        // Dank UnconfinedTestDispatcher stehen die neuen Werte JETZT sofort in den Variablen
+        // Robustes Echtzeit-Polling (max. 3 Sekunden): Wir warten, bis die Werte korrekt gesetzt wurden
+        val startTime = System.currentTimeMillis()
+        while ((kickedId != "KICKED_ID" || lastLobbyState != null) && (System.currentTimeMillis() - startTime) < 3000) {
+            delay(20)
+        }
+
+        // Hintergrund-Jobs sauber beenden
+        jobKicked.cancel()
+        jobState.cancel()
+
+        // Finale Absicherung
         assertEquals("KICKED_ID", kickedId)
         assertNull("Der Lobby-State hätte genullt werden müssen", lastLobbyState)
     }
