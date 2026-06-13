@@ -76,6 +76,10 @@
     <string name="error_invalid_placement">Ungültige Platzierung</string>
     <string name="error_connection_failed">Server nicht erreichbar. Bitte Verbindung prüfen.</string>
     <string name="error_login_failed">Login fehlgeschlagen.</string>
+    <string name="error_bad_request">Ungültige Anfrage. Bitte überprüfe deine Eingabe.</string>
+    <string name="error_not_found">Die angeforderte Ressource wurde nicht gefunden.</string>
+    <string name="error_forbidden">Du bist nicht berechtigt, diese Aktion durchzuführen.</string>
+    <string name="error_internal">Ein interner Fehler ist aufgetreten. Bitte versuche es erneut.</string>
     <string name="error_lobby_leave_unauthorized">Nicht autorisiert: Nur du selbst kannst deine Lobby verlassen.</string>
 
     <!-- Spielregeln -->

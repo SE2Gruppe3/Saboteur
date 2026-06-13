@@ -76,6 +76,10 @@
     <string name="error_invalid_placement">Invalid placement</string>
     <string name="error_connection_failed">Server unreachable. Please check your connection.</string>
     <string name="error_login_failed">Login failed.</string>
+    <string name="error_bad_request">Invalid request. Please check your input.</string>
+    <string name="error_not_found">The requested resource was not found.</string>
+    <string name="error_forbidden">You are not authorized to perform this action.</string>
+    <string name="error_internal">An internal error occurred. Please try again.</string>
     <string name="error_lobby_leave_unauthorized">Unauthorized: Only you can leave your lobby.</string>
 
     <!-- Spielregeln -->
