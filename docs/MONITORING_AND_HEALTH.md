@@ -13,10 +13,12 @@ Basispfad: `/actuator/health`
 | Pfad | Beschreibung |
 | :--- | :--- |
 | `/actuator/health` | Gesamtstatus der Anwendung inkl. aller Komponenten. |
+| `/actuator/info` | Zeigt Build-Informationen und den aktuellen Git-Commit-Hash an. |
 | `/actuator/health/liveness` | Liveness-Probe: Prüft ob die JVM noch läuft. |
 | `/actuator/health/readiness` | Readiness-Probe: Prüft ob die App (DB + Spielsystem) bereit ist. |
 | `/actuator/health/db` | Status der H2-Datenbankverbindung. |
 | `/actuator/health/gameSystem` | Metriken des Multiplayer-Systems. |
+| `/actuator/prometheus` | Metriken im Prometheus-Format für das Monitoring. |
 
 ## 3. GameSystem Health Indicator
 
@@ -36,9 +38,18 @@ Die Komponente `GameSystemHealthIndicator` liefert Echtzeit-Metriken über den a
 Die Sichtbarkeit ist auf `always` gestellt, um im Debugging volle Transparenz über alle Komponenten zu haben:
 
 ```properties
+management.endpoints.web.exposure.include=health,info,liveness,readiness,prometheus
+
+management.info.build.enabled=true
+management.info.git.enabled=true
+management.info.git.mode=full
+
 management.endpoint.health.show-details=always
 management.endpoint.health.show-components=always
 management.endpoint.health.probes.enabled=true
+
+management.endpoint.health.group.readiness.include=db,diskSpace,gameSystem
+management.endpoint.health.group.liveness.include=ping
 ```
 
 ## 5. Deployment Integration
