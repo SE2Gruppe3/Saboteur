@@ -36,6 +36,8 @@
     <string name="syncing_state">Zustand wird synchronisiert…</string>
     <string name="no_active_lobby">Keine aktive Lobby ausgewählt.</string>
     <string name="error_message">Fehler: %s</string>
+    <string name="kick_player_desc">Spieler kicken</string>
+    <string name="player_kicked_msg">Du wurdest aus der Lobby gekickt.</string>
 
     <!-- Available Lobbies -->
     <string name="available_lobbies_title">Verfügbare Lobbys</string>

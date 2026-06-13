@@ -16,6 +16,9 @@ data class LobbyJoinRequest(val lobbyCode: String, val playerName: String, val p
 data class LobbyLeaveRequest(val lobbyCode: String, val playerId: String)
 
 @Serializable
+data class LobbyKickRequest(val lobbyCode: String, val hostId: String, val targetPlayerId: String)
+
+@Serializable
 data class ReconnectRequest(val playerId: String, val lobbyCode: String)
 
 @Serializable

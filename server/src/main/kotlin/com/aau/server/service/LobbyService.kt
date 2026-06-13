@@ -129,6 +129,24 @@ class LobbyService(
     }
 
     @Transactional
+    fun kickPlayer(lobbyCode: String, targetPlayerId: String): LobbyState {
+        return messagingService.getLobbyLock(lobbyCode).withLock {
+            val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
+            require(!lobby.gameStarted) { "Spieler können nicht während eines laufenden Spiels gekickt werden" }
+            
+            val updatedPlayers = lobby.players.filter { it.id != targetPlayerId }
+            if (updatedPlayers.size == lobby.players.size) {
+                throw IllegalArgumentException("Spieler nicht in der Lobby gefunden")
+            }
+
+            val updatedLobby = lobby.copy(players = updatedPlayers)
+            lobbies[lobbyCode] = updatedLobby
+            persist(updatedLobby)
+            updatedLobby
+        }
+    }
+
+    @Transactional
     fun markGameStarted(lobbyCode: String): LobbyState {
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw NoSuchElementException(LOBBY_NOT_FOUND)
