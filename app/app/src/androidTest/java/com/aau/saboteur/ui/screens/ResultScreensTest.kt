@@ -245,7 +245,6 @@ class ResultScreensTest {
                 )
             }
         }
-        // Hinweis: Falls euer Button im UI anders heißt (z.B. "Zurück zur Lobby"), passe den Text hier an
         composeTestRule.onNodeWithText("Zurück zur Lobby").performClick()
         assert(backToLobbyClicked)
     }
