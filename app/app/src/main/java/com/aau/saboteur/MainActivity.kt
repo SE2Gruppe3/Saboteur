@@ -28,6 +28,12 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(LanguageManager.applyToContext(newBase))
     }
 
+    internal fun registerVolumeKeyCheatHandler(handler: VolumeKeyCheatHandler?) {
+        volumeKeyCheatHandler = handler
+    }
+
+    internal fun hasVolumeKeyCheatHandler(): Boolean = volumeKeyCheatHandler != null
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         val direction = keyCode.toVolumeKeyDirection()
         val handler = volumeKeyCheatHandler
@@ -55,9 +61,7 @@ class MainActivity : ComponentActivity() {
             val localizedContext = rememberLocalizedContext(language)
             CompositionLocalProvider(
                 LocalContext provides localizedContext,
-                LocalVolumeKeyCheatHandlerRegistrar provides { handler ->
-                    volumeKeyCheatHandler = handler
-                }
+                LocalVolumeKeyCheatHandlerRegistrar provides ::registerVolumeKeyCheatHandler
             ) {
                 SE2GameTheme {
                     Surface {

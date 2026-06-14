@@ -45,4 +45,15 @@ class VolumeKeyCheatDetectorTest {
 
         assertFalse(detector.onKeyPressed(VolumeKeyDirection.DOWN))
     }
+
+    @Test
+    fun `onKeyPressed trims older keys before matching target sequence`() {
+        val detector = VolumeKeyCheatDetector(nowMillis = { 1_000L })
+
+        assertFalse(detector.onKeyPressed(VolumeKeyDirection.DOWN))
+        assertFalse(detector.onKeyPressed(VolumeKeyDirection.UP))
+        assertFalse(detector.onKeyPressed(VolumeKeyDirection.UP))
+        assertFalse(detector.onKeyPressed(VolumeKeyDirection.DOWN))
+        assertTrue(detector.onKeyPressed(VolumeKeyDirection.DOWN))
+    }
 }
