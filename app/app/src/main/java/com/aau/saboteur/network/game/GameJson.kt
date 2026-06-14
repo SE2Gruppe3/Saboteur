@@ -32,3 +32,6 @@ private data class GameOverResponse(val winner: String)
 
 fun String.toGameOverWinner(): String =
     json.decodeFromString<GameOverResponse>(this).winner
+
+fun String.toCheatAccusationResult(): CheatAccusationResult =
+    json.decodeFromString(this)

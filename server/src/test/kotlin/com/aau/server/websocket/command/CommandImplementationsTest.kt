@@ -17,4 +17,16 @@ class CommandImplementationsTest {
         assertEquals("LOBBY2", copied.lobbyCode)
         assertEquals(CheatType.LANTERN_FLASHLIGHT, copied.cheatType)
     }
+
+    @Test
+    fun `AccuseCheatCommand properties and copy work`() {
+        val command = AccuseCheatCommand(lobbyCode = "LOBBY1", accusedPlayerId = "P2")
+
+        assertEquals("LOBBY1", command.lobbyCode)
+        assertEquals("P2", command.accusedPlayerId)
+
+        val copied = command.copy(accusedPlayerId = "P3")
+        assertEquals("LOBBY1", copied.lobbyCode)
+        assertEquals("P3", copied.accusedPlayerId)
+    }
 }

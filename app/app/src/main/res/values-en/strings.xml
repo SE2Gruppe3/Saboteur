@@ -55,6 +55,12 @@
     <string name="discard_card_button">Discard Card</string>
     <string name="choose_player_title">Choose a Player</string>
     <string name="player_name_self">%s (Me)</string>
+    <string name="accuse_cheat_menu">Expose cheating</string>
+    <string name="accuse_cheat_title">Who do you want to accuse?</string>
+    <string name="accuse_cheat_caught_title">Cheating exposed!</string>
+    <string name="accuse_cheat_failed_title">False accusation</string>
+    <string name="accuse_cheat_caught_message">%1$s caught %2$s cheating. %2$s loses a hand card, and %1$s draws back up to the starting hand size.</string>
+    <string name="accuse_cheat_failed_message">%1$s accused %2$s, but there was no proof. %1$s loses a hand card.</string>
     <string name="cancel_button">Cancel</string>
     <string name="choose_tool_title">Which tool to repair?</string>
     <string name="repair_lantern">Repair Lantern 🏮</string>

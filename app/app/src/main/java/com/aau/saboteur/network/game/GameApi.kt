@@ -47,6 +47,9 @@ object GameApi {
     private val _mapResultEvents = MutableSharedFlow<MapResult>(replay = 0, extraBufferCapacity = 1)
     val mapResultEvents: SharedFlow<MapResult> = _mapResultEvents.asSharedFlow()
 
+    private val _cheatAccusationResults = MutableSharedFlow<CheatAccusationResult>(replay = 0, extraBufferCapacity = 1)
+    val cheatAccusationResults: SharedFlow<CheatAccusationResult> = _cheatAccusationResults.asSharedFlow()
+
     init {
         observeEvents()
         observeConnectionErrors()
@@ -112,6 +115,12 @@ object GameApi {
         WebSocketManager.onEvent("MAP_RESULT") { data ->
             runCatching { data.toMapResult() }
                 .onSuccess { _mapResultEvents.tryEmit(it) }
+                .onFailure { it.printStackTrace() }
+        }
+
+        WebSocketManager.onEvent("CHEAT_ACCUSATION_RESULT") { data ->
+            runCatching { data.toCheatAccusationResult() }
+                .onSuccess { _cheatAccusationResults.tryEmit(it) }
                 .onFailure { it.printStackTrace() }
         }
     }
@@ -240,6 +249,14 @@ object GameApi {
             put("cheatType", cheatType.name)
         }
         WebSocketManager.sendCommand("PLAYER_CHEAT", payload)
+    }
+
+    fun accuseCheating(lobbyCode: String, accusedPlayerId: String) {
+        val payload = JSONObject().apply {
+            put("lobbyCode", lobbyCode)
+            put("accusedPlayerId", accusedPlayerId)
+        }
+        WebSocketManager.sendCommand("ACCUSE_CHEAT", payload)
     }
 
     internal fun clearValidPositions() {

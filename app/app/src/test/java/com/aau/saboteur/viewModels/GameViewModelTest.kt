@@ -3,6 +3,7 @@ package com.aau.saboteur.viewModels
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.aau.saboteur.model.BoardPosition
 import com.aau.saboteur.model.CardType
+import com.aau.saboteur.model.CheatAccusationResult
 import com.aau.saboteur.model.CheatType
 import com.aau.saboteur.model.Direction
 import com.aau.saboteur.model.GameState
@@ -49,6 +50,7 @@ class GameViewModelTest {
     private val gameOverEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
     private val validPositionsUpdates = MutableSharedFlow<List<BoardPosition>>(replay = 1, extraBufferCapacity = 1)
     private val mapResultEvents = MutableSharedFlow<MapResult>(replay = 0, extraBufferCapacity = 1)
+    private val cheatAccusationResults = MutableSharedFlow<CheatAccusationResult>(replay = 0, extraBufferCapacity = 1)
     private val connectionStatus = MutableStateFlow(true)
 
     private val eventHandlers = mutableMapOf<String, (String) -> Unit>()
@@ -73,6 +75,7 @@ class GameViewModelTest {
         every { GameApi.gameOverEvents } returns gameOverEvents
         every { GameApi.validPositionsUpdates } returns validPositionsUpdates
         every { GameApi.mapResultEvents } returns mapResultEvents
+        every { GameApi.cheatAccusationResults } returns cheatAccusationResults
         every { GameApi.playCard(any(), any(), any(), any(), any()) } just Runs
         every { GameApi.discardCard(any(), any(), any()) } just Runs
         every { GameApi.requestValidPositions(any(), any(), any()) } just Runs
@@ -82,6 +85,7 @@ class GameViewModelTest {
         every { GameApi.playMapCard(any(), any(), any(), any()) } just Runs
         every { GameApi.playRockfallCard(any(), any(), any(), any()) } just Runs
         every { GameApi.triggerCheat(any(), any()) } just Runs
+        every { GameApi.accuseCheating(any(), any()) } just Runs
 
         viewModel = GameViewModel()
     }
@@ -744,6 +748,52 @@ class GameViewModelTest {
         viewModel.triggerCheat(CheatType.VOLUME_SEQUENCE_DISCARD)
 
         verify(exactly = 0) { GameApi.triggerCheat(any(), any()) }
+    }
+
+    @Test
+    fun `accuseCheating should call GameApi for another player`() {
+        viewModel.initGameSession("L1", "P1")
+        gameStateUpdates.value = GameState(
+            players = listOf(PlayerTurn("P1", "Me"), PlayerTurn("P2", "Other")),
+            currentPlayerId = "P2"
+        )
+
+        viewModel.accuseCheating("P2")
+
+        verify { GameApi.accuseCheating("L1", "P2") }
+    }
+
+    @Test
+    fun `accuseCheating should be no-op for self and ended game`() {
+        viewModel.initGameSession("L1", "P1")
+        gameStateUpdates.value = GameState(
+            players = listOf(PlayerTurn("P1", "Me"), PlayerTurn("P2", "Other")),
+            currentPlayerId = "P2",
+            isGameOver = true
+        )
+
+        viewModel.accuseCheating("P1")
+        viewModel.accuseCheating("P2")
+
+        verify(exactly = 0) { GameApi.accuseCheating(any(), any()) }
+    }
+
+    @Test
+    fun `cheatAccusationResults should update and dismiss result state`() {
+        val result = CheatAccusationResult(
+            accuserPlayerId = "P1",
+            accusedPlayerId = "P2",
+            caught = true,
+            cheatType = CheatType.VOLUME_SEQUENCE_DISCARD
+        )
+
+        cheatAccusationResults.tryEmit(result)
+
+        assertEquals(result, viewModel.uiState.value.lastCheatAccusationResult)
+
+        viewModel.dismissCheatAccusationResult()
+
+        assertNull(viewModel.uiState.value.lastCheatAccusationResult)
     }
 
     @Test
