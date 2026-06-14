@@ -55,7 +55,7 @@ jobs:
           echo "APK_FILE=$NEW_NAME" >> $GITHUB_ENV
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@c062e08 # Gepinned auf SHA
+        uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: ${{ env.APK_FILE }}
