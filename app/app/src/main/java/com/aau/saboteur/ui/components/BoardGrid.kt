@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -63,7 +62,7 @@ import com.aau.saboteur.model.PlacedTunnelCard
 import com.aau.saboteur.model.TunnelCard
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
-import com.aau.saboteur.ui.toCanonicalDrawableName
+import com.aau.saboteur.ui.toCanonicalDrawableRes
 import com.aau.saboteur.ui.toContentDescription
 import kotlin.math.cos
 import kotlin.math.sin
@@ -337,7 +336,6 @@ private fun BoardTile(
     cardHeight: Dp = BoardCardHeightDp.dp,
     onClick: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     val scaleAnim = remember { Animatable(1f) }
     val prevCard = remember { mutableStateOf<TunnelCard?>(card) }
 
@@ -390,11 +388,7 @@ private fun BoardTile(
                 contentAlignment = Alignment.Center,
                 label = "tileContent"
             ) { displayedCard ->
-                val drawableName = displayedCard?.toCanonicalDrawableName()
-                @Suppress("DiscouragedApi")
-                val imageRes = drawableName?.let {
-                    context.resources.getIdentifier(it, "drawable", context.packageName)
-                } ?: 0
+                val imageRes = displayedCard?.toCanonicalDrawableRes() ?: 0
 
                 when {
                     displayedCard == null -> EmptyTilePattern()
