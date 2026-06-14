@@ -656,14 +656,13 @@ class TurnManager(
     }
 
     private fun startNextRound(lobbyCode: String, internal: GameInternalState) {
-        val playerIds = internal.gameState.players.map { it.playerId }.shuffled()
+        val playerIds = internal.gameState.players.map { it.playerId }
         val distribution = CardDistributor.distribute(playerIds)
-
 
         val newRoles = RoleDistributor.distributeRoles(playerIds)
         val playerDataMap = gameService.getAllPlayerData(lobbyCode).toMutableMap()
         playerDataMap.forEach { (playerId, player) ->
-            playerDataMap[playerId] = player.copy(role = newRoles[playerId])
+            playerDataMap[playerId] = player.copy(role = newRoles[playerId] ?: player.role)
         }
         gameService.setPlayerData(lobbyCode, playerDataMap)
 
