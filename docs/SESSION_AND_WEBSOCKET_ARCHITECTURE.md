@@ -31,6 +31,16 @@ Beim Start der App prüft das `LobbyViewModel`:
 - Schließt den WebSocket.
 - Setzt die UI zurück.
 
+### Spieler aus Lobby kicken (Soft-Kick)
+Der Host einer Lobby kann andere Spieler entfernen, solange das Spiel noch nicht gestartet wurde.
+- **Validierung:** Der Server prüft bei jedem `LOBBY_KICK` Kommando, ob die anfragende `playerId` mit der `hostId` der Lobby übereinstimmt.
+- **Ablauf:** 
+  1. Der Host sendet `LOBBY_KICK` via WebSocket.
+  2. Der Ziel-Spieler wird aus der Datenstruktur entfernt.
+  3. Alle verbleibenden Spieler erhalten ein `LOBBY_STATE_UPDATE`.
+  4. Der gekickte Spieler erhält ein spezifisches `PLAYER_KICKED` Event.
+- **Client-Reaktion:** Der Client des gekickten Spielers löscht seine lokale Lobby-Session, trennt den WebSocket und kehrt zum Hauptmenü zurück (analog zum manuellen Verlassen). Da es kein permanenter Bann ist, kann der Spieler sofort wieder beitreten.
+
 ## 3. WebSocket Synchronisation (The Buffer System)
 
 Um zu verhindern, dass Nachrichten während eines Verbindungsabbruchs verloren gehen, nutzt der Server ein Buffering-System:
