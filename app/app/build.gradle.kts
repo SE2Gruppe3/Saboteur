@@ -1,10 +1,24 @@
 import java.util.Properties
+import java.io.ByteArrayOutputStream
 
 // 1. Properties-Lader: Liest die lokale Konfiguration aus local.properties
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
+}
+
+
+// 2. Git Commit-Hash Helper (Sichere Java-Prozess-Variante)
+val gitCommit = try {
+    val process = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+
+    process.inputStream.bufferedReader().readText().trim()
+} catch (e: Exception) {
+    "unknown"
 }
 
 plugins {
@@ -23,9 +37,12 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.$gitCommit"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Git Commit-Hash als BuildConfig Feld verfügbar machen
+        buildConfigField("String", "COMMIT_HASH", "\"$gitCommit\"")
     }
 
     buildFeatures {
@@ -34,23 +51,22 @@ android {
     }
 
     buildTypes {
-        debug {
-            // 2. Dynamische URL: Nimmt Wert aus local.properties oder Fallback auf Emulator-IP
+        getByName("debug") {
             val baseUrl = localProperties.getProperty("BASE_URL_LOCAL") ?: "http://10.0.2.2:8080"
             buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
-
             enableUnitTestCoverage = true
         }
-        release {
+        getByName("release") {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // 3. Feste URL für den Uni-Server (Produktion)
             buildConfigField("String", "BASE_URL", "\"http://se2-demo.aau.at:53207\"")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -129,7 +145,7 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
     )
 
     sourceDirectories.setFrom(files("${project.projectDir}/src/main/java", "${project.projectDir}/src/main/kotlin"))
-    
+
     val kotlinTree = fileTree("$buildDir/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") {
         exclude(fileFilter)
     }
