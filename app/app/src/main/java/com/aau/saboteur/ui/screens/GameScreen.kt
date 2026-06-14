@@ -54,7 +54,8 @@ private data class TopGameControlsState(
     val localPlayerId: String?,
     val menuOpen: Boolean,
     val musicVolume: Float,
-    val soundEffectsVolume: Float
+    val soundEffectsVolume: Float,
+    val canAccuseCheat: Boolean
 )
 
 private data class TopGameControlsActions(
@@ -62,6 +63,7 @@ private data class TopGameControlsActions(
     val onMenuDismiss: () -> Unit,
     val onMusicVolumeChange: (Float) -> Unit,
     val onSoundEffectsVolumeChange: (Float) -> Unit,
+    val onAccuseCheat: () -> Unit,
     val onLeaveGame: () -> Unit,
     val onShowSpielregeln: () -> Unit
 )
@@ -118,6 +120,8 @@ private fun GameOptionsMenu(
     onMusicVolumeChange: (Float) -> Unit,
     soundEffectsVolume: Float,
     onSoundEffectsVolumeChange: (Float) -> Unit,
+    canAccuseCheat: Boolean,
+    onAccuseCheat: () -> Unit,
     onLeaveGame: () -> Unit,
     onShowSpielregeln: () -> Unit
 ) {
@@ -140,6 +144,15 @@ private fun GameOptionsMenu(
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.accuse_cheat_menu)) },
+            enabled = canAccuseCheat,
+            onClick = {
+                onAccuseCheat()
+                onDismiss()
+            }
+        )
 
         DropdownMenuItem(
             text = { Text(stringResource(R.string.spielregeln_button)) },
@@ -262,6 +275,7 @@ fun GameScreen(
     var musicVolume by remember { mutableFloatStateOf(0.8f) }
     var soundEffectsVolume by remember { mutableFloatStateOf(0.8f) }
     var showSpielregeln by remember { mutableStateOf(false) }
+    var showAccuseCheatDialog by remember { mutableStateOf(false) }
 
     GameAudio(
         gameState = uiState.gameState,
@@ -276,6 +290,11 @@ fun GameScreen(
     var showBlockDialog by remember { mutableStateOf(false) }
     var showToolDialog by remember { mutableStateOf(false) }
     var pendingToolSelection by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
+    val canAccuseCheat = uiState.localPlayerId != null &&
+            sortedPlayers.size > 1 &&
+            !uiState.isSyncing &&
+            !uiState.gameState.isRoundOver &&
+            !uiState.gameState.isGameOver
 
     Box(
         modifier = Modifier
@@ -303,13 +322,15 @@ fun GameScreen(
                 localPlayerId = uiState.localPlayerId,
                 menuOpen = menuOpen,
                 musicVolume = musicVolume,
-                soundEffectsVolume = soundEffectsVolume
+                soundEffectsVolume = soundEffectsVolume,
+                canAccuseCheat = canAccuseCheat
             ),
             actions = TopGameControlsActions(
                 onMenuToggle = { menuOpen = !menuOpen },
                 onMenuDismiss = { menuOpen = false },
                 onMusicVolumeChange = { musicVolume = it },
                 onSoundEffectsVolumeChange = { soundEffectsVolume = it },
+                onAccuseCheat = { showAccuseCheatDialog = true },
                 onLeaveGame = onBackToLobby,
                 onShowSpielregeln = { showSpielregeln = true }
             )
@@ -353,6 +374,24 @@ fun GameScreen(
                 onToolDialogChange = { showToolDialog = it },
                 onPendingToolSelectionChange = { pendingToolSelection = it }
             )
+        )
+
+        if (showAccuseCheatDialog) {
+            AccuseCheatDialog(
+                players = uiState.gameState.players,
+                selfPlayerId = uiState.localPlayerId.orEmpty(),
+                onAccuse = { targetPlayerId ->
+                    viewModel.accuseCheating(targetPlayerId)
+                    showAccuseCheatDialog = false
+                },
+                onDismiss = { showAccuseCheatDialog = false }
+            )
+        }
+
+        CheatAccusationResultDialog(
+            result = uiState.lastCheatAccusationResult,
+            players = uiState.gameState.players,
+            onDismiss = { viewModel.dismissCheatAccusationResult() }
         )
 
         if (showSpielregeln) {
@@ -509,6 +548,8 @@ private fun BoxScope.TopGameControls(
                     onMusicVolumeChange = actions.onMusicVolumeChange,
                     soundEffectsVolume = state.soundEffectsVolume,
                     onSoundEffectsVolumeChange = actions.onSoundEffectsVolumeChange,
+                    canAccuseCheat = state.canAccuseCheat,
+                    onAccuseCheat = actions.onAccuseCheat,
                     onLeaveGame = actions.onLeaveGame,
                     onShowSpielregeln = actions.onShowSpielregeln
                 )
@@ -739,6 +780,76 @@ private fun DeckBadge(count: Int) {
             }
         }
     }
+}
+
+@Composable
+private fun AccuseCheatDialog(
+    players: List<PlayerTurn>,
+    selfPlayerId: String,
+    onAccuse: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val accuseablePlayers = players.filter { it.playerId != selfPlayerId }
+    if (accuseablePlayers.isEmpty()) return
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.accuse_cheat_title)) },
+        text = {
+            Column {
+                accuseablePlayers.forEach { player ->
+                    Button(
+                        onClick = { onAccuse(player.playerId) },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Text(player.playerName)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) }
+        }
+    )
+}
+
+@Composable
+private fun CheatAccusationResultDialog(
+    result: CheatAccusationResult?,
+    players: List<PlayerTurn>,
+    onDismiss: () -> Unit
+) {
+    if (result == null) return
+
+    val accuserName = players.find { it.playerId == result.accuserPlayerId }?.playerName
+        ?: result.accuserPlayerId
+    val accusedName = players.find { it.playerId == result.accusedPlayerId }?.playerName
+        ?: result.accusedPlayerId
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (result.caught) R.string.accuse_cheat_caught_title
+                    else R.string.accuse_cheat_failed_title
+                )
+            )
+        },
+        text = {
+            Text(
+                stringResource(
+                    if (result.caught) R.string.accuse_cheat_caught_message
+                    else R.string.accuse_cheat_failed_message,
+                    accuserName,
+                    accusedName
+                )
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok_button)) }
+        }
+    )
 }
 
 @Composable

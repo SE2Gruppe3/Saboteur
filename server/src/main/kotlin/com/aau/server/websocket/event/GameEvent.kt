@@ -12,6 +12,7 @@ sealed class GameEvent(val type: String, val payload: Any) {
     data class ErrorEvent(val message: String) : GameEvent("ERROR", message)
     data class ValidPositions(val positions: List<BoardPosition>) : GameEvent("VALID_POSITIONS", mapOf("positions" to positions))
     data class MapResultEvent(val result: MapResult) : GameEvent("MAP_RESULT", result)
+    data class CheatAccusationResultEvent(val result: CheatAccusationResult) : GameEvent("CHEAT_ACCUSATION_RESULT", result)
     data class LobbyLeft(val dummy: String = "") : GameEvent("LOBBY_LEFT", dummy)
     data class PlayerKicked(val playerId: String) : GameEvent("PLAYER_KICKED", mapOf("playerId" to playerId))
     data class SyncComplete(val dummy: String = "") : GameEvent("SYNC_COMPLETE", dummy)
