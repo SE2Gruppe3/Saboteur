@@ -28,6 +28,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Signatur-Konfiguration: Verwendet die debug.keystore Datei im app/-Ordner
+    signingConfigs {
+        create("release") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -43,6 +53,11 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
+
+            // Nutze die oben definierte Signatur
+            signingConfig = signingConfigs.getByName("release")
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -129,7 +144,7 @@ val jacocoTestDebugUnitTestReport by tasks.registering(JacocoReport::class) {
     )
 
     sourceDirectories.setFrom(files("${project.projectDir}/src/main/java", "${project.projectDir}/src/main/kotlin"))
-    
+
     val kotlinTree = fileTree("$buildDir/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") {
         exclude(fileFilter)
     }
