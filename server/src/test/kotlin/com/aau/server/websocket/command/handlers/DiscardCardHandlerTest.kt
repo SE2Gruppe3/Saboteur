@@ -1,6 +1,8 @@
 package com.aau.server.websocket.command.handlers
 
 import com.aau.saboteur.model.GameState
+import com.aau.saboteur.model.Player
+import com.aau.saboteur.model.Role
 import com.aau.server.model.TurnResult
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
@@ -87,6 +89,32 @@ class DiscardCardHandlerTest {
 
         verify(messagingService, times(3)).sendEventToLobby(eq(lobbyCode), any())
         verify(lobbyService, never()).resetAfterGame(lobbyCode)
+    }
+
+    @Test
+    fun `handle discard card with round transition sends role updates per player`() {
+        val lobbyCode = "1234"
+        val playerId = "player-1"
+        val command = DiscardCardCommand(playerId, "card-1")
+        val newRoles = mapOf(
+            "player-1" to Player(id = "player-1", role = Role.GOLDDIGGER),
+            "player-2" to Player(id = "player-2", role = Role.SABOTEUR)
+        )
+        val turnResult = TurnResult(
+            GameState(emptyList(), "next-player"),
+            emptyMap(),
+            winner = null,
+            newPlayerRoles = newRoles
+        )
+
+        whenever(messagingService.getLobbyCodeForSession("session-1")).thenReturn(lobbyCode)
+        whenever(messagingService.getLobbyLock(lobbyCode)).thenReturn(ReentrantLock())
+        whenever(messagingService.getPlayerIdForSession("session-1")).thenReturn(playerId)
+        whenever(turnManager.discardCard(lobbyCode, playerId, "card-1")).thenReturn(turnResult)
+
+        handler.handle(session, command)
+
+        verify(messagingService).sendRoleUpdates(newRoles)
     }
 
     @Test

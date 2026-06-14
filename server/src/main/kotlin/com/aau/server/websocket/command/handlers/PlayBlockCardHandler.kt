@@ -40,6 +40,7 @@ class PlayBlockCardHandler(
 
             messagingService.sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
             messagingService.sendEventToLobby(lobbyCode, GameEvent.CardsDealt(result.updatedHands))
+            messagingService.sendRoleUpdates(result.newPlayerRoles)
         }
     }
 }

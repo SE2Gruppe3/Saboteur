@@ -41,6 +41,7 @@ class DiscardCardHandler(
 
             messagingService.sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
             messagingService.sendEventToLobby(lobbyCode, GameEvent.CardsDealt(result.updatedHands))
+            messagingService.sendRoleUpdates(result.newPlayerRoles)
 
             if (result.winner != null) {
                 messagingService.sendEventToLobby(lobbyCode, GameEvent.GameOver(result.winner))
