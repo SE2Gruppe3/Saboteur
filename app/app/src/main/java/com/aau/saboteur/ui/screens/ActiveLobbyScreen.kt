@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -111,7 +112,9 @@ fun ActiveLobbyScreen(
                         errorMessage = errorMessage,
                         playerCountError = playerCountError,
                         isHost = isHost,
+                        localPlayerId = playerId ?: "",
                         onStartGameClick = viewModel::startGame,
+                        onKickPlayer = viewModel::kickPlayer,
                         modifier = Modifier.weight(1f)
                     )
                 } ?: NoActiveLobbyMessage()
@@ -229,7 +232,9 @@ private fun ActiveLobbyContent(
     errorMessage: String?,
     playerCountError: String?,
     isHost: Boolean,
+    localPlayerId: String,
     onStartGameClick: () -> Unit,
+    onKickPlayer: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val hostName = state.players.firstOrNull { it.id == state.hostId }?.name ?: "Unknown"
@@ -305,6 +310,9 @@ private fun ActiveLobbyContent(
         ActiveLobbyPlayerList(
             players = players,
             hostId = state.hostId,
+            isLocalHost = isHost,
+            localPlayerId = localPlayerId,
+            onKickPlayer = onKickPlayer,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -375,6 +383,9 @@ private fun ActiveLobbyContent(
 private fun ActiveLobbyPlayerList(
     players: List<Player>,
     hostId: String,
+    isLocalHost: Boolean,
+    localPlayerId: String,
+    onKickPlayer: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -385,7 +396,9 @@ private fun ActiveLobbyPlayerList(
         items(players) { player ->
             ActiveLobbyPlayerItem(
                 player = player,
-                isHost = player.id == hostId
+                isHost = player.id == hostId,
+                canBeKicked = isLocalHost && player.id != localPlayerId,
+                onKickClick = { onKickPlayer(player.id) }
             )
         }
     }
@@ -394,7 +407,9 @@ private fun ActiveLobbyPlayerList(
 @Composable
 private fun ActiveLobbyPlayerItem(
     player: Player,
-    isHost: Boolean
+    isHost: Boolean,
+    canBeKicked: Boolean,
+    onKickClick: () -> Unit
 ) {
     val containerColor = if (isHost) {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -413,21 +428,34 @@ private fun ActiveLobbyPlayerItem(
         shape = RoundedCornerShape(8.dp),
         border = border
     ) {
-        PlayerListItem(player = player, isHost = isHost)
+        PlayerListItem(player = player, isHost = isHost, canBeKicked = canBeKicked, onKickClick = onKickClick)
     }
 }
 
 @Composable
-private fun PlayerListItem(player: Player, isHost: Boolean) {
+private fun PlayerListItem(player: Player, isHost: Boolean, canBeKicked: Boolean, onKickClick: () -> Unit) {
     ListItem(
         headlineContent = { PlayerHeadline(player.name, isHost) },
         supportingContent = if (isHost) {
             { HostSupportingContent() }
         } else null,
         leadingContent = { PlayerAvatar(player = player, isHost = isHost) },
-        trailingContent = if (isHost) {
-            { HostStarIcon(tint = MaterialTheme.colorScheme.primary) }
-        } else null,
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isHost) {
+                    HostStarIcon(tint = MaterialTheme.colorScheme.primary)
+                }
+                if (canBeKicked) {
+                    IconButton(onClick = onKickClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.kick_player_desc),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
 }
