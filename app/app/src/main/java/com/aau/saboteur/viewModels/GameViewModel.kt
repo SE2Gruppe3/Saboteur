@@ -35,6 +35,7 @@ data class GameUiState(
     val cardRotations: Map<String, Boolean> = emptyMap(),
     val pendingSpecialCard: CardType? = null,
     val lastMapResult: MapResult? = null,
+    val lastCheatAccusationResult: CheatAccusationResult? = null,
     val remainingDeckSize: Int = 0
 )
 
@@ -63,6 +64,7 @@ class GameViewModel : ViewModel() {
         observeGameOverEvents()
         observeValidPositions()
         observeMapResults()
+        observeCheatAccusationResults()
         if (_uiState.value.gameState.players.isEmpty()) {
             _uiState.update { it.copy(isSyncing = true) }
         }
@@ -154,6 +156,14 @@ class GameViewModel : ViewModel() {
                 _uiState.update { it.copy(lastMapResult = result) }
                 delay(5000)
                 _uiState.update { it.copy(lastMapResult = null) }
+            }
+        }
+    }
+
+    private fun observeCheatAccusationResults() {
+        viewModelScope.launch {
+            GameApi.cheatAccusationResults.collect { result ->
+                _uiState.update { it.copy(lastCheatAccusationResult = result) }
             }
         }
     }
@@ -301,8 +311,26 @@ class GameViewModel : ViewModel() {
         GameApi.triggerCheat(lobbyCode, cheatType)
     }
 
+    fun accuseCheating(accusedPlayerId: String) {
+        val state = _uiState.value
+        val lobbyCode = state.lobbyCode ?: return
+        val localPlayerId = state.localPlayerId ?: return
+        if (
+            state.isSyncing ||
+            state.gameState.isRoundOver ||
+            state.gameState.isGameOver ||
+            accusedPlayerId == localPlayerId
+        ) return
+
+        GameApi.accuseCheating(lobbyCode, accusedPlayerId)
+    }
+
     fun dismissMapResult() {
         _uiState.update { it.copy(lastMapResult = null) }
+    }
+
+    fun dismissCheatAccusationResult() {
+        _uiState.update { it.copy(lastCheatAccusationResult = null) }
     }
 
 }

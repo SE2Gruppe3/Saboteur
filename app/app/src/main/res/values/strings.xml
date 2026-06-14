@@ -55,6 +55,12 @@
     <string name="discard_card_button">Karte verwerfen</string>
     <string name="choose_player_title">Wähle einen Spieler</string>
     <string name="player_name_self">%s (Ich)</string>
+    <string name="accuse_cheat_menu">Schummeln entlarven</string>
+    <string name="accuse_cheat_title">Wen möchtest du beschuldigen?</string>
+    <string name="accuse_cheat_caught_title">Schummeln entlarvt!</string>
+    <string name="accuse_cheat_failed_title">Falscher Verdacht</string>
+    <string name="accuse_cheat_caught_message">%1$s hat %2$s beim Schummeln erwischt.</string>
+    <string name="accuse_cheat_failed_message">%1$s hat %2$s beschuldigt, aber es gab keinen Beweis.</string>
     <string name="cancel_button">Abbrechen</string>
     <string name="choose_tool_title">Welches Werkzeug reparieren?</string>
     <string name="repair_lantern">Lampe reparieren 🏮</string>

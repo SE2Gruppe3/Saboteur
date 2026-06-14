@@ -23,6 +23,8 @@ private const val ERROR_NOT_YOUR_TURN = "Du bist nicht am Zug."
 private const val ERROR_HAND_NOT_FOUND = "Hand nicht gefunden"
 private const val ERROR_CARD_NOT_FOUND = "Karte nicht gefunden"
 private const val ERROR_GAME_ALREADY_OVER = "Spiel ist bereits beendet."
+private const val ERROR_PLAYER_NOT_FOUND = "Spieler nicht gefunden."
+private const val ERROR_SELF_ACCUSATION = "Du kannst dich nicht selbst beschuldigen."
 
 
 @Service
@@ -55,7 +57,8 @@ class TurnManager(
         var gameState: GameState,
         var knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> = mutableMapOf(),
         var goldDeck: MutableList<GoldCard> = mutableListOf(),
-        var lastPlayerWhoPlayed: String? = null
+        var lastPlayerWhoPlayed: String? = null,
+        var cheatEvidenceByPlayer: MutableMap<String, CheatType> = mutableMapOf()
     )
 
     private val games = ConcurrentHashMap<String, GameInternalState>()
@@ -412,12 +415,18 @@ class TurnManager(
             val consumeTurn = when (cheatType) {
                 CheatType.LANTERN_FLASHLIGHT -> {
                     require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+                    val lanternWasBlocked = state.players.any { player ->
+                        player.playerId == playerId && ToolType.LANTERN in player.blockedTools
+                    }
                     val updatedPlayers = state.players.map { player ->
                         if (player.playerId == playerId) {
                             player.copy(blockedTools = player.blockedTools - ToolType.LANTERN)
                         } else player
                     }
                     internal.gameState = state.copy(players = updatedPlayers)
+                    if (lanternWasBlocked) {
+                        internal.cheatEvidenceByPlayer[playerId] = CheatType.LANTERN_FLASHLIGHT
+                    }
                     false
                 }
                 CheatType.VOLUME_SEQUENCE_DISCARD -> {
@@ -426,6 +435,7 @@ class TurnManager(
                         val discardedCard = playerHand.removeAt(Random.nextInt(playerHand.size))
                         internal.discardPile.add(discardedCard)
                         drawCardForPlayer(internal, playerId)
+                        internal.cheatEvidenceByPlayer[playerId] = CheatType.VOLUME_SEQUENCE_DISCARD
                     }
                     false
                 }
@@ -443,6 +453,26 @@ class TurnManager(
 
             finalizeAndPersist(lobbyCode, internal)
             return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(lobbyCode, internal.gameState, internal = internal))
+        }
+    }
+
+    @Transactional
+    fun accuseCheating(lobbyCode: String, accuserPlayerId: String, accusedPlayerId: String): CheatAccusationResult {
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
+        synchronized(internal) {
+            val state = internal.gameState
+            require(!state.isRoundOver && !state.isGameOver) { ERROR_GAME_ALREADY_OVER }
+            require(accuserPlayerId != accusedPlayerId) { ERROR_SELF_ACCUSATION }
+            require(state.players.any { it.playerId == accuserPlayerId }) { ERROR_PLAYER_NOT_FOUND }
+            require(state.players.any { it.playerId == accusedPlayerId }) { ERROR_PLAYER_NOT_FOUND }
+
+            val caughtCheat = internal.cheatEvidenceByPlayer.remove(accusedPlayerId)
+            return CheatAccusationResult(
+                accuserPlayerId = accuserPlayerId,
+                accusedPlayerId = accusedPlayerId,
+                caught = caughtCheat != null,
+                cheatType = caughtCheat
+            )
         }
     }
 
@@ -714,6 +744,7 @@ class TurnManager(
             mutableMapOf<BoardPosition, TunnelCard>()
         }.toMutableMap()
         internal.lastPlayerWhoPlayed = null
+        internal.cheatEvidenceByPlayer.clear()
 
         internal.gameState = createNextRoundGameState(
             previousState = internal.gameState,

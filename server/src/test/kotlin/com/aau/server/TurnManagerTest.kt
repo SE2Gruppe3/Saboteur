@@ -1195,6 +1195,87 @@ class TurnManagerTest {
     }
 
     @Test
+    fun `accuseCheating catches player after volume discard cheat and clears evidence`() {
+        setupStandardGame(mutableListOf(pathCard("draw-card")))
+        turnManager.cheatPlayer(lobbyCode, p2, CheatType.VOLUME_SEQUENCE_DISCARD)
+
+        val caught = turnManager.accuseCheating(lobbyCode, p1, p2)
+        val secondAccusation = turnManager.accuseCheating(lobbyCode, p1, p2)
+
+        assertEquals(p1, caught.accuserPlayerId)
+        assertEquals(p2, caught.accusedPlayerId)
+        assertTrue(caught.caught)
+        assertEquals(CheatType.VOLUME_SEQUENCE_DISCARD, caught.cheatType)
+        assertFalse(secondAccusation.caught)
+        assertNull(secondAccusation.cheatType)
+    }
+
+    @Test
+    fun `accuseCheating catches player after lantern flashlight cheat`() {
+        val blockedPlayer = PlayerTurn(p1, "Alice", 1, blockedTools = setOf(ToolType.LANTERN))
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "LANTERN_ACCUSATION",
+            dist,
+            GameState(listOf(blockedPlayer, PlayerTurn(p2, "Bob", 2)), p1, emptyList())
+        )
+
+        turnManager.cheatPlayer("LANTERN_ACCUSATION", p1, CheatType.LANTERN_FLASHLIGHT)
+
+        val caught = turnManager.accuseCheating("LANTERN_ACCUSATION", p2, p1)
+
+        assertTrue(caught.caught)
+        assertEquals(CheatType.LANTERN_FLASHLIGHT, caught.cheatType)
+    }
+
+    @Test
+    fun `accuseCheating does not catch idempotent lantern flashlight cheat`() {
+        val player = PlayerTurn(p1, "Alice", 1, blockedTools = emptySet())
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "LANTERN_NOOP_ACCUSATION",
+            dist,
+            GameState(listOf(player, PlayerTurn(p2, "Bob", 2)), p1, emptyList())
+        )
+
+        turnManager.cheatPlayer("LANTERN_NOOP_ACCUSATION", p1, CheatType.LANTERN_FLASHLIGHT)
+
+        val accusation = turnManager.accuseCheating("LANTERN_NOOP_ACCUSATION", p2, p1)
+
+        assertFalse(accusation.caught)
+        assertNull(accusation.cheatType)
+    }
+
+    @Test
+    fun `accuseCheating returns false when accused player has no cheat evidence`() {
+        setupStandardGame()
+
+        val result = turnManager.accuseCheating(lobbyCode, p1, p2)
+
+        assertFalse(result.caught)
+        assertNull(result.cheatType)
+    }
+
+    @Test
+    fun `accuseCheating rejects self accusation`() {
+        setupStandardGame()
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.accuseCheating(lobbyCode, p1, p1)
+        }
+    }
+
+    @Test
     fun `cheat TEST_REVEAL consumes turn and moves to next player`() {
         setupStandardGame()
         val result = turnManager.cheatPlayer(lobbyCode, p1, CheatType.TEST_REVEAL)

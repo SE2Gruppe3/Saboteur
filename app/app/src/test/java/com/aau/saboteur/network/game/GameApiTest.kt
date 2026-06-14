@@ -172,6 +172,18 @@ class GameApiTest {
             })
         }
     }
+
+    @Test
+    fun `accuseCheating sends ACCUSE_CHEAT with lobbyCode and accused player`() {
+        GameApi.accuseCheating("L1", "P2")
+
+        verify {
+            WebSocketManager.sendCommand("ACCUSE_CHEAT", match<JSONObject> { json ->
+                json.getString("lobbyCode") == "L1" &&
+                    json.getString("accusedPlayerId") == "P2"
+            })
+        }
+    }
     // endregion
 
     // region inbound event handlers
@@ -257,6 +269,21 @@ class GameApiTest {
         assertEquals(BoardPosition(3, 4), result.position)
         assertEquals(CardType.GOAL, result.card.type)
         assertTrue(result.card.isGoal)
+    }
+
+    @Test
+    fun `CHEAT_ACCUSATION_RESULT event emits parsed result`() = runTest {
+        val resultDeferred = async(UnconfinedTestDispatcher(testScheduler)) { GameApi.cheatAccusationResults.first() }
+        fire(
+            "CHEAT_ACCUSATION_RESULT",
+            """{"accuserPlayerId":"P1","accusedPlayerId":"P2","caught":true,"cheatType":"VOLUME_SEQUENCE_DISCARD"}"""
+        )
+
+        val result = resultDeferred.await()
+        assertEquals("P1", result.accuserPlayerId)
+        assertEquals("P2", result.accusedPlayerId)
+        assertTrue(result.caught)
+        assertEquals(CheatType.VOLUME_SEQUENCE_DISCARD, result.cheatType)
     }
 
     @Test

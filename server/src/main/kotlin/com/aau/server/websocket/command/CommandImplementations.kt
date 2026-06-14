@@ -60,6 +60,11 @@ data class PlayerCheatCommand(
     val cheatType: CheatType
 ) : Command
 
+data class AccuseCheatCommand(
+    val lobbyCode: String,
+    val accusedPlayerId: String
+) : Command
+
 /**
  * Sent by the client after receiving and processing a RECONNECT_SNAPSHOT.
  * This signals the server to release the event buffer and start sending live updates.
