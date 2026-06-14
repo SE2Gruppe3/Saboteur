@@ -31,7 +31,8 @@ android {
     // Signatur-Konfiguration: Verwendet die debug.keystore Datei im app/-Ordner
     signingConfigs {
         create("release") {
-            storeFile = file("debug.keystore")
+            // "rootProject.file" sucht immer vom Hauptverzeichnis aus
+            storeFile = rootProject.file("app/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
