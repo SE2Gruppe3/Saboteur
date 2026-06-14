@@ -1,0 +1,63 @@
+name: Android Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Release APK
+        run: ./gradlew :app:assembleRelease --no-daemon
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Rename APK and prepare Release
+        run: |
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          # Robuster Pfad zum Release-APK
+          APK_PATH="app/app/build/outputs/apk/release/app-release.apk"
+          
+          if [ ! -f "$APK_PATH" ]; then
+            echo "Fehler: APK Datei nicht gefunden unter $APK_PATH"
+            ls -R app/build/outputs/apk/
+            exit 1
+          fi
+          
+          NEW_NAME="Saboteur-v${{ github.ref_name }}-${COMMIT_HASH}.apk"
+          mv "$APK_PATH" "./$NEW_NAME"
+          echo "APK_FILE=$NEW_NAME" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: ${{ env.APK_FILE }}
+          generate_release_notes: true
+          name: "Release ${{ github.ref_name }} (Commit: ${{ github.sha }})"
