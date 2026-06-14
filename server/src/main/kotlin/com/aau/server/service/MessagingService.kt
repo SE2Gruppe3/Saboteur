@@ -1,5 +1,6 @@
 package com.aau.server.service
 
+import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.WsMessage
 import com.aau.server.websocket.event.GameEvent
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -97,6 +98,12 @@ class MessagingService(private val objectMapper: ObjectMapper) {
             val sid = playerToSession[playerId] ?: return@executeAfterCommit
             val msg = TextMessage(objectMapper.writeValueAsString(WsMessage(event.type, event.payload)))
             sendToSessionInternal(sid, msg)
+        }
+    }
+
+    fun sendRoleUpdates(newPlayerRoles: Map<String, Player>) {
+        newPlayerRoles.forEach { (pid, player) ->
+            sendEventToPlayer(pid, GameEvent.PlayerDataUpdate(player))
         }
     }
 
