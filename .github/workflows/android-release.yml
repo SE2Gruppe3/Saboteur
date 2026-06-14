@@ -1,47 +1,53 @@
 name: Android Release Build
 
 on:
-  push:
-    tags:
-      - 'v*'
+push:
+tags:
+  - 'v*'
 
 permissions:
-  contents: write
+contents: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
+  
+  ```
+steps:
+  - uses: actions/checkout@v4
 
-    steps:
-      - uses: actions/checkout@v4
+  - name: Set up JDK 17
+    uses: actions/setup-java@v4
+    with:
+      java-version: '17'
+      distribution: 'temurin'
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: temurin
+  - name: Build Release APK
+    run: ./gradlew assembleRelease
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease
+  - name: Rename APK with Commit Hash
+    shell: bash
+    run: |
+      APK_PATH=$(find . -path "*/release/*.apk" | head -n 1)
 
-      - name: Rename APK with Commit Hash
-        run: |
-          APK_PATH=$(find . -path "*/release/*.apk" | head -n 1)
+      if [ -z "$APK_PATH" ]; then
+        echo "Keine APK gefunden!"
+        exit 1
+      fi
 
-          if [ -z "$APK_PATH" ]; then
-            echo "Keine APK gefunden!"
-            exit 1
-          fi
+      COMMIT_HASH=$(git rev-parse --short HEAD)
+      NEW_NAME="Saboteur-${{ github.ref_name }}-${COMMIT_HASH}.apk"
 
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          NEW_NAME="Saboteur-${{ github.ref_name }}-${COMMIT_HASH}.apk"
+      mv "$APK_PATH" "./$NEW_NAME"
 
-          mv "$APK_PATH" "./$NEW_NAME"
-          echo "APK_FILE=$NEW_NAME" >> "$GITHUB_ENV"
+      echo "APK_FILE=$NEW_NAME" >> "$GITHUB_ENV"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ env.APK_FILE }}
-          generate_release_notes: true
-          name: Release ${{ github.ref_name }} (Commit: ${{ github.sha }})
+  - name: Create GitHub Release
+    uses: softprops/action-gh-release@v2
+    with:
+      files: ${{ env.APK_FILE }}
+      generate_release_notes: true
+      name: "Release ${{ github.ref_name }} (Commit: ${{ github.sha }})"
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
