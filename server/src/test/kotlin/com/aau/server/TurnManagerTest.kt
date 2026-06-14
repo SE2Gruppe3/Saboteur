@@ -1407,6 +1407,38 @@ class TurnManagerTest {
         assertFalse(result.updatedGameState.isGameOver)
     }
 
+    @Test
+    fun `round transition populates newPlayerRoles with a role for every player`() {
+        val golddigger = Player("p1", "Alice", role = Role.GOLDDIGGER)
+        val golddigger2 = Player("p2", "Bob", role = Role.GOLDDIGGER)
+        val saboteur = Player("p3", "Charlie", role = Role.SABOTEUR)
+        mockPlayerData(mapOf(p1 to golddigger, p2 to golddigger2, p3 to saboteur))
+
+        val players = listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3))
+        val hands = mapOf(
+            p1 to mutableListOf(pathCard("win_card")),
+            p2 to mutableListOf(pathCard("c2")),
+            p3 to mutableListOf(pathCard("c3"))
+        )
+        setupWinningBoard("ROUND2_ROLES", players, hands)
+
+        val result = turnManager.discardCard("ROUND2_ROLES", p1, "win_card")
+
+        assertTrue(result.newPlayerRoles.isNotEmpty(), "newPlayerRoles must be set after round transition")
+        assertEquals(setOf(p1, p2, p3), result.newPlayerRoles.keys)
+        result.newPlayerRoles.values.forEach { player ->
+            assertNotNull(player.role, "Every player must have a role after redistribution")
+        }
+    }
+
+    @Test
+    fun `no round transition leaves newPlayerRoles empty`() {
+        val result = turnManager.discardCard(lobbyCode, p1, "c1")
+
+        assertNull(result.winner)
+        assertTrue(result.newPlayerRoles.isEmpty(), "newPlayerRoles must be empty when no round ended")
+    }
+
     // =====================================================================
     // Gold distribution — saboteur count variants
     // =====================================================================
