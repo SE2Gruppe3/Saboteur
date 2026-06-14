@@ -389,32 +389,8 @@ class TurnManager(
             require(!state.isRoundOver && !state.isGameOver) { ERROR_GAME_ALREADY_OVER }
             
             val consumeTurn = when (cheatType) {
-                CheatType.LANTERN_FLASHLIGHT -> {
-                    require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
-                    val lanternWasBlocked = state.players.any { player ->
-                        player.playerId == playerId && ToolType.LANTERN in player.blockedTools
-                    }
-                    val updatedPlayers = state.players.map { player ->
-                        if (player.playerId == playerId) {
-                            player.copy(blockedTools = player.blockedTools - ToolType.LANTERN)
-                        } else player
-                    }
-                    internal.gameState = state.copy(players = updatedPlayers)
-                    if (lanternWasBlocked) {
-                        internal.cheatEvidenceByPlayer[playerId] = CheatType.LANTERN_FLASHLIGHT
-                    }
-                    false
-                }
-                CheatType.VOLUME_SEQUENCE_DISCARD -> {
-                    val playerHand = internal.hands[playerId]
-                    if (!playerHand.isNullOrEmpty()) {
-                        val discardedCard = playerHand.removeAt(Random.nextInt(playerHand.size))
-                        internal.discardPile.add(discardedCard)
-                        drawCardForPlayer(internal, playerId)
-                        internal.cheatEvidenceByPlayer[playerId] = CheatType.VOLUME_SEQUENCE_DISCARD
-                    }
-                    false
-                }
+                CheatType.LANTERN_FLASHLIGHT -> applyLanternFlashlightCheat(internal, playerId, state)
+                CheatType.VOLUME_SEQUENCE_DISCARD -> applyVolumeSequenceDiscardCheat(internal, playerId)
                 CheatType.TEST_REVEAL -> {
                     // Simulierter Cheat für Coverage-Zwecke (verbraucht einen Zug)
                     true
@@ -433,8 +409,37 @@ class TurnManager(
         }
     }
 
+    private fun applyLanternFlashlightCheat(
+        internal: GameInternalState,
+        playerId: String,
+        state: GameState
+    ): Boolean {
+        require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+        val lanternWasBlocked = state.players.any { player ->
+            player.playerId == playerId && ToolType.LANTERN in player.blockedTools
+        }
+        val updatedPlayers = state.players.map { player ->
+            if (player.playerId == playerId) {
+                player.copy(blockedTools = player.blockedTools - ToolType.LANTERN)
+            } else player
+        }
+        internal.gameState = state.copy(players = updatedPlayers)
+        if (lanternWasBlocked) {
+            internal.cheatEvidenceByPlayer[playerId] = CheatType.LANTERN_FLASHLIGHT
+        }
+        return false
+    }
+
+    private fun applyVolumeSequenceDiscardCheat(internal: GameInternalState, playerId: String): Boolean {
+        if (discardRandomHandCard(internal, playerId) != null) {
+            drawCardForPlayer(internal, playerId)
+            internal.cheatEvidenceByPlayer[playerId] = CheatType.VOLUME_SEQUENCE_DISCARD
+        }
+        return false
+    }
+
     @Transactional
-    fun accuseCheating(lobbyCode: String, accuserPlayerId: String, accusedPlayerId: String): CheatAccusationResult {
+    fun accuseCheating(lobbyCode: String, accuserPlayerId: String, accusedPlayerId: String): CheatAccusationTurnResult {
         val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
@@ -444,11 +449,24 @@ class TurnManager(
             require(state.players.any { it.playerId == accusedPlayerId }) { ERROR_PLAYER_NOT_FOUND }
 
             val caughtCheat = internal.cheatEvidenceByPlayer.remove(accusedPlayerId)
-            return CheatAccusationResult(
+            if (caughtCheat != null) {
+                discardRandomHandCard(internal, accusedPlayerId)
+                drawUpToStartingHandSize(internal, accuserPlayerId)
+            } else {
+                discardRandomHandCard(internal, accuserPlayerId)
+            }
+
+            val accusation = CheatAccusationResult(
                 accuserPlayerId = accuserPlayerId,
                 accusedPlayerId = accusedPlayerId,
                 caught = caughtCheat != null,
                 cheatType = caughtCheat
+            )
+            finalizeAndPersist(lobbyCode, internal)
+            return CheatAccusationTurnResult(
+                accusation = accusation,
+                updatedGameState = internal.gameState,
+                updatedHands = internal.hands.mapValues { it.value.toList() }
             )
         }
     }
@@ -556,6 +574,30 @@ class TurnManager(
         if (internal.drawPile.isEmpty()) { internal.deckWasEmptied = true; return }
         internal.hands[playerId]?.add(internal.drawPile.removeFirst())
         if (internal.drawPile.isEmpty()) internal.deckWasEmptied = true
+    }
+
+    private fun discardRandomHandCard(internal: GameInternalState, playerId: String): TunnelCard? {
+        val hand = internal.hands[playerId] ?: return null
+        if (hand.isEmpty()) return null
+
+        val discardedCard = hand.removeAt(Random.nextInt(hand.size))
+        internal.discardPile.add(discardedCard)
+        return discardedCard
+    }
+
+    private fun drawUpToStartingHandSize(internal: GameInternalState, playerId: String) {
+        val hand = internal.hands[playerId] ?: return
+        val targetHandSize = startingHandSize(internal.gameState.players.size)
+
+        while (hand.size < targetHandSize && internal.drawPile.isNotEmpty()) {
+            drawCardForPlayer(internal, playerId)
+        }
+    }
+
+    private fun startingHandSize(playerCount: Int): Int = when {
+        playerCount <= 5 -> 6
+        playerCount <= 7 -> 5
+        else -> 4
     }
 
 

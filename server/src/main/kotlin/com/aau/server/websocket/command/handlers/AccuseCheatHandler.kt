@@ -30,7 +30,9 @@ class AccuseCheatHandler(
                 accusedPlayerId = command.accusedPlayerId
             )
 
-            messagingService.sendEventToLobby(command.lobbyCode, GameEvent.CheatAccusationResultEvent(result))
+            messagingService.sendEventToLobby(command.lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
+            messagingService.sendEventToLobby(command.lobbyCode, GameEvent.CardsDealt(result.updatedHands))
+            messagingService.sendEventToLobby(command.lobbyCode, GameEvent.CheatAccusationResultEvent(result.accusation))
         }
     }
 }

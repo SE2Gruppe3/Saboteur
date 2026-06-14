@@ -2,9 +2,12 @@ package com.aau.server.websocket.command.handlers
 
 import com.aau.saboteur.model.CheatAccusationResult
 import com.aau.saboteur.model.CheatType
+import com.aau.saboteur.model.GameState
+import com.aau.server.model.CheatAccusationTurnResult
 import com.aau.server.service.MessagingService
 import com.aau.server.service.TurnManager
 import com.aau.server.websocket.command.AccuseCheatCommand
+import com.aau.server.websocket.event.GameEvent
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -31,11 +34,16 @@ class AccuseCheatHandlerTest {
         val lobbyCode = "L1"
         val accuserId = "p1"
         val accusedId = "p2"
-        val result = CheatAccusationResult(
+        val accusation = CheatAccusationResult(
             accuserPlayerId = accuserId,
             accusedPlayerId = accusedId,
             caught = true,
             cheatType = CheatType.VOLUME_SEQUENCE_DISCARD
+        )
+        val result = CheatAccusationTurnResult(
+            accusation = accusation,
+            updatedGameState = GameState(deckSize = 3),
+            updatedHands = emptyMap()
         )
 
         whenever(messagingService.getPlayerIdForSession("session-123")).thenReturn(accuserId)
@@ -44,7 +52,9 @@ class AccuseCheatHandlerTest {
         handler.handle(session, AccuseCheatCommand(lobbyCode, accusedId))
 
         verify(turnManager).accuseCheating(lobbyCode, accuserId, accusedId)
-        verify(messagingService).sendEventToLobby(eq(lobbyCode), any())
+        verify(messagingService).sendEventToLobby(lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
+        verify(messagingService).sendEventToLobby(lobbyCode, GameEvent.CardsDealt(result.updatedHands))
+        verify(messagingService).sendEventToLobby(lobbyCode, GameEvent.CheatAccusationResultEvent(accusation))
     }
 
     @Test

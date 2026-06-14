@@ -21,7 +21,7 @@ Das Entlarven von Cheats läuft über ein separates Kommando `ACCUSE_CHEAT`, dam
 - `lobbyCode` (String): Der Code der aktuellen Lobby.
 - `accusedPlayerId` (String): Der Spieler, der des Schummelns beschuldigt wird.
 
-Der Server bestimmt den beschuldigenden Spieler immer aus der WebSocket-Session. Das Ergebnis wird als `CHEAT_ACCUSATION_RESULT` an die gesamte Lobby gesendet.
+Der Server bestimmt den beschuldigenden Spieler immer aus der WebSocket-Session. Bei einer korrekten Beschuldigung verliert der ertappte Spieler eine zufällige Handkarte; der Beschuldigende zieht anschließend bis zur regulären Starthandgröße nach, sofern der Nachziehstapel genug Karten enthält. Bei einer falschen Beschuldigung verliert stattdessen der Beschuldigende eine zufällige Handkarte. Nach der Auswertung sendet der Server `GAME_STATE_UPDATE`, `CARDS_DEALT` und `CHEAT_ACCUSATION_RESULT` an die gesamte Lobby.
 
 ## Implementierung neuer Cheats
 
@@ -74,14 +74,14 @@ viewModel.triggerCheat(CheatType.MY_NEW_CHEAT)
 - **Hardware-Trigger:** Wird in `GameScreen.kt` durch den `CameraManager.TorchCallback` (physische Taschenlampe) ausgelöst.
 - **Bedingung:** Spieler muss am Zug sein (serverseitig validiert).
 - **Runden-Logik:** Verbraucht KEINEN Spielzug (`consumeTurn = false`).
-- **Entlarven:** Wenn dadurch wirklich eine Laternen-Blockade entfernt wurde, hinterlegt der Server einen Beweis. Eine spätere Beschuldigung gegen diesen Spieler meldet `caught = true` und verbraucht den Beweis.
+- **Entlarven:** Wenn dadurch wirklich eine Laternen-Blockade entfernt wurde, hinterlegt der Server einen Beweis. Eine spätere Beschuldigung gegen diesen Spieler meldet `caught = true`, verbraucht den Beweis, lässt den ertappten Spieler eine zufällige Handkarte verlieren und füllt die Hand des korrekten Beschuldigenden bis zur Starthandgröße auf.
 
 ### VOLUME_SEQUENCE_DISCARD
 - **Beschreibung:** Wirft serverseitig eine zufällige Handkarte des Spielers ab und zieht automatisch eine Ersatzkarte, falls der Nachziehstapel noch Karten enthält.
 - **Hardware-Trigger:** Wird in `GameScreen.kt` durch die Sequenz `Lauter, Lauter, Leiser, Leiser` ausgelöst.
 - **Bedingung:** Spieler muss nicht am Zug sein. Eine leere Hand ist ein sicherer No-op.
 - **Runden-Logik:** Verbraucht KEINEN Spielzug (`consumeTurn = false`).
-- **Entlarven:** Erfolgreiche Nutzung hinterlegt serverseitig einen Beweis. Eine spätere Beschuldigung gegen diesen Spieler meldet `caught = true` und verbraucht den Beweis.
+- **Entlarven:** Erfolgreiche Nutzung hinterlegt serverseitig einen Beweis. Eine spätere Beschuldigung gegen diesen Spieler meldet `caught = true`, verbraucht den Beweis, lässt den ertappten Spieler eine zufällige Handkarte verlieren und füllt die Hand des korrekten Beschuldigenden bis zur Starthandgröße auf.
 
 ## Anleitung für Entwickler
 
