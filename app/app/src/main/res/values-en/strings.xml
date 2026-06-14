@@ -93,7 +93,9 @@
     <!-- Cheats -->
     <string name="cheat_rules_title">Cheat Functions</string>
     <string name="cheat_lantern_title">The Magic Flashlight</string>
-    <string name="cheat_lantern_desc">True dwarves need light! If you have a broken lantern (blocked), you can briefly turn your real phone flashlight on and off. This will immediately remove your blockage without having to play a repair card.</string>
+    <string name="cheat_lantern_desc">True dwarves need light! If you have a broken lantern (blocked), you can briefly turn your real phone flashlight on and off. This will immediately remove your blockage without having to play a repair card. This cheat does not consume a turn!</string>
+    <string name="cheat_volume_title">Volume Master</string>
+    <string name="cheat_volume_desc">Sometimes a card just doesn\'t fit your strategy. Press the volume keys in the sequence UP, UP, DOWN, DOWN (within 2 seconds) to discard a random card from your hand and immediately draw a new one. This cheat does not consume a turn!</string>
     <string name="cheat_risk_title">Risk &amp; Reward</string>
     <string name="cheat_risk_desc">Cheating is dangerous! Use this advantage wisely to save yourself as a gold digger or to advance unnoticed as a saboteur. Make sure no one sees you triggering the sensor!</string>
 
