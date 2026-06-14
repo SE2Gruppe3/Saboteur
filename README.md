@@ -54,9 +54,17 @@ Saboteur/
 
 ---
 
-## Gerätesensor-Feature
+## Gerätesensor-Feature (Schummelfunktionen)
 
-Die App integriert einen **Gerätesensor (Accelerometer)** für eine Cheat-Funktion. Die genaue Umsetzung wird in Sprint 3 festgelegt und implementiert.
+Die App integriert **Gerätesensoren** für zwei implementierte Cheat-Funktionen, die keinen Spielzug verbrauchen:
+
+### Die magische Taschenlampe
+Echte Zwerge brauchen Licht! Wenn du eine kaputte Lampe hast (Blockierung), kannst du deine echte Handy-Taschenlampe kurz ein- und ausschalten. Dadurch wird deine Blockierung sofort aufgehoben, ohne dass du eine Reparaturkarte ausspielen musst.
+
+### Die Macht der Lautstärke
+Manchmal passt eine Karte einfach nicht in den Plan. Drücke die Lautstärketasten in der Reihenfolge **LAUTER, LAUTER, LEISER, LEISER** (innerhalb von 2 Sekunden), um eine zufällige Karte aus deiner Hand abzuwerfen und sofort eine neue zu ziehen.
+
+> **Risiko & Belohnung:** Schummeln ist gefährlich! Achte darauf, dass niemand sieht, wie du den Sensor triggerst – andere Spieler können dich des Schummelns beschuldigen. Wer beim Schummeln erwischt wird, verliert eine Handkarte; ein falscher Verdacht kostet den Ankläger eine Karte.
 
 ---
 
@@ -149,7 +157,7 @@ Weitere Details: [MONITORING_AND_HEALTH.md](https://github.com/SE2Gruppe3/Sabote
 - Login via **Benutzername** (kein Passwort erforderlich, Gastbeitritt möglich)
 - Spielbeitritt über **Session-ID**
 - Keine KI-Gegner
-- Gerätesensor-Cheat-Funktion folgt in Sprint 3
+- Gerätesensor-Cheat-Funktionen implementiert (Taschenlampe & Lautstärke-Sequenz)
 
 ---
 
