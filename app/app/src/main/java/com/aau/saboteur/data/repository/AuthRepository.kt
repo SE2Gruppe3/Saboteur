@@ -35,8 +35,9 @@ class AuthRepository {
                     val user = json.decodeFromString<User>(bodyString)
                     Result.success(user)
                 } else {
-                    // Hier lesen wir jetzt die Nachricht aus, die wir im Controller
-                    // mit .body("Nachricht") definiert haben (z.B. "Passwort falsch")
+                    if (response.code == 409) {
+                        return@withContext Result.failure(Exception("error.guest_name_taken"))
+                    }
                     val errorMessage = if (bodyString.isNotBlank()) bodyString else "Fehler: ${response.code}"
                     Result.failure(Exception(errorMessage))
                 }

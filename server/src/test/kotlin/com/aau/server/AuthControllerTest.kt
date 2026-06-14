@@ -6,6 +6,7 @@ import com.aau.server.model.UserEntity
 import com.aau.server.repository.UserRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity
 import java.security.MessageDigest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class AuthControllerTest {
 
@@ -50,6 +52,53 @@ class AuthControllerTest {
         assertNotNull(response.body)
         assertEquals(username, response.body?.username)
         assertEquals(hashedPassword, response.body?.passwordHash)
+    }
+
+    @Test
+    fun `guest login creates new entity with isGuest true`() {
+        // GIVEN
+        val loginData = mapOf("username" to "GuestMax", "password" to "")
+        `when`(userRepository.findByUsername("GuestMax")).thenReturn(null)
+        val savedEntity = UserEntity(id = 10L, username = "GuestMax", passwordHash = "", isGuest = true)
+        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(savedEntity)
+
+        // WHEN
+        val response = authController.login(loginData) as ResponseEntity<User>
+
+        // THEN
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertEquals("GuestMax", response.body?.username)
+        val captor = ArgumentCaptor.forClass(UserEntity::class.java)
+        verify(userRepository).save(captor.capture())
+        assertTrue(captor.value.isGuest)
+        assertEquals("", captor.value.passwordHash)
+    }
+
+    @Test
+    fun `guest login returns conflict if name already taken`() {
+        // GIVEN
+        val loginData = mapOf("username" to "GuestMax", "password" to "")
+        val existingGuest = UserEntity(id = 5L, username = "GuestMax", passwordHash = "", isGuest = true)
+        `when`(userRepository.findByUsername("GuestMax")).thenReturn(existingGuest)
+
+        // WHEN
+        val response = authController.login(loginData)
+
+        // THEN
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
+        verify(userRepository, never()).save(any(UserEntity::class.java))
+    }
+
+    @Test
+    fun `guest login does not return existing entity even if name matches`() {
+        // Regression: before the fix, SHA256("") == SHA256("") caused identity theft
+        val loginData = mapOf("username" to "Max", "password" to "")
+        val storedGuest = UserEntity(id = 1L, username = "Max", passwordHash = "", isGuest = true)
+        `when`(userRepository.findByUsername("Max")).thenReturn(storedGuest)
+
+        val response = authController.login(loginData)
+
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
     }
 
     @Test

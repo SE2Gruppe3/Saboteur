@@ -23,21 +23,32 @@ class AuthController(private val userRepository: UserRepository) {
     fun login(@RequestBody loginData: Map<String, String>): ResponseEntity<Any> {
         val username = loginData["username"] ?: ""
         val rawPassword = loginData["password"] ?: ""
+        val isGuest = rawPassword.isBlank()
 
         if (username.isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Benutzername darf nicht leer sein.")
         }
 
-        val hashedPassword = hashPassword(rawPassword)
-        var entity = userRepository.findByUsername(username)
+        val existingEntity = userRepository.findByUsername(username)
 
-        if (entity == null) {
-            val newEntity = userRepository.save(UserEntity(username = username, passwordHash = hashedPassword))
+        if (isGuest) {
+            if (existingEntity != null) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Dieser Gastname ist bereits vergeben. / This guest name is already taken.")
+            }
+            val newEntity = userRepository.save(UserEntity(username = username, passwordHash = "", isGuest = true))
             return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash, newEntity.playerId))
         }
 
-        return if (entity.passwordHash == hashedPassword) {
-            ResponseEntity.ok(User(entity.id, entity.username, entity.passwordHash, entity.playerId))
+        val hashedPassword = hashPassword(rawPassword)
+
+        if (existingEntity == null) {
+            val newEntity = userRepository.save(UserEntity(username = username, passwordHash = hashedPassword, isGuest = false))
+            return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash, newEntity.playerId))
+        }
+
+        return if (existingEntity.passwordHash == hashedPassword) {
+            ResponseEntity.ok(User(existingEntity.id, existingEntity.username, existingEntity.passwordHash, existingEntity.playerId))
         } else {
             ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body("Dieser Nutzername ist bereits vergeben oder das Passwort ist falsch.")
