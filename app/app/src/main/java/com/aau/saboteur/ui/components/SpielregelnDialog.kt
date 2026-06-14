@@ -99,15 +99,17 @@ fun SpielregelnDialog(onDismiss: () -> Unit) {
                                     }
                                 },
                                 update = { webView ->
-                                    val html = """
-                                        <html>
-                                        <body style="margin:0; padding:0; background-color:#1A1A1A;">
-                                            <img src="file:///android_asset/${imagePages[currentPage]}" style="width:100%;" />
-                                            <div style="height: 180px;"></div>
-                                        </body>
-                                        </html>
-                                    """.trimIndent()
-                                    webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
+                                    if (currentPage < imagePages.size) {
+                                        val html = """
+                                            <html>
+                                            <body style="margin:0; padding:0; background-color:#1A1A1A;">
+                                                <img src="file:///android_asset/${imagePages[currentPage]}" style="width:100%;" />
+                                                <div style="height: 180px;"></div>
+                                            </body>
+                                            </html>
+                                        """.trimIndent()
+                                        webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
+                                    }
                                 }
                             )
                         } else {
@@ -215,6 +217,13 @@ private fun CheatRulesPage(modifier: Modifier = Modifier) {
         CheatSection(
             title = stringResource(R.string.cheat_lantern_title),
             description = stringResource(R.string.cheat_lantern_desc)
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 2. NEU: Volume Button Cheat
+        CheatSection(
+            title = stringResource(R.string.cheat_volume_title),
+            description = stringResource(R.string.cheat_volume_desc)
         )
 
         Spacer(modifier = Modifier.height(20.dp))
