@@ -187,7 +187,7 @@ class TurnManager(
                 internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = state.copy(
                     boardPlacements = newPlacements,
-                    currentPlayerId = nextPlayerId(state)
+                    currentPlayerId = nextPlayerId(state, internal)
                 )
 
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
@@ -223,7 +223,7 @@ class TurnManager(
                 internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = state.copy(
                     players = updatedPlayers,
-                    currentPlayerId = nextPlayerId(state)
+                    currentPlayerId = nextPlayerId(state, internal)
                 )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
@@ -267,7 +267,7 @@ class TurnManager(
                 internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = state.copy(
                     players = updatedPlayers,
-                    currentPlayerId = nextPlayerId(state)
+                    currentPlayerId = nextPlayerId(state, internal)
                 )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
@@ -306,7 +306,7 @@ class TurnManager(
                 internal.knownGoalsByPlayer.getOrPut(playerId) { mutableMapOf() }[targetPosition] = targetPlacement.card
                 drawCardForPlayer(internal, playerId)
                 internal.lastPlayerWhoPlayed = playerId
-                internal.gameState = state.copy(currentPlayerId = nextPlayerId(state))
+                internal.gameState = state.copy(currentPlayerId = nextPlayerId(state, internal))
                 internal.passedSinceEmpty = 0
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
@@ -339,7 +339,7 @@ class TurnManager(
                 internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = state.copy(
                     boardPlacements = updatedPlacements,
-                    currentPlayerId = nextPlayerId(state)
+                    currentPlayerId = nextPlayerId(state, internal)
                 )
                 drawCardForPlayer(internal, playerId)
                 internal.passedSinceEmpty = 0
@@ -369,7 +369,7 @@ class TurnManager(
                 if (internal.deckWasEmptied) internal.passedSinceEmpty++
                 internal.lastPlayerWhoPlayed = playerId
                 internal.gameState = internal.gameState.copy(
-                    currentPlayerId = nextPlayerId(internal.gameState)
+                    currentPlayerId = nextPlayerId(internal.gameState, internal)
                 )
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
@@ -399,7 +399,7 @@ class TurnManager(
             }
 
             if (consumeTurn) {
-                internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState))
+                internal.gameState = internal.gameState.copy(currentPlayerId = nextPlayerId(internal.gameState, internal))
                 internal.passedSinceEmpty = 0
             }
 
@@ -434,6 +434,7 @@ class TurnManager(
         if (discardRandomHandCard(internal, playerId) != null) {
             drawCardForPlayer(internal, playerId)
             internal.cheatEvidenceByPlayer[playerId] = CheatType.VOLUME_SEQUENCE_DISCARD
+            skipCurrentPlayerIfHandEmpty(internal)
         }
         return false
     }
@@ -449,11 +450,15 @@ class TurnManager(
             require(state.players.any { it.playerId == accusedPlayerId }) { ERROR_PLAYER_NOT_FOUND }
 
             val caughtCheat = internal.cheatEvidenceByPlayer.remove(accusedPlayerId)
-            if (caughtCheat != null) {
-                discardRandomHandCard(internal, accusedPlayerId)
+            val discardedPenaltyCard = if (caughtCheat != null) {
+                val discardedCard = discardRandomHandCard(internal, accusedPlayerId)
                 drawUpToStartingHandSize(internal, accuserPlayerId)
+                discardedCard
             } else {
                 discardRandomHandCard(internal, accuserPlayerId)
+            }
+            if (discardedPenaltyCard != null) {
+                skipCurrentPlayerIfHandEmpty(internal)
             }
 
             val accusation = CheatAccusationResult(
@@ -795,10 +800,25 @@ class TurnManager(
         updatePlayerGoldValues(lobbyCode, internal)
     }
 
-    private fun nextPlayerId(state: GameState): String? {
+    private fun nextPlayerId(state: GameState, internal: GameInternalState): String? {
         val sorted = state.players.sortedBy { it.turnOrder }
         val idx = sorted.indexOfFirst { it.playerId == state.currentPlayerId }
-        return if (idx == -1) sorted.firstOrNull()?.playerId else sorted[(idx + 1) % sorted.size].playerId
+        if (sorted.isEmpty()) return null
+
+        val nextWithCards = (1..sorted.size)
+            .map { sorted[((if (idx == -1) -1 else idx) + it) % sorted.size] }
+            .firstOrNull { !internal.hands[it.playerId].isNullOrEmpty() }
+
+        return nextWithCards?.playerId
+            ?: if (idx == -1) sorted.first().playerId else sorted[(idx + 1) % sorted.size].playerId
+    }
+
+    private fun skipCurrentPlayerIfHandEmpty(internal: GameInternalState) {
+        val currentPlayerId = internal.gameState.currentPlayerId ?: return
+        if (!internal.hands[currentPlayerId].isNullOrEmpty()) return
+        internal.gameState = internal.gameState.copy(
+            currentPlayerId = nextPlayerId(internal.gameState, internal)
+        )
     }
 
     private fun buildGrid(placements: List<PlacedTunnelCard>) = placements.associateBy { it.position }
