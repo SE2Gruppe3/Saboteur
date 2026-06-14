@@ -30,7 +30,7 @@ class GetValidPositionsHandler(
             ?: throw IllegalArgumentException("Karte ${command.cardId} nicht auf der Hand")
 
         val placements = turnManager.getGameState(lobbyCode).boardPlacements
-        val validPositions = turnManager.getValidPositions(lobbyCode, card, command.isRotated, placements)
+        val validPositions = turnManager.getValidPositions(card, command.isRotated, placements)
 
         messagingService.sendEventToSession(session.id, GameEvent.ValidPositions(validPositions))
     }
