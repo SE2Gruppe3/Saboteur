@@ -42,7 +42,7 @@ jobs:
         run: |
           COMMIT_HASH=$(git rev-parse --short HEAD)
           # Robuster Pfad zum Release-APK
-          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+          APK_PATH="app/app/build/outputs/apk/release/app-release.apk"
           
           if [ ! -f "$APK_PATH" ]; then
             echo "Fehler: APK Datei nicht gefunden unter $APK_PATH"
