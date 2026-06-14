@@ -34,6 +34,7 @@ class PlayerCheatHandler(
 
             messagingService.sendEventToLobby(command.lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
             messagingService.sendEventToLobby(command.lobbyCode, GameEvent.CardsDealt(result.updatedHands))
+            messagingService.sendRoleUpdates(result.newPlayerRoles)
 
             if (result.winner != null) {
                 messagingService.sendEventToLobby(command.lobbyCode, GameEvent.GameOver(result.winner))

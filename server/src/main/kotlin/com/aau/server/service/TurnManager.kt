@@ -58,6 +58,7 @@ class TurnManager(
         var knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> = mutableMapOf(),
         var goldDeck: MutableList<GoldCard> = mutableListOf(),
         var lastPlayerWhoPlayed: String? = null,
+        var pendingRoleUpdate: Map<String, Player> = emptyMap(),
         var cheatEvidenceByPlayer: MutableMap<String, CheatType> = mutableMapOf()
     )
 
@@ -191,11 +192,7 @@ class TurnManager(
 
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(
-                    internal.gameState,
-                    internal.hands.mapValues { it.value.toList() },
-                    winner
-                )
+                return buildResult(internal, winner)
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -232,11 +229,7 @@ class TurnManager(
                 internal.passedSinceEmpty = 0
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(
-                    internal.gameState,
-                    internal.hands.mapValues { it.value.toList() },
-                    winner
-                )
+                return buildResult(internal, winner)
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -280,11 +273,7 @@ class TurnManager(
                 internal.passedSinceEmpty = 0
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(
-                    internal.gameState,
-                    internal.hands.mapValues { it.value.toList() },
-                    winner
-                )
+                return buildResult(internal, winner)
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -321,12 +310,7 @@ class TurnManager(
                 internal.passedSinceEmpty = 0
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
-                val res = TurnResult(
-                    internal.gameState,
-                    internal.hands.mapValues { it.value.toList() },
-                    winner
-                )
-                Pair(res, MapResult(targetPosition, targetPlacement.card))
+                Pair(buildResult(internal, winner), MapResult(targetPosition, targetPlacement.card))
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -361,11 +345,7 @@ class TurnManager(
                 internal.passedSinceEmpty = 0
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(
-                    internal.gameState,
-                    internal.hands.mapValues { it.value.toList() },
-                    winner
-                )
+                return buildResult(internal, winner)
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -393,11 +373,7 @@ class TurnManager(
                 )
                 val winner = determineWinner(lobbyCode, internal.gameState, internal)
                 finalizeAndPersist(lobbyCode, internal)
-                return TurnResult(
-                    internal.gameState,
-                    internal.hands.mapValues { it.value.toList() },
-                    winner
-                )
+                return buildResult(internal, winner)
             } catch (e: Exception) {
                 games.remove(lobbyCode)
                 throw e
@@ -451,8 +427,9 @@ class TurnManager(
                 internal.passedSinceEmpty = 0
             }
 
+            val winner = determineWinner(lobbyCode, internal.gameState, internal = internal)
             finalizeAndPersist(lobbyCode, internal)
-            return TurnResult(internal.gameState, internal.hands.mapValues { it.value.toList() }, determineWinner(lobbyCode, internal.gameState, internal = internal))
+            return buildResult(internal, winner)
         }
     }
 
@@ -474,6 +451,17 @@ class TurnManager(
                 cheatType = caughtCheat
             )
         }
+    }
+
+    private fun buildResult(internal: GameInternalState, winner: String?): TurnResult {
+        val roles = internal.pendingRoleUpdate
+        internal.pendingRoleUpdate = emptyMap()
+        return TurnResult(
+            updatedGameState = internal.gameState,
+            updatedHands = internal.hands.mapValues { it.value.toList() },
+            winner = winner,
+            newPlayerRoles = roles
+        )
     }
 
     private fun finalizeAndPersist(lobbyCode: String, internal: GameInternalState) {
@@ -722,6 +710,14 @@ class TurnManager(
     private fun startNextRound(lobbyCode: String, internal: GameInternalState) {
         val playerIds = internal.gameState.players.map { it.playerId }
         val distribution = CardDistributor.distribute(playerIds)
+
+        val newRoles = RoleDistributor.distributeRoles(playerIds)
+        val playerDataMap = gameService.getAllPlayerData(lobbyCode).toMutableMap()
+        playerDataMap.forEach { (playerId, player) ->
+            playerDataMap[playerId] = player.copy(role = newRoles[playerId] ?: player.role)
+        }
+        gameService.setPlayerData(lobbyCode, playerDataMap)
+        internal.pendingRoleUpdate = playerDataMap
 
         val startPlayerId = determineNextRoundStartPlayer(internal)
             ?: throw IllegalStateException("Kein Startspieler für nächste Runde gefunden")
