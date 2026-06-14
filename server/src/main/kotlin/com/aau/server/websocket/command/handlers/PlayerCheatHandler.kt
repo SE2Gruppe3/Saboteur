@@ -1,5 +1,6 @@
 package com.aau.server.websocket.command.handlers
 
+import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
 import com.aau.server.service.TurnManager
 import com.aau.server.websocket.command.CommandHandler
@@ -13,7 +14,8 @@ import kotlin.reflect.KClass
 @Component
 class PlayerCheatHandler(
     private val messagingService: MessagingService,
-    private val turnManager: TurnManager
+    private val turnManager: TurnManager,
+    private val lobbyService: LobbyService
 ) : CommandHandler<PlayerCheatCommand> {
 
     override val commandType: String = "PLAYER_CHEAT"
@@ -32,6 +34,13 @@ class PlayerCheatHandler(
 
             messagingService.sendEventToLobby(command.lobbyCode, GameEvent.GameStateUpdate(result.updatedGameState))
             messagingService.sendEventToLobby(command.lobbyCode, GameEvent.CardsDealt(result.updatedHands))
+
+            if (result.winner != null) {
+                messagingService.sendEventToLobby(command.lobbyCode, GameEvent.GameOver(result.winner))
+                if (result.updatedGameState.isGameOver) {
+                    lobbyService.resetAfterGame(command.lobbyCode)
+                }
+            }
         }
     }
 }

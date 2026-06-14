@@ -37,7 +37,7 @@ class GetValidPositionsHandlerTest {
         whenever(messagingService.getPlayerIdForSession("session-1")).thenReturn(playerId)
         whenever(turnManager.getHands(lobbyCode)).thenReturn(mapOf(playerId to listOf(card)))
         whenever(turnManager.getGameState(lobbyCode)).thenReturn(gameState)
-        whenever(turnManager.getValidPositions(lobbyCode, card, false, emptyList())).thenReturn(validPositions)
+        whenever(turnManager.getValidPositions(card, false, emptyList())).thenReturn(validPositions)
 
         handler.handle(session, command)
 

@@ -62,7 +62,7 @@ class TurnManagerTest {
             hands = mapOf(
                 p1 to mutableListOf(pathCard("c1", setOf(Direction.LEFT, Direction.RIGHT))),
                 p2 to mutableListOf(pathCard("c2", setOf(Direction.TOP, Direction.BOTTOM))),
-                p3 to mutableListOf(pathCard("c3", Direction.values().toSet()))
+                p3 to mutableListOf(pathCard("c3", Direction.entries.toSet()))
             ),
             drawPile = pile,
             goalCards = CardDeck.createGoalCards(),
@@ -92,8 +92,8 @@ class TurnManagerTest {
     private fun repairCard(id: String, type: CardType = CardType.LANTERN_GREEN) =
         TunnelCard(id, type, emptySet())
 
-    private fun mapCard(id: String) = TunnelCard(id, CardType.MAPCARD, emptySet())
-    private fun rockfallCard(id: String) = TunnelCard(id, CardType.ROCKFALL, emptySet())
+    private fun mapCard() = TunnelCard("m1", CardType.MAPCARD, emptySet())
+    private fun rockfallCard() = TunnelCard("rf1", CardType.ROCKFALL, emptySet())
 
     /** Creates a minimal game with a connected path from start → goalPos so isGoalReached() returns true. */
     private fun setupWinningBoard(
@@ -207,7 +207,7 @@ class TurnManagerTest {
     fun `playMapCard returns goal info and advances turn`() {
         val targetGoal = CardDeck.createGoalCards().first()
         val distribution = CardDistributionResult(
-            hands = mapOf(p1 to mutableListOf(mapCard("m1"))),
+            hands = mapOf(p1 to mutableListOf(mapCard())),
             drawPile = mutableListOf(),
             goalCards = listOf(targetGoal),
             startCard = startCard
@@ -233,7 +233,7 @@ class TurnManagerTest {
         val targetPos = BoardPosition(4, 3)
         val pCard = pathCard("removable")
         val distribution = CardDistributionResult(
-            hands = mapOf(p1 to mutableListOf(rockfallCard("rf1"))),
+            hands = mapOf(p1 to mutableListOf(rockfallCard())),
             drawPile = mutableListOf(),
             goalCards = emptyList(),
             startCard = startCard
@@ -327,14 +327,14 @@ class TurnManagerTest {
             PlacedTunnelCard(pos1, card1),
             PlacedTunnelCard(pos2, card2)
         )
-        val positions = turnManager.getValidPositions("ANY", card1, false, placements)
+        val positions = turnManager.getValidPositions(card1, false, placements)
         assertNotNull(positions)
     }
 
     @Test
     fun `getValidPositions returns empty if placement list empty`() {
         val result = turnManager.getValidPositions(
-            "NO_GAME", TunnelCard("id", CardType.PATH, setOf(Direction.TOP)), false, emptyList()
+            TunnelCard("id", CardType.PATH, setOf(Direction.TOP)), false, emptyList()
         )
         assertTrue(result.isEmpty())
     }
@@ -344,7 +344,7 @@ class TurnManagerTest {
         val card = TunnelCard("1", CardType.PATH, setOf(Direction.RIGHT))
         val pos1 = BoardPosition(4, 2)
         val placements = listOf(PlacedTunnelCard(pos1, startCard))
-        val positions = turnManager.getValidPositions("ANY", card, true, placements)
+        val positions = turnManager.getValidPositions(card, true, placements)
         assertNotNull(positions)
     }
 
@@ -1145,6 +1145,56 @@ class TurnManagerTest {
     }
 
     @Test
+    fun `cheat VOLUME_SEQUENCE_DISCARD discards random hand card and draws replacement without consuming turn`() {
+        val card1 = pathCard("random-1")
+        val card2 = pathCard("random-2")
+        val deckCard = pathCard("deck-card")
+        val dist = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(pathCard("p1-card")),
+                p2 to mutableListOf(card1, card2)
+            ),
+            drawPile = mutableListOf(deckCard),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "VOLSEQ",
+            dist,
+            GameState(listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2)), p1, emptyList())
+        )
+
+        val result = turnManager.cheatPlayer("VOLSEQ", p2, CheatType.VOLUME_SEQUENCE_DISCARD)
+
+        val remainingHand = result.updatedHands[p2].orEmpty()
+        assertEquals(2, remainingHand.size)
+        assertTrue(remainingHand.any { it.id == "deck-card" })
+        assertEquals(1, remainingHand.count { it.id in setOf("random-1", "random-2") })
+        assertEquals(p1, result.updatedGameState.currentPlayerId)
+        assertEquals(0, result.updatedGameState.deckSize)
+    }
+
+    @Test
+    fun `cheat VOLUME_SEQUENCE_DISCARD is no-op for empty hand`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf()),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "VOLSEQ_EMPTY",
+            dist,
+            GameState(listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2)), p2, emptyList())
+        )
+
+        val result = turnManager.cheatPlayer("VOLSEQ_EMPTY", p1, CheatType.VOLUME_SEQUENCE_DISCARD)
+
+        assertTrue(result.updatedHands[p1].orEmpty().isEmpty())
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+    }
+
+    @Test
     fun `cheat TEST_REVEAL consumes turn and moves to next player`() {
         setupStandardGame()
         val result = turnManager.cheatPlayer(lobbyCode, p1, CheatType.TEST_REVEAL)
@@ -1162,6 +1212,30 @@ class TurnManagerTest {
     fun `cheatPlayer throws when game not found`() {
         assertThrows<IllegalArgumentException> {
             turnManager.cheatPlayer("NON_EXISTENT", p1, CheatType.LANTERN_FLASHLIGHT)
+        }
+    }
+
+    @Test
+    fun `cheatPlayer throws when game is already over`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(pathCard("p1-card"))),
+            drawPile = mutableListOf(pathCard("deck-card")),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "CHEAT_OVER",
+            dist,
+            GameState(
+                players = listOf(PlayerTurn(p1, "Alice", 1)),
+                currentPlayerId = p1,
+                isRoundOver = true,
+                isGameOver = true
+            )
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.cheatPlayer("CHEAT_OVER", p1, CheatType.VOLUME_SEQUENCE_DISCARD)
         }
     }
 

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.random.Random
 
 
 
@@ -17,6 +18,11 @@ private val GOAL_POSITION_1 = BoardPosition(row = 2, column = 10)
 private val GOAL_POSITION_2 = BoardPosition(row = 4, column = 10)
 private val GOAL_POSITION_3 = BoardPosition(row = 6, column = 10)
 private val START_POSITION = BoardPosition(row = 4, column = 2)
+private const val ERROR_GAME_NOT_FOUND = "Spiel nicht gefunden"
+private const val ERROR_NOT_YOUR_TURN = "Du bist nicht am Zug."
+private const val ERROR_HAND_NOT_FOUND = "Hand nicht gefunden"
+private const val ERROR_CARD_NOT_FOUND = "Karte nicht gefunden"
+private const val ERROR_GAME_ALREADY_OVER = "Spiel ist bereits beendet."
 
 
 @Service
@@ -56,7 +62,7 @@ class TurnManager(
 
     @Transactional
     fun loadFromDb(): Int {
-        val allEntities = gameRepository.findAll()
+        val allEntities: List<GameEntity> = gameRepository.findAll().toList()
         allEntities.forEach { entity ->
             try {
                 val hands: Map<String, List<TunnelCard>> = objectMapper.readValue(entity.handsJson)
@@ -67,39 +73,9 @@ class TurnManager(
                 val playersTurn: List<PlayerTurn> = objectMapper.readValue(entity.playersTurnJson)
                 val board: List<PlacedTunnelCard> = objectMapper.readValue(entity.boardJson)
                 val playerRoles: Map<String, Player> = objectMapper.readValue(entity.playerRolesJson)
-
-                val lastRoundResult: RoundResult? = try {
-                    if (entity.lastRoundResultJson.isNotBlank()) {
-                        objectMapper.readValue(entity.lastRoundResultJson)
-                    } else null
-                } catch (e: Exception) {
-                    logger.warn("Could not parse lastRoundResult for game {}, using null", entity.lobbyCode)
-                    null
-                }
-
-                val goldDeck: List<GoldCard> = try {
-                    if (entity.goldDeckJson.isNotBlank()) {
-                        objectMapper.readValue(entity.goldDeckJson)
-                    } else {
-                        CardDeck.createGoldDeck().shuffled()
-                    }
-                } catch (e: Exception) {
-                    logger.warn("Could not parse goldDeck for game {}, creating new gold deck", entity.lobbyCode)
-                    CardDeck.createGoldDeck().shuffled()
-                }
-
-                val knownGoalsByPlayer: MutableMap<String, MutableMap<BoardPosition, TunnelCard>> = try {
-                    if (!entity.knownGoalsByPlayerJson.isNullOrBlank()) {
-                        val raw: Map<String, Map<String, TunnelCard>> =
-                            objectMapper.readValue(entity.knownGoalsByPlayerJson)
-                        raw.mapValues { (_, innerMap) ->
-                            innerMap.mapKeys { BoardPosition.fromString(it.key) }.toMutableMap()
-                        }.toMutableMap()
-                    } else mutableMapOf()
-                } catch (e: Exception) {
-                    logger.warn("Could not parse knownGoals for game {}, using empty map", entity.lobbyCode)
-                    mutableMapOf()
-                }
+                val lastRoundResult = parseLastRoundResult(entity)
+                val goldDeck = parseGoldDeck(entity)
+                val knownGoalsByPlayer = parseKnownGoalsByPlayer(entity)
 
                 val internal = GameInternalState(
                     hands = hands.mapValues { it.value.toMutableList() },
@@ -132,6 +108,51 @@ class TurnManager(
         return games.size
     }
 
+    private fun parseLastRoundResult(entity: GameEntity): RoundResult? {
+        return try {
+            if (entity.lastRoundResultJson.isNotBlank()) {
+                objectMapper.readValue(entity.lastRoundResultJson)
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            logger.warn("Could not parse lastRoundResult for game {}, using null", entity.lobbyCode)
+            null
+        }
+    }
+
+    private fun parseGoldDeck(entity: GameEntity): List<GoldCard> {
+        return try {
+            if (entity.goldDeckJson.isNotBlank()) {
+                objectMapper.readValue(entity.goldDeckJson)
+            } else {
+                CardDeck.createGoldDeck().shuffled()
+            }
+        } catch (_: Exception) {
+            logger.warn("Could not parse goldDeck for game {}, creating new gold deck", entity.lobbyCode)
+            CardDeck.createGoldDeck().shuffled()
+        }
+    }
+
+    private fun parseKnownGoalsByPlayer(
+        entity: GameEntity
+    ): MutableMap<String, MutableMap<BoardPosition, TunnelCard>> {
+        return try {
+            if (entity.knownGoalsByPlayerJson.isNotBlank()) {
+                val raw: Map<String, Map<String, TunnelCard>> =
+                    objectMapper.readValue(entity.knownGoalsByPlayerJson)
+                raw.mapValues { (_, innerMap) ->
+                    innerMap.mapKeys { BoardPosition.fromString(it.key) }.toMutableMap()
+                }.toMutableMap()
+            } else {
+                mutableMapOf()
+            }
+        } catch (_: Exception) {
+            logger.warn("Could not parse knownGoals for game {}, using empty map", entity.lobbyCode)
+            mutableMapOf()
+        }
+    }
+
     // -- PLAY CARD --
     @Transactional
     fun playCard(
@@ -141,14 +162,14 @@ class TurnManager(
         position: BoardPosition,
         isRotated: Boolean
     ): TurnResult {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
-            require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
+            require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
             val currentPlayer = state.players.find { it.playerId == playerId }
                 ?: throw IllegalArgumentException("Spieler $playerId nicht gefunden.")
             require(currentPlayer.blockedTools.isEmpty()) { "Geblockte Spieler können keine Tunnelkarten spielen." }
-            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException(ERROR_HAND_NOT_FOUND)
             val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht auf der Hand")
             val effectiveCard = if (isRotated) card.rotated180() else card
             require(canPlaceOnBoard(position, effectiveCard, state.boardPlacements)) { "error.invalid_placement" }
@@ -182,12 +203,12 @@ class TurnManager(
     // -- PLAY BLOCK CARD --
     @Transactional
     fun playBlockCard(lobbyCode: String, playerId: String, cardId: String, targetPlayerId: String): TurnResult {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
-            require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
-            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
+            require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException(ERROR_HAND_NOT_FOUND)
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException(ERROR_CARD_NOT_FOUND)
             require(card.type.isBlockCard()) { "Keine Sperrkarte." }
             val toolToBlock = card.type.blockedTool() ?: throw IllegalArgumentException("Ungültiges Werkzeug.")
             val targetPlayer = state.players.find { it.playerId == targetPlayerId } ?: throw IllegalArgumentException("Ziel nicht gefunden.")
@@ -229,12 +250,12 @@ class TurnManager(
         targetPlayerId: String,
         tool: ToolType
     ): TurnResult {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
-            require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
-            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
+            require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException(ERROR_HAND_NOT_FOUND)
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException(ERROR_CARD_NOT_FOUND)
             require(card.type.isRepairCard()) { "Keine Reparaturkarte." }
             require(tool in card.type.repairableTools()) { "Falsches Werkzeug." }
             val targetPlayer = state.players.find { it.playerId == targetPlayerId }
@@ -276,12 +297,12 @@ class TurnManager(
         cardId: String,
         targetPosition: BoardPosition
     ): Pair<TurnResult, MapResult> {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         return synchronized(internal) {
             val state = internal.gameState
-            require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
-            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
+            require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException(ERROR_HAND_NOT_FOUND)
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException(ERROR_CARD_NOT_FOUND)
             require(card.type.isMapCard()) { "Keine Map-Karte." }
             val targetPlacement = state.boardPlacements.find { it.position == targetPosition }
                 ?: throw IllegalArgumentException("Keine Karte an Position.")
@@ -313,12 +334,12 @@ class TurnManager(
     // -- PLAY ROCKFALL CARD --
     @Transactional
     fun playRockfallCard(lobbyCode: String, playerId: String, cardId: String, targetPosition: BoardPosition): TurnResult {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
-            require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
-            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
+            require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException(ERROR_HAND_NOT_FOUND)
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException(ERROR_CARD_NOT_FOUND)
             require(card.type.isRockfallCard()) { "Kein Felssturz." }
             val targetPlacement = state.boardPlacements.find { it.position == targetPosition } ?: throw IllegalArgumentException("Keine Karte an Position.")
             require(targetPlacement.card.type.isPathCardType()) { "Darf nur Tunnelkarten entfernen." }
@@ -352,11 +373,11 @@ class TurnManager(
     // -- DISCARD CARD --
     @Transactional
     fun discardCard(lobbyCode: String, playerId: String, cardId: String): TurnResult {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
-            require(internal.gameState.currentPlayerId == playerId) { "Du bist nicht am Zug." }
-            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException("Hand nicht gefunden")
-            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException("Karte nicht gefunden")
+            require(internal.gameState.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
+            val playerHand = internal.hands[playerId] ?: throw IllegalArgumentException(ERROR_HAND_NOT_FOUND)
+            val card = playerHand.find { it.id == cardId } ?: throw IllegalArgumentException(ERROR_CARD_NOT_FOUND)
 
             try {
                 playerHand.remove(card)
@@ -383,19 +404,29 @@ class TurnManager(
 
     @Transactional
     fun cheatPlayer(lobbyCode: String, playerId: String, cheatType: CheatType): TurnResult {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
+            require(!state.isRoundOver && !state.isGameOver) { ERROR_GAME_ALREADY_OVER }
             
             val consumeTurn = when (cheatType) {
                 CheatType.LANTERN_FLASHLIGHT -> {
-                    require(state.currentPlayerId == playerId) { "Du bist nicht am Zug." }
+                    require(state.currentPlayerId == playerId) { ERROR_NOT_YOUR_TURN }
                     val updatedPlayers = state.players.map { player ->
                         if (player.playerId == playerId) {
                             player.copy(blockedTools = player.blockedTools - ToolType.LANTERN)
                         } else player
                     }
                     internal.gameState = state.copy(players = updatedPlayers)
+                    false
+                }
+                CheatType.VOLUME_SEQUENCE_DISCARD -> {
+                    val playerHand = internal.hands[playerId]
+                    if (!playerHand.isNullOrEmpty()) {
+                        val discardedCard = playerHand.removeAt(Random.nextInt(playerHand.size))
+                        internal.discardPile.add(discardedCard)
+                        drawCardForPlayer(internal, playerId)
+                    }
                     false
                 }
                 CheatType.TEST_REVEAL -> {
@@ -423,11 +454,14 @@ class TurnManager(
     private fun persist(lobbyCode: String) {
         val internal = games[lobbyCode] ?: return
 
-        val knownGoalsJson = objectMapper.writeValueAsString(
-            internal.knownGoalsByPlayer.mapValues { (_, innerMap) ->
-                innerMap.mapKeys { it.key.toString() }
+        val knownGoalsSnapshot: Map<String, Map<String, TunnelCard>> =
+            internal.knownGoalsByPlayer.entries.associate { (playerId, innerMap) ->
+                playerId to innerMap.entries.associate { (position, card) ->
+                    position.toString() to card
+                }
             }
-        )
+
+        val knownGoalsJson = objectMapper.writeValueAsString(knownGoalsSnapshot)
 
         val lastRoundResultJson = internal.gameState.lastRoundResult?.let {
             objectMapper.writeValueAsString(it)
@@ -474,7 +508,7 @@ class TurnManager(
     }
 
     fun getGameStateSnapshot(lobbyCode: String): GameState {
-        val internal = games[lobbyCode] ?: throw IllegalArgumentException("Spiel nicht gefunden")
+        val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         return synchronized(internal) { internal.gameState }
     }
 
@@ -485,7 +519,7 @@ class TurnManager(
         return synchronized(internal) { internal.hands.mapValues { it.value.toList() } }
     }
 
-    fun getValidPositions(lobbyCode: String, card: TunnelCard, isRotated: Boolean, placements: List<PlacedTunnelCard>): List<BoardPosition> {
+    fun getValidPositions(card: TunnelCard, isRotated: Boolean, placements: List<PlacedTunnelCard>): List<BoardPosition> {
         val effectiveCard = if (isRotated) card.rotated180() else card
         val occupied = placements.map { it.position }.toSet()
         val candidates = mutableSetOf<BoardPosition>()
@@ -713,8 +747,9 @@ class TurnManager(
         val neighbors = Direction.entries.map { it to grid[boardNeighbor(p, it)] }
         if (neighbors.all { it.second == null }) return false
         return neighbors.all { (dir, n) ->
-            if (n == null || (n.card.type == CardType.GOAL && !n.card.isRevealed)) true
-            else (dir in c.connections) == (opposite(dir) in n.card.connections)
+            n == null ||
+                    (n.card.type == CardType.GOAL && !n.card.isRevealed) ||
+                    ((dir in c.connections) == (opposite(dir) in n.card.connections))
         } && isReachableFromStart(p, grid)
     }
 
