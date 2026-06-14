@@ -216,6 +216,13 @@ private fun CheatRulesPage(modifier: Modifier = Modifier) {
             title = stringResource(R.string.cheat_lantern_title),
             description = stringResource(R.string.cheat_lantern_desc)
         )
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 2. NEU: Volume Button Cheat
+        CheatSection(
+            title = stringResource(R.string.cheat_volume_title),
+            description = stringResource(R.string.cheat_volume_desc)
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 

@@ -85,17 +85,19 @@
     <string name="error_lobby_leave_unauthorized">Nicht autorisiert: Nur du selbst kannst deine Lobby verlassen.</string>
 
     <!-- Spielregeln -->
-    <string name="spielregeln_button">Game Rules</string>
-    <string name="spielregeln_titel">Game Rules</string>
-    <string name="seite_x_von_y">Page %1$d / %2$d</string>
-    <string name="schliessen">Close</string>
+    <string name="spielregeln_button">Spielregeln</string>
+    <string name="spielregeln_titel">Spielregeln</string>
+    <string name="seite_x_von_y">Seite %1$d / %2$d</string>
+    <string name="schliessen">Schließen</string>
 
     <!-- Cheats -->
-    <string name="cheat_rules_title">Cheat Functions</string>
-    <string name="cheat_lantern_title">The Magic Flashlight</string>
-    <string name="cheat_lantern_desc">True dwarves need light! If you have a broken lantern (blocked), you can briefly turn your real phone flashlight on and off. This will immediately remove your blockage without having to play a repair card.</string>
-    <string name="cheat_risk_title">Risk &amp; Reward</string>
-    <string name="cheat_risk_desc">Cheating is dangerous! Use this advantage wisely to save yourself as a gold digger or to advance unnoticed as a saboteur. Make sure no one sees you triggering the sensor!</string>
+    <string name="cheat_rules_title">Schummelfunktionen</string>
+    <string name="cheat_lantern_title">Die magische Taschenlampe</string>
+    <string name="cheat_lantern_desc">Echte Zwerge brauchen Licht! Wenn du eine kaputte Lampe hast (Blockierung), kannst du deine echte Handy-Taschenlampe kurz ein- und ausschalten. Dadurch wird deine Blockierung sofort aufgehoben, ohne dass du eine Reparaturkarte ausspielen musst. Dieser Cheat verbraucht keinen Spielzug!</string>
+    <string name="cheat_volume_title">Die Macht der Lautstärke</string>
+    <string name="cheat_volume_desc">Manchmal passt eine Karte einfach nicht in den Plan. Drücke die Lautstärketasten in der Reihenfolge LAUTER, LAUTER, LEISER, LEISER (innerhalb von 2 Sekunden), um eine zufällige Karte aus deiner Hand abzuwerfen und sofort eine neue zu ziehen. Dieser Cheat verbraucht keinen Spielzug!</string>
+    <string name="cheat_risk_title">Risiko &amp; Belohnung</string>
+    <string name="cheat_risk_desc">Schummeln ist gefährlich! Nutze diesen Vorteil klug, um dich als Goldgräber zu retten oder als Saboteur unbemerkt voranzukommen. Achte darauf, dass niemand sieht, wie du den Sensor triggerst!</string>
 
     <!-- Menu actions -->
     <string name="menu_toggle">Menü öffnen/schließen</string>
