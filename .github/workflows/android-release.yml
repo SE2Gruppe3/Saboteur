@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -18,32 +19,29 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: temurin
 
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
       - name: Rename APK with Commit Hash
         run: |
-          # Finde die APK Datei egal wo sie liegt
-          APK_PATH=$(find . -name "app-release.apk" | head -n 1)
+          APK_PATH=$(find . -path "*/release/*.apk" | head -n 1)
+
           if [ -z "$APK_PATH" ]; then
-            echo "Keine app-release.apk gefunden!"
+            echo "Keine APK gefunden!"
             exit 1
           fi
-          
+
           COMMIT_HASH=$(git rev-parse --short HEAD)
-          NEW_NAME="Saboteur-v${{ github.ref_name }}-${COMMIT_HASH}.apk"
-          
-          # Verschiebe sie in das Root-Verzeichnis, damit der Upload einfach ist
+          NEW_NAME="Saboteur-${{ github.ref_name }}-${COMMIT_HASH}.apk"
+
           mv "$APK_PATH" "./$NEW_NAME"
-          echo "APK_FILE=$NEW_NAME" >> $GITHUB_ENV
+          echo "APK_FILE=$NEW_NAME" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.APK_FILE }}
           generate_release_notes: true
           name: Release ${{ github.ref_name }} (Commit: ${{ github.sha }})
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
