@@ -90,6 +90,13 @@
     <string name="seite_x_von_y">Page %1$d / %2$d</string>
     <string name="schliessen">Close</string>
 
+    <!-- Cheats -->
+    <string name="cheat_rules_title">Cheat Functions</string>
+    <string name="cheat_lantern_title">The Magic Flashlight</string>
+    <string name="cheat_lantern_desc">True dwarves need light! If you have a broken lantern (blocked), you can briefly turn your real phone flashlight on and off. This will immediately remove your blockage without having to play a repair card.</string>
+    <string name="cheat_risk_title">Risk &amp; Reward</string>
+    <string name="cheat_risk_desc">Cheating is dangerous! Use this advantage wisely to save yourself as a gold digger or to advance unnoticed as a saboteur. Make sure no one sees you triggering the sensor!</string>
+
     <!-- Menu actions -->
     <string name="menu_toggle">Open/close menu</string>
     <string name="leave_game">Leave Game</string>

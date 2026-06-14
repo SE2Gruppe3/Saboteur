@@ -90,6 +90,13 @@
     <string name="seite_x_von_y">Seite %1$d / %2$d</string>
     <string name="schliessen">Schließen</string>
 
+    <!-- Cheats -->
+    <string name="cheat_rules_title">Schummelfunktionen</string>
+    <string name="cheat_lantern_title">Die magische Taschenlampe</string>
+    <string name="cheat_lantern_desc">Echte Zwerge brauchen Licht! Wenn du eine kaputte Lampe hast (Blockierung), kannst du deine echte Handy-Taschenlampe kurz ein- und ausschalten. Dadurch wird deine Blockierung sofort aufgehoben, ohne dass du eine Reparaturkarte ausspielen musst.</string>
+    <string name="cheat_risk_title">Risiko &amp; Belohnung</string>
+    <string name="cheat_risk_desc">Schummeln ist gefährlich! Nutze diesen Vorteil klug, um dich als Goldgräber zu retten oder als Saboteur unbemerkt voranzukommen. Achte darauf, dass niemand sieht, wie du den Sensor triggerst!</string>
+
     <!-- Menu actions -->
     <string name="menu_toggle">Menü öffnen/schließen</string>
     <string name="leave_game">Spiel verlassen</string>
