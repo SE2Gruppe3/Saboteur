@@ -96,7 +96,12 @@ fun AppNavHost(
                         navController.navigate("game")
                     },
                     onLeaveLobby = {
-                        navController.popBackStack()
+                        val currentUsername = lobbyViewModel.username.value
+                        if (!navController.popBackStack()) {
+                            navController.navigate("lobby/$currentUsername") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
                     }
                 )
             }
@@ -115,7 +120,7 @@ fun AppNavHost(
                         val username = lobbyViewModel.username.value
                         GameApi.reset()
                         navController.navigate("activeLobby/$username") {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo("lobby/$username") { inclusive = false }
                         }
                     }
                 )
