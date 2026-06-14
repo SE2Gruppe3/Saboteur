@@ -29,7 +29,16 @@ jobs:
       - name: Rename APK and prepare Release
         run: |
           COMMIT_HASH=$(git rev-parse --short HEAD)
-          APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          # Sucht im gesamten Projekt nach der ersten gefundenen .apk Datei
+          APK_PATH=$(find . -name "*.apk" | grep -v "androidTest" | head -n 1)
+          
+          if [ -z "$APK_PATH" ]; then
+            echo "Fehler: Keine APK Datei im Projekt gefunden!"
+            # Debug: Zeige uns, was im Build-Ordner überhaupt existiert
+            ls -R app/build/outputs/apk/
+            exit 1
+          fi
+          
           NEW_NAME="Saboteur-v${{ github.ref_name }}-${COMMIT_HASH}.apk"
           mv "$APK_PATH" "./$NEW_NAME"
           echo "APK_FILE=$NEW_NAME" >> $GITHUB_ENV
