@@ -250,6 +250,10 @@ fun GameScreen(
         localPlayerId = localPlayerId,
         lobbyCode = lobbyCode,
         isMyTurn = isMyTurn,
+        cheatsEnabled = !showRoundResult &&
+                !showFinalResult &&
+                !uiState.gameState.isRoundOver &&
+                !uiState.gameState.isGameOver,
         onRoundResultRequested = { showRoundResult = true },
         onFinalResultRequested = { showFinalResult = true }
     )
@@ -375,6 +379,7 @@ private fun GameScreenEffects(
     localPlayerId: String?,
     lobbyCode: String?,
     isMyTurn: Boolean,
+    cheatsEnabled: Boolean,
     onRoundResultRequested: () -> Unit,
     onFinalResultRequested: () -> Unit
 ) {
@@ -401,11 +406,12 @@ private fun GameScreenEffects(
     val context = LocalContext.current
     val cameraManager = remember { context.getSystemService(Context.CAMERA_SERVICE) as CameraManager }
     val currentIsMyTurn by rememberUpdatedState(isMyTurn)
+    val currentCheatsEnabled by rememberUpdatedState(cheatsEnabled)
     val currentViewModel by rememberUpdatedState(viewModel)
     DisposableEffect(cameraManager) {
         val callback = object : CameraManager.TorchCallback() {
             override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
-                if (enabled && currentIsMyTurn) {
+                if (enabled && currentCheatsEnabled && currentIsMyTurn) {
                     currentViewModel.triggerCheat(CheatType.LANTERN_FLASHLIGHT)
                 }
             }
@@ -417,13 +423,17 @@ private fun GameScreenEffects(
     }
 
     val registerVolumeKeyCheatHandler = LocalVolumeKeyCheatHandlerRegistrar.current
-    val volumeKeyCheatDetector = remember { VolumeKeyCheatDetector() }
-    DisposableEffect(registerVolumeKeyCheatHandler, volumeKeyCheatDetector) {
-        registerVolumeKeyCheatHandler { direction ->
-            if (volumeKeyCheatDetector.onKeyPressed(direction)) {
-                currentViewModel.triggerCheat(CheatType.VOLUME_SEQUENCE_DISCARD)
+    val volumeKeyCheatDetector = remember(cheatsEnabled) { VolumeKeyCheatDetector() }
+    DisposableEffect(registerVolumeKeyCheatHandler, volumeKeyCheatDetector, cheatsEnabled) {
+        if (cheatsEnabled) {
+            registerVolumeKeyCheatHandler { direction ->
+                if (volumeKeyCheatDetector.onKeyPressed(direction)) {
+                    currentViewModel.triggerCheat(CheatType.VOLUME_SEQUENCE_DISCARD)
+                }
+                true
             }
-            true
+        } else {
+            registerVolumeKeyCheatHandler(null)
         }
         onDispose {
             registerVolumeKeyCheatHandler(null)

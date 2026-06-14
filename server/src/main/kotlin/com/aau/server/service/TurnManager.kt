@@ -22,6 +22,7 @@ private const val ERROR_GAME_NOT_FOUND = "Spiel nicht gefunden"
 private const val ERROR_NOT_YOUR_TURN = "Du bist nicht am Zug."
 private const val ERROR_HAND_NOT_FOUND = "Hand nicht gefunden"
 private const val ERROR_CARD_NOT_FOUND = "Karte nicht gefunden"
+private const val ERROR_GAME_ALREADY_OVER = "Spiel ist bereits beendet."
 
 
 @Service
@@ -406,6 +407,7 @@ class TurnManager(
         val internal = games[lobbyCode] ?: throw IllegalArgumentException(ERROR_GAME_NOT_FOUND)
         synchronized(internal) {
             val state = internal.gameState
+            require(!state.isRoundOver && !state.isGameOver) { ERROR_GAME_ALREADY_OVER }
             
             val consumeTurn = when (cheatType) {
                 CheatType.LANTERN_FLASHLIGHT -> {

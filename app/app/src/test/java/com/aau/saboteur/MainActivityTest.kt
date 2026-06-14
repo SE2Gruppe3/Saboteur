@@ -74,6 +74,25 @@ class MainActivityTest {
     }
 
     @Test
+    fun onKeyDown_repeatedVolumeKeyIsConsumedWithoutInvokingHandler() {
+        var calls = 0
+        val activity = MainActivity().apply {
+            registerVolumeKeyCheatHandler {
+                calls++
+                true
+            }
+        }
+
+        val consumed = activity.onKeyDown(
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent(0L, 10L, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_UP, 1)
+        )
+
+        assertTrue(consumed)
+        assertEquals(0, calls)
+    }
+
+    @Test
     fun onKeyUp_volumeKeyWithRegisteredHandlerIsConsumed() {
         val activity = MainActivity().apply {
             registerVolumeKeyCheatHandler { true }

@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         val direction = keyCode.toVolumeKeyDirection()
         val handler = volumeKeyCheatHandler
         return if (direction != null && handler != null) {
-            handler(direction)
+            if (event.repeatCount > 0) true else handler(direction)
         } else {
             super.onKeyDown(keyCode, event)
         }

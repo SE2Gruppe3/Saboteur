@@ -1215,6 +1215,30 @@ class TurnManagerTest {
         }
     }
 
+    @Test
+    fun `cheatPlayer throws when game is already over`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(p1 to mutableListOf(pathCard("p1-card"))),
+            drawPile = mutableListOf(pathCard("deck-card")),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "CHEAT_OVER",
+            dist,
+            GameState(
+                players = listOf(PlayerTurn(p1, "Alice", 1)),
+                currentPlayerId = p1,
+                isRoundOver = true,
+                isGameOver = true
+            )
+        )
+
+        assertThrows<IllegalArgumentException> {
+            turnManager.cheatPlayer("CHEAT_OVER", p1, CheatType.VOLUME_SEQUENCE_DISCARD)
+        }
+    }
+
     // =====================================================================
     // Blocked player behaviour
     // =====================================================================

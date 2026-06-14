@@ -297,7 +297,7 @@ class GameViewModel : ViewModel() {
     fun triggerCheat(cheatType: CheatType) {
         val state = _uiState.value
         val lobbyCode = state.lobbyCode ?: return
-        if (state.isSyncing) return
+        if (state.isSyncing || state.gameState.isRoundOver || state.gameState.isGameOver) return
         GameApi.triggerCheat(lobbyCode, cheatType)
     }
 

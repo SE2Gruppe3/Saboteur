@@ -732,6 +732,21 @@ class GameViewModelTest {
     }
 
     @Test
+    fun `triggerCheat should be no-op while round or game is over`() {
+        viewModel.initGameSession("L1", "P1")
+        gameStateUpdates.value = GameState(
+            players = listOf(PlayerTurn("P1", "Me")),
+            currentPlayerId = "P1",
+            isRoundOver = true,
+            isGameOver = true
+        )
+
+        viewModel.triggerCheat(CheatType.VOLUME_SEQUENCE_DISCARD)
+
+        verify(exactly = 0) { GameApi.triggerCheat(any(), any()) }
+    }
+
+    @Test
     fun `gameOverEvents should request round result screen when round is not final`() = runTest(testDispatcher.scheduler) {
         val roundResult = RoundResult(roundNumber = 1, winnerRole = Role.GOLDDIGGER, winningPlayerIds = listOf("P1"))
         gameStateUpdates.value = GameState(isRoundOver = true, isGameOver = false, lastRoundResult = roundResult)
