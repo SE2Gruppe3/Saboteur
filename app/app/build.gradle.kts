@@ -28,14 +28,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Signatur-Konfiguration: Verwendet die debug.keystore Datei im app/-Ordner
+    // Signatur-Konfiguration: Nutzt nun Umgebungsvariablen für Sicherheit
     signingConfigs {
         create("release") {
-            // "rootProject.file" sucht immer vom Hauptverzeichnis aus
-            storeFile = rootProject.file("app/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("KEY_ALIAS") ?: ""
+            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
         }
     }
 
@@ -56,7 +55,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
 
-            // Nutze die oben definierte Signatur
+            // Nutze die sichere Signatur
             signingConfig = signingConfigs.getByName("release")
 
             proguardFiles(
@@ -68,8 +67,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     testOptions {
