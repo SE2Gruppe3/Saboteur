@@ -105,6 +105,22 @@
     <string name="cheat_risk_title">Risk &amp; Reward</string>
     <string name="cheat_risk_desc">Cheating is dangerous! Use this advantage wisely to save yourself as a gold digger or to advance unnoticed as a saboteur. Make sure no one sees you triggering the sensor!</string>
 
+    <!-- Round Results -->
+    <string name="round_result_title">Round %1$d ended</string>
+    <string name="round_result_winner_golddiggers">Golddiggers win</string>
+    <string name="round_result_winner_saboteurs">Saboteurs win</string>
+    <string name="round_result_roles_title">Roles this round</string>
+    <string name="role_golddigger_label">Golddigger</string>
+    <string name="role_saboteur_label">Saboteur</string>
+    <string name="role_unknown_label">Unknown</string>
+    <string name="next_round_button_label">Continue to next round</string>
+
+    <!-- Final Results -->
+    <string name="final_result_title">🏆 Game ended</string>
+    <string name="final_result_roles_title">Roles of the last round</string>
+    <string name="final_result_gold_title">Final gold score</string>
+    <string name="final_result_winner_msg">🏆 %1$s wins with %2$d gold pieces</string>
+
     <!-- Menu actions -->
     <string name="menu_toggle">Open/close menu</string>
     <string name="leave_game">Leave Game</string>

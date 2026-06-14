@@ -105,6 +105,22 @@
     <string name="cheat_risk_title">Risiko &amp; Belohnung</string>
     <string name="cheat_risk_desc">Schummeln ist gefährlich! Nutze diesen Vorteil klug, um dich als Goldgräber zu retten oder als Saboteur unbemerkt voranzukommen. Achte darauf, dass niemand sieht, wie du den Sensor triggerst!</string>
 
+    <!-- Round Results -->
+    <string name="round_result_title">Runde %1$d beendet</string>
+    <string name="round_result_winner_golddiggers">Goldsucher gewinnen</string>
+    <string name="round_result_winner_saboteurs">Saboteure gewinnen</string>
+    <string name="round_result_roles_title">Rollen dieser Runde</string>
+    <string name="role_golddigger_label">Goldsucher</string>
+    <string name="role_saboteur_label">Saboteur</string>
+    <string name="role_unknown_label">Unbekannt</string>
+    <string name="next_round_button_label">Weiter zur nächsten Runde</string>
+
+    <!-- Final Results -->
+    <string name="final_result_title">🏆 Spiel beendet</string>
+    <string name="final_result_roles_title">Rollen der letzten Runde</string>
+    <string name="final_result_gold_title">Endgültiger Goldstand</string>
+    <string name="final_result_winner_msg">🏆 %1$s gewinnt mit %2$d Goldstücken</string>
+
     <!-- Menu actions -->
     <string name="menu_toggle">Menü öffnen/schließen</string>
     <string name="leave_game">Spiel verlassen</string>
