@@ -5,6 +5,7 @@ import com.aau.saboteur.model.Player
 import com.aau.saboteur.model.ToolType
 import com.aau.saboteur.model.TunnelCard
 import com.aau.saboteur.model.CheatType
+import com.aau.saboteur.model.LobbyVisibility
 
 data class RegisterCommand(
     val playerId: String, 
@@ -26,7 +27,7 @@ data class LobbyLeaveCommand(val lobbyCode: String, val playerId: String) : Comm
 data class LobbyKickCommand(val lobbyCode: String, val hostId: String, val targetPlayerId: String) : Command
 data class GetValidPositionsCommand(val cardId: String, val isRotated: Boolean) : Command
 class LobbyListFetchCommand : Command
-data class LobbyCreateCommand(val playerName: String) : Command
+data class LobbyCreateCommand(val playerName: String, val visibility: LobbyVisibility = LobbyVisibility.PUBLIC) : Command
 data class LobbyJoinCommand(val lobbyCode: String, val playerName: String) : Command
 data class HeartbeatCommand(val playerId: String, val lobbyCode: String) : Command
 
