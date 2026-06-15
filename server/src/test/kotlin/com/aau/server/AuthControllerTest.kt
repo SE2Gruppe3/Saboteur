@@ -75,11 +75,11 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `guest login returns conflict if name already taken`() {
+    fun `guest login returns conflict if name belongs to registered account`() {
         // GIVEN
         val loginData = mapOf("username" to "GuestMax", "password" to "")
-        val existingGuest = UserEntity(id = 5L, username = "GuestMax", passwordHash = "", isGuest = true)
-        `when`(userRepository.findByUsername("GuestMax")).thenReturn(existingGuest)
+        val registeredUser = UserEntity(id = 5L, username = "GuestMax", passwordHash = hashPassword("secret"), isGuest = false)
+        `when`(userRepository.findByUsername("GuestMax")).thenReturn(registeredUser)
 
         // WHEN
         val response = authController.login(loginData)
@@ -90,15 +90,69 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `guest login does not return existing entity even if name matches`() {
-        // Regression: before the fix, SHA256("") == SHA256("") caused identity theft
+    fun `guest login succeeds and replaces new-style orphaned ghost entity`() {
+        // Regression: Gast schließt App ohne Lobby zu betreten → Ghost-Entity (isGuest=true) blockierte Wiedereintritt
         val loginData = mapOf("username" to "Max", "password" to "")
-        val storedGuest = UserEntity(id = 1L, username = "Max", passwordHash = "", isGuest = true)
-        `when`(userRepository.findByUsername("Max")).thenReturn(storedGuest)
+        val ghostEntity = UserEntity(id = 1L, username = "Max", passwordHash = "", isGuest = true)
+        `when`(userRepository.findByUsername("Max")).thenReturn(ghostEntity)
+        val freshEntity = UserEntity(id = 2L, username = "Max", passwordHash = "", isGuest = true)
+        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(freshEntity)
 
         val response = authController.login(loginData)
 
-        assertEquals(HttpStatus.CONFLICT, response.statusCode)
+        assertEquals(HttpStatus.OK, response.statusCode)
+        verify(userRepository).delete(ghostEntity)
+        verify(userRepository).save(any(UserEntity::class.java))
+    }
+
+    @Test
+    fun `guest login succeeds and replaces legacy ghost entity from main branch`() {
+        // Regression: Auf main wurden Gäste mit isGuest=false und passwordHash=SHA256("") gespeichert.
+        // Persistente H2-DB enthält diese Alteinträge und blockierte Gast-Login mit 409.
+        val loginData = mapOf("username" to "Max", "password" to "")
+        val legacyHash = hashPassword("")
+        val legacyGhost = UserEntity(id = 1L, username = "Max", passwordHash = legacyHash, isGuest = false)
+        `when`(userRepository.findByUsername("Max")).thenReturn(legacyGhost)
+        val freshEntity = UserEntity(id = 2L, username = "Max", passwordHash = "", isGuest = true)
+        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(freshEntity)
+
+        val response = authController.login(loginData)
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        verify(userRepository).delete(legacyGhost)
+        verify(userRepository).save(any(UserEntity::class.java))
+    }
+
+    @Test
+    fun `regular login succeeds and replaces new-style ghost guest entity with same name`() {
+        // Regression: Ghost-Gast-Entity (isGuest=true) mit leerem passwordHash ließ regulären Login mit 401 scheitern
+        val loginData = mapOf("username" to "alice", "password" to "geheim")
+        val ghostGuest = UserEntity(id = 3L, username = "alice", passwordHash = "", isGuest = true)
+        `when`(userRepository.findByUsername("alice")).thenReturn(ghostGuest)
+        val newEntity = UserEntity(id = 4L, username = "alice", passwordHash = hashPassword("geheim"), isGuest = false)
+        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(newEntity)
+
+        val response = authController.login(loginData) as ResponseEntity<User>
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        verify(userRepository).delete(ghostGuest)
+        verify(userRepository).save(any(UserEntity::class.java))
+    }
+
+    @Test
+    fun `regular login succeeds and replaces legacy ghost entity from main branch`() {
+        // Regression: Alteinträge aus main (isGuest=false, passwordHash=SHA256("")) blockierten regulären Login mit 401
+        val loginData = mapOf("username" to "alice", "password" to "geheim")
+        val legacyGhost = UserEntity(id = 3L, username = "alice", passwordHash = hashPassword(""), isGuest = false)
+        `when`(userRepository.findByUsername("alice")).thenReturn(legacyGhost)
+        val newEntity = UserEntity(id = 4L, username = "alice", passwordHash = hashPassword("geheim"), isGuest = false)
+        `when`(userRepository.save(any(UserEntity::class.java))).thenReturn(newEntity)
+
+        val response = authController.login(loginData) as ResponseEntity<User>
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        verify(userRepository).delete(legacyGhost)
+        verify(userRepository).save(any(UserEntity::class.java))
     }
 
     @Test

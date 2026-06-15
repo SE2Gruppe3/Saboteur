@@ -19,6 +19,12 @@ class AuthController(private val userRepository: UserRepository) {
             .joinToString("") { "%02x".format(it) }
     }
 
+    // Erkennt Ghost-Gast-Entities unabhängig vom Schema-Stand:
+    // - Neue Gäste (fix branch): isGuest=true, passwordHash=""
+    // - Legacy-Gäste (main, vor isGuest-Flag): isGuest=false, passwordHash=SHA256("")
+    private fun isGhostGuest(entity: UserEntity): Boolean =
+        entity.isGuest || entity.passwordHash == hashPassword("")
+
     @PostMapping("/login")
     fun login(@RequestBody loginData: Map<String, String>): ResponseEntity<Any> {
         val username = loginData["username"] ?: ""
@@ -32,10 +38,11 @@ class AuthController(private val userRepository: UserRepository) {
         val existingEntity = userRepository.findByUsername(username)
 
         if (isGuest) {
-            if (existingEntity != null) {
+            if (existingEntity != null && !isGhostGuest(existingEntity)) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("Dieser Gastname ist bereits vergeben. / This guest name is already taken.")
+                    .body("Dieser Name gehört einem registrierten Account. / This name belongs to a registered account.")
             }
+            existingEntity?.let { userRepository.delete(it) }
             val newEntity = userRepository.save(UserEntity(username = username, passwordHash = "", isGuest = true))
             return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash, newEntity.playerId))
         }
@@ -43,6 +50,12 @@ class AuthController(private val userRepository: UserRepository) {
         val hashedPassword = hashPassword(rawPassword)
 
         if (existingEntity == null) {
+            val newEntity = userRepository.save(UserEntity(username = username, passwordHash = hashedPassword, isGuest = false))
+            return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash, newEntity.playerId))
+        }
+
+        if (isGhostGuest(existingEntity)) {
+            userRepository.delete(existingEntity)
             val newEntity = userRepository.save(UserEntity(username = username, passwordHash = hashedPassword, isGuest = false))
             return ResponseEntity.ok(User(newEntity.id, newEntity.username, newEntity.passwordHash, newEntity.playerId))
         }
