@@ -30,7 +30,7 @@ class LoginViewModel(private val repository: AuthRepository = AuthRepository()) 
             }.onFailure { e ->
                 errorMessage = when (e) {
                     is IOException -> "error.connection_failed"
-                    else -> "error.login_failed"
+                    else -> e.message?.takeIf { it.startsWith("error.") } ?: "error.login_failed"
                 }
             }
         }

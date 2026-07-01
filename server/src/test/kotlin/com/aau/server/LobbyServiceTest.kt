@@ -4,6 +4,7 @@ import com.aau.saboteur.model.Player
 import com.aau.server.model.LobbyEntity
 import com.aau.server.repository.GameRepository
 import com.aau.server.repository.LobbyRepository
+import com.aau.server.repository.UserRepository
 import com.aau.server.service.GameService
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
@@ -24,12 +25,14 @@ class LobbyServiceTest {
     private val gameService: GameService = mock()
     private val messagingService: MessagingService = mock()
     private val turnManager: TurnManager = mock()
+    private val userRepository: UserRepository = mock()
     private val objectMapper: ObjectMapper = jacksonObjectMapper()
     private lateinit var lobbyService: LobbyService
 
     @BeforeEach
     fun setUp() {
         whenever(messagingService.getLobbyLock(any())).thenReturn(ReentrantLock())
+        whenever(userRepository.findByPlayerId(any())).thenReturn(null)
 
         lobbyService = LobbyService(
             lobbyRepository,
@@ -37,7 +40,8 @@ class LobbyServiceTest {
             objectMapper,
             gameService,
             messagingService,
-            turnManager
+            turnManager,
+            userRepository
         )
     }
 
