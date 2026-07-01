@@ -6,6 +6,7 @@ import com.aau.server.service.MessagingService
 import com.aau.server.websocket.command.HeartbeatCommand
 import com.aau.server.websocket.command.LobbyListFetchCommand
 import com.aau.server.websocket.command.SyncAckCommand
+import com.aau.server.websocket.event.GameEvent
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
@@ -39,11 +40,13 @@ class SimpleHandlersTest {
         val command = LobbyListFetchCommand()
         val lobbies = listOf(LobbyState("L1", "h1"))
         
-        whenever(lobbyService.getAllLobbies()).doReturn(lobbies)
+        whenever(lobbyService.getPublicLobbies()).doReturn(lobbies)
         
         handler.handle(session, command)
         
-        verify(messagingService).sendEventToSession(eq("session-1"), any())
+        verify(messagingService).sendEventToSession(eq("session-1"), argThat {
+            this is GameEvent.LobbyListUpdate && this.lobbies == lobbies
+        })
     }
 
     @Test

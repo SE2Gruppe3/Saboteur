@@ -1,10 +1,22 @@
 package com.aau.server.websocket.command
 
 import com.aau.saboteur.model.CheatType
+import com.aau.saboteur.model.LobbyVisibility
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class CommandImplementationsTest {
+
+    @Test
+    fun `LobbyCreateCommand deserialization uses default visibility`() {
+        val mapper = jacksonObjectMapper()
+        val json = """{"playerName": "Alice"}"""
+        val command = mapper.readValue(json, LobbyCreateCommand::class.java)
+        
+        assertEquals("Alice", command.playerName)
+        assertEquals(LobbyVisibility.PUBLIC, command.visibility)
+    }
 
     @Test
     fun `PlayerCheatCommand properties and copy work`() {

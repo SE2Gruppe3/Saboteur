@@ -39,4 +39,19 @@ class LobbyCreateHandlerTest {
         verify(messagingService).registerPlayer("session-1", "p1")
         verify(messagingService).joinLobbyGroup("session-1", "1234")
     }
+
+    @Test
+    fun `handle lobby create private successfully`() {
+        val playerName = "Bob"
+        val command = LobbyCreateCommand(playerName, LobbyVisibility.PRIVATE)
+        val lobbyState = LobbyState("5678", "p2", listOf(Player("p2", playerName)), false)
+
+        whenever(lobbyService.createLobby(eq(playerName), isNull(), eq(LobbyVisibility.PRIVATE), eq(true))).thenReturn(lobbyState)
+
+        handler.handle(session, command)
+
+        verify(lobbyService).createLobby(eq(playerName), isNull(), eq(LobbyVisibility.PRIVATE), eq(true))
+        verify(messagingService).registerPlayer("session-1", "p2")
+        verify(messagingService).joinLobbyGroup("session-1", "5678")
+    }
 }

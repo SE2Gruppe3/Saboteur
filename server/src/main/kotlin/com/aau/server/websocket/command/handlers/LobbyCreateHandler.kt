@@ -18,7 +18,7 @@ class LobbyCreateHandler(
     override val commandClass: KClass<LobbyCreateCommand> = LobbyCreateCommand::class
 
     override fun handle(session: WebSocketSession, command: LobbyCreateCommand) {
-        val lobbyState = lobbyService.createLobby(command.playerName)
+        val lobbyState = lobbyService.createLobby(command.playerName, visibility = command.visibility)
         // Bind session to player and lobby group
         messagingService.registerPlayer(session.id, lobbyState.players.first().id)
         messagingService.joinLobbyGroup(session.id, lobbyState.lobbyCode)
