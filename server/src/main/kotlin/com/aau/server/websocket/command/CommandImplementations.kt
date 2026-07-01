@@ -13,7 +13,7 @@ data class RegisterCommand(
     val reconnect: Boolean = false
 ) : Command
 
-data class StartGameCommand(val players: List<Player>) : Command
+data class StartGameCommand(val players: List<Player>, val lobbyCode: String? = null) : Command
 
 data class PlayCardCommand(
     val playerId: String,
