@@ -2,6 +2,7 @@ package com.aau.server
 
 import com.aau.server.repository.GameRepository
 import com.aau.server.repository.LobbyRepository
+import com.aau.server.repository.UserRepository
 import com.aau.server.service.LobbyService
 import com.aau.server.service.MessagingService
 import com.aau.server.service.TurnManager
@@ -23,6 +24,7 @@ class LobbyCleanupTests {
     private lateinit var gameService: GameService
     private lateinit var messagingService: MessagingService
     private lateinit var turnManager: TurnManager
+    private lateinit var userRepository: UserRepository
     private val objectMapper: ObjectMapper = jacksonObjectMapper()
 
     @BeforeEach
@@ -32,8 +34,10 @@ class LobbyCleanupTests {
         gameService = mock(GameService::class.java)
         messagingService = mock(MessagingService::class.java)
         turnManager = mock(TurnManager::class.java)
-        
+        userRepository = mock(UserRepository::class.java)
+
         `when`(messagingService.getLobbyLock(anyString())).thenReturn(ReentrantLock())
+        `when`(userRepository.findByPlayerId(anyString())).thenReturn(null)
 
         lobbyService = LobbyService(
             lobbyRepository,
@@ -41,7 +45,8 @@ class LobbyCleanupTests {
             objectMapper,
             gameService,
             messagingService,
-            turnManager
+            turnManager,
+            userRepository
         )
     }
 
