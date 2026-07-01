@@ -3,8 +3,10 @@ package com.aau.server.service
 import com.aau.saboteur.model.LobbyVisibility
 import com.aau.saboteur.model.Player
 import com.aau.server.model.LobbyEntity
+import com.aau.server.model.UserEntity
 import com.aau.server.repository.GameRepository
 import com.aau.server.repository.LobbyRepository
+import com.aau.server.repository.UserRepository
 import com.aau.server.websocket.event.GameEvent
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -22,19 +24,23 @@ class LobbyServiceTest {
     private val gameService: GameService = mock()
     private val messagingService: MessagingService = mock()
     private val turnManager: TurnManager = mock()
+    private val userRepository: UserRepository = mock()
     private val objectMapper: ObjectMapper = jacksonObjectMapper()
     private lateinit var lobbyService: LobbyService
 
     @BeforeEach
     fun setUp() {
         whenever(messagingService.getLobbyLock(any())).thenReturn(ReentrantLock())
+        // Default: no user entity found → cleanupGuestEntity is a no-op for existing tests
+        whenever(userRepository.findByPlayerId(any())).thenReturn(null)
         lobbyService = LobbyService(
             lobbyRepository,
             gameRepository,
             objectMapper,
             gameService,
             messagingService,
-            turnManager
+            turnManager,
+            userRepository
         )
     }
 
@@ -177,6 +183,61 @@ class LobbyServiceTest {
         val lobby = lobbyService.createLobby("Host", "h1")
         lobbyService.updateActivity(lobby.lobbyCode)
         assertNotNull(lobby.lobbyCode)
+    }
+
+    @Test
+    fun `leaveLobby deletes guest entity from DB when guest leaves non-empty lobby`() {
+        val guestEntity = UserEntity(id = 1L, username = "GuestPlayer", passwordHash = "", isGuest = true)
+        whenever(userRepository.findByPlayerId("p2")).thenReturn(guestEntity)
+
+        val created = lobbyService.createLobby("Host", "h1", isGuest = false)
+        lobbyService.joinLobby(created.lobbyCode, "GuestPlayer", "p2", isGuest = true)
+        lobbyService.leaveLobby(created.lobbyCode, "p2")
+
+        verify(userRepository).delete(guestEntity)
+    }
+
+    @Test
+    fun `leaveLobby does not delete registered user entity`() {
+        val created = lobbyService.createLobby("Host", "h1", isGuest = false)
+        lobbyService.joinLobby(created.lobbyCode, "RegUser", "p2", isGuest = false)
+        lobbyService.leaveLobby(created.lobbyCode, "p2")
+
+        verify(userRepository, never()).delete(any())
+    }
+
+    @Test
+    fun `deleteLobbyInternal cleans up all guest entities in lobby`() {
+        val guestEntity = UserEntity(id = 1L, username = "GuestPlayer", passwordHash = "", isGuest = true)
+        whenever(userRepository.findByPlayerId("h1")).thenReturn(guestEntity)
+
+        val created = lobbyService.createLobby("Host", "h1", isGuest = true)
+        lobbyService.deleteLobbyInternal(created.lobbyCode, "test")
+
+        verify(userRepository).delete(guestEntity)
+    }
+
+    @Test
+    fun `kickPlayer deletes guest entity from DB`() {
+        val guestEntity = UserEntity(id = 2L, username = "GuestP2", passwordHash = "", isGuest = true)
+        whenever(userRepository.findByPlayerId("p2")).thenReturn(guestEntity)
+
+        val created = lobbyService.createLobby("Host", "h1", isGuest = false)
+        lobbyService.joinLobby(created.lobbyCode, "GuestP2", "p2", isGuest = true)
+        lobbyService.kickPlayer(created.lobbyCode, "p2")
+
+        verify(userRepository).delete(guestEntity)
+    }
+
+    @Test
+    fun `joinLobby throws if player already in another lobby`() {
+        val lobby1 = lobbyService.createLobby("Host1", "h1")
+        val lobby2 = lobbyService.createLobby("Host2", "h2")
+        lobbyService.joinLobby(lobby1.lobbyCode, "Player", "p1")
+
+        assertThrows<IllegalStateException> {
+            lobbyService.joinLobby(lobby2.lobbyCode, "Player", "p1")
+        }
     }
 
     @Test

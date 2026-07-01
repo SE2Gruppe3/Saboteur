@@ -84,6 +84,7 @@
     <string name="error_invalid_placement">Invalid placement</string>
     <string name="error_connection_failed">Server unreachable. Please check your connection.</string>
     <string name="error_login_failed">Login failed.</string>
+    <string name="error_guest_name_taken">This guest name is already taken. Please choose a different name.</string>
     <string name="error_bad_request">Invalid request. Please check your input.</string>
     <string name="error_not_found">The requested resource was not found.</string>
     <string name="error_forbidden">You are not authorized to perform this action.</string>

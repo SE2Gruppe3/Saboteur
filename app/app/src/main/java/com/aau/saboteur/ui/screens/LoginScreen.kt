@@ -18,6 +18,7 @@ import com.aau.saboteur.ui.components.SpielregelnDialog
 private fun localizeLoginError(code: String): String = when (code) {
     "error.connection_failed" -> stringResource(R.string.error_connection_failed)
     "error.login_failed"      -> stringResource(R.string.error_login_failed)
+    "error.guest_name_taken"  -> stringResource(R.string.error_guest_name_taken)
     else                      -> code
 }
 

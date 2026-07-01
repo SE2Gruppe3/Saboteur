@@ -6,6 +6,7 @@ import com.aau.saboteur.model.Player
 import com.aau.server.model.LobbyEntity
 import com.aau.server.repository.GameRepository
 import com.aau.server.repository.LobbyRepository
+import com.aau.server.repository.UserRepository
 import com.aau.server.websocket.event.GameEvent
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -28,11 +29,18 @@ class LobbyService(
     private val objectMapper: ObjectMapper,
     private val gameService: GameService,
     @param:Lazy private val messagingService: MessagingService,
-    @param:Lazy private val turnManager: TurnManager
+    @param:Lazy private val turnManager: TurnManager,
+    private val userRepository: UserRepository
 ) {
     private val logger = LoggerFactory.getLogger(LobbyService::class.java)
     private val lobbies = ConcurrentHashMap<String, LobbyState>()
     private val lastActivity = ConcurrentHashMap<String, Long>()
+
+    private fun cleanupGuestEntity(playerId: String) {
+        userRepository.findByPlayerId(playerId)?.let { entity ->
+            if (entity.isGuest) userRepository.delete(entity)
+        }
+    }
 
     @Transactional
     fun loadFromDb(): Int {
@@ -98,6 +106,10 @@ class LobbyService(
                 return@withLock lobby
             }
 
+            if (playerId != null && lobbies.values.any { l -> l.lobbyCode != lobbyCode && l.players.any { it.id == playerId } }) {
+                throw IllegalStateException("Spieler bereits in einer anderen Lobby aktiv. / Player already active in another lobby.")
+            }
+
             require(!lobby.gameStarted) { "Spiel bereits gestartet" }
             require(lobby.players.size < 10) { "Lobby ist voll" }
 
@@ -113,9 +125,11 @@ class LobbyService(
     fun leaveLobby(lobbyCode: String, playerId: String): LobbyState? {
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw NoSuchElementException(LOBBY_NOT_FOUND)
+            val leavingPlayer = lobby.players.find { it.id == playerId }
             val updatedPlayers = lobby.players.filter { it.id != playerId }
 
             if (updatedPlayers.isEmpty()) {
+                // deleteLobbyInternal reads lobby.players before removing, so it handles guest cleanup
                 deleteLobbyInternal(lobbyCode, "empty")
                 return@withLock null
             }
@@ -124,6 +138,7 @@ class LobbyService(
             val updatedLobby = lobby.copy(players = updatedPlayers, hostId = newHostId)
             lobbies[lobbyCode] = updatedLobby
             persist(updatedLobby)
+            leavingPlayer?.takeIf { it.isGuest }?.let { cleanupGuestEntity(it.id) }
             updatedLobby
         }
     }
@@ -133,7 +148,8 @@ class LobbyService(
         return messagingService.getLobbyLock(lobbyCode).withLock {
             val lobby = lobbies[lobbyCode] ?: throw IllegalArgumentException(LOBBY_NOT_FOUND)
             require(!lobby.gameStarted) { "Spieler können nicht während eines laufenden Spiels gekickt werden" }
-            
+
+            val kickedPlayer = lobby.players.find { it.id == targetPlayerId }
             val updatedPlayers = lobby.players.filter { it.id != targetPlayerId }
             if (updatedPlayers.size == lobby.players.size) {
                 throw IllegalArgumentException("Spieler nicht in der Lobby gefunden")
@@ -142,6 +158,7 @@ class LobbyService(
             val updatedLobby = lobby.copy(players = updatedPlayers)
             lobbies[lobbyCode] = updatedLobby
             persist(updatedLobby)
+            kickedPlayer?.takeIf { it.isGuest }?.let { cleanupGuestEntity(it.id) }
             updatedLobby
         }
     }
@@ -171,6 +188,10 @@ class LobbyService(
     @Transactional
     fun deleteLobbyInternal(code: String, reason: String) {
         logger.info("Cleaning up {} lobby: {}", reason, code)
+
+        lobbies[code]?.players
+            ?.filter { it.isGuest }
+            ?.forEach { cleanupGuestEntity(it.id) }
 
         try {
             messagingService.sendEventToLobby(code, GameEvent.LobbyLeft())
