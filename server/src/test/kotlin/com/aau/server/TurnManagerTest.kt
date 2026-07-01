@@ -1195,6 +1195,33 @@ class TurnManagerTest {
     }
 
     @Test
+    fun `cheat VOLUME_SEQUENCE_DISCARD skips current player when no replacement can be drawn`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(pathCard("p1-only-card")),
+                p2 to mutableListOf(pathCard("p2-card"))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "VOLSEQ_SKIP_EMPTY_CURRENT",
+            dist,
+            GameState(
+                listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2)),
+                p1,
+                listOf(PlacedTunnelCard(startPos, startCard))
+            )
+        )
+
+        val result = turnManager.cheatPlayer("VOLSEQ_SKIP_EMPTY_CURRENT", p1, CheatType.VOLUME_SEQUENCE_DISCARD)
+
+        assertTrue(result.updatedHands[p1].orEmpty().isEmpty())
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
+    }
+
+    @Test
     fun `accuseCheating catches player after volume discard cheat applies penalty and reward`() {
         val dist = CardDistributionResult(
             hands = mapOf(
@@ -1317,6 +1344,7 @@ class TurnManagerTest {
         assertNull(result.accusation.cheatType)
         assertEquals(0, result.updatedHands[p1]?.size)
         assertEquals(1, result.updatedHands[p2]?.size)
+        assertEquals(p2, result.updatedGameState.currentPlayerId)
     }
 
     @Test
@@ -1614,6 +1642,33 @@ class TurnManagerTest {
         turnManager.discardCard(lobbyCode, p2, "c2")
         val result = turnManager.discardCard(lobbyCode, p3, "c3")
         assertEquals(p1, result.updatedGameState.currentPlayerId)
+    }
+
+    @Test
+    fun `turn skips players with empty hands`() {
+        val dist = CardDistributionResult(
+            hands = mapOf(
+                p1 to mutableListOf(pathCard("p1-only-card")),
+                p2 to mutableListOf(),
+                p3 to mutableListOf(pathCard("p3-card"))
+            ),
+            drawPile = mutableListOf(),
+            goalCards = emptyList(),
+            startCard = startCard
+        )
+        turnManager.initializeGame(
+            "SKIP_EMPTY_HAND",
+            dist,
+            GameState(
+                listOf(PlayerTurn(p1, "Alice", 1), PlayerTurn(p2, "Bob", 2), PlayerTurn(p3, "Charlie", 3)),
+                p1,
+                listOf(PlacedTunnelCard(startPos, startCard))
+            )
+        )
+
+        val result = turnManager.discardCard("SKIP_EMPTY_HAND", p1, "p1-only-card")
+
+        assertEquals(p3, result.updatedGameState.currentPlayerId)
     }
 
     // =====================================================================
